@@ -1,0 +1,3 @@
+# Fim de linha LF no repositório e na cópia de trabalho, mesmo no Windows
+# com core.autocrlf=true; sem isso o `prettier --check` reprova arquivos CRLF.
+* text=auto eol=lf

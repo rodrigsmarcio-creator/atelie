@@ -1,0 +1,23 @@
+{
+  "name": "atelie",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @atelie/web dev",
+    "build": "pnpm -r build",
+    "test": "echo a implementar (ATL-61)",
+    "lint": "eslint . && prettier --check .",
+    "db:migrate": "echo a implementar",
+    "db:seed": "echo a implementar",
+    "memory:rebuild": "echo a implementar",
+    "import:validate": "echo a implementar",
+    "import:run": "echo a implementar"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}
