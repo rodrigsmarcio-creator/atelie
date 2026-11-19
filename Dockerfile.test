@@ -1,0 +1,26 @@
+# Imagem só para rodar os testes do PR (ATL-63). No dia a dia o comando é `pnpm test`.
+# Node 24 fixado por tag e digest (D-033); para atualizar, troque os dois juntos.
+FROM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
+
+# O corepack lê a versão do pnpm no campo "packageManager" do package.json.
+RUN corepack enable
+
+WORKDIR /app
+RUN chown node:node /app
+
+# Sem root: os testes não precisam, e a cobertura sai com `docker cp`.
+USER node
+
+# Só os manifestos primeiro: a camada de instalação fica em cache enquanto as dependências não mudam.
+COPY --chown=node:node package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY --chown=node:node apps/web/package.json apps/web/
+COPY --chown=node:node packages/core/package.json packages/core/
+COPY --chown=node:node packages/db/package.json packages/db/
+
+# Sem os scripts de instalação dos pacotes, como no CI.
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+COPY --chown=node:node . .
+
+# A cobertura já é sempre ligada pelo vitest.config.ts (D-031), por isso não há --coverage aqui.
+CMD ["pnpm", "test"]

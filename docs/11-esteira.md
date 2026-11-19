@@ -68,6 +68,23 @@ Copiado do Zappi e adaptado depois:
 
 Só nos **testes do PR**. No dia a dia, `pnpm dev`. Sem deploy automático na v1.
 
+O job `Testes` constrói o `Dockerfile.test` (Node 24 fixado por tag e digest,
+pnpm pelo `corepack`, usuário `node`) e roda `pnpm test` dentro dele. O
+`coverage/lcov.info` sai do container com `docker cp` e sobe como artefato
+`coverage-lcov` (o Vitest só gera o arquivo se os testes passam; ele sobe mesmo
+quando o job falha só pelo limite de cobertura). Para rodar igual na máquina (com o
+Docker aberto), na raiz do repositório:
+
+```
+docker build -f Dockerfile.test -t atelie-test .
+docker run --name atelie-test atelie-test
+docker cp atelie-test:/app/coverage/lcov.info coverage/lcov.info
+docker rm atelie-test
+```
+
+O dia a dia segue `pnpm test`. Para atualizar a imagem base, troque a tag e o
+digest juntos no `Dockerfile.test`.
+
 ## Registro de mudanças
 
 Mudanças de produto ou arquitetura entram em `docs/06-decisoes.md` no mesmo
