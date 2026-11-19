@@ -49,7 +49,9 @@ Copiado do Zappi e adaptado depois:
 - Roda em PR e em push na `main`.
 - Ações fixadas por SHA; instalação com `--ignore-scripts`;
   `permissions: contents: read`; cancela rodadas antigas do mesmo PR.
-- Jobs: lint, testes (Vitest, em Docker), build.
+- Jobs: lint, testes (Vitest, em Docker), build. Os checks se chamam **`CI`**
+  (lint e build) e **`Testes`** (Docker); a proteção da `main` exige esses
+  nomes (D-032).
 - Cobertura mínima **por pasta** via Vitest: alta em `packages/core`, baixa ou
   nenhuma nas telas.
 - Inclui o teste de contraste das três paletas (`docs/05-atelie.md`).

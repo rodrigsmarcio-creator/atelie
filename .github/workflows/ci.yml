@@ -1,0 +1,44 @@
+# Lint e build do monorepo (ATL-62). Os testes em Docker entram no ATL-63.
+# Roda em cada pull request para a main e em cada push na main.
+# O nome do job ("CI") é o que a proteção da main exige (ATL-64): não renomear sem atualizar a regra.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Num PR, um push novo cancela a rodada anterior; na main, todas terminam.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # A versão do pnpm vem do campo "packageManager" do package.json (não passar "version").
+      # Precisa vir antes do setup-node, que usa o pnpm para o cache.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      # Sem os scripts de instalação dos pacotes: um pacote comprometido não executa código no CI.
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm -r build
