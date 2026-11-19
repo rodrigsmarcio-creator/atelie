@@ -135,4 +135,4 @@ benefícios por nível.
 
 Um usuário. Uso diário no PC (`pnpm dev`) e acesso pelo navegador do celular na
 mesma rede. Sem conta e sem senha na v1. Sem deploy automático na v1. O
-repositório é privado; banco, PDFs, segredos e conteúdo real ficam fora do Git.
+repositório é público (D-034); banco, PDFs, segredos e conteúdo real ficam fora do Git.
