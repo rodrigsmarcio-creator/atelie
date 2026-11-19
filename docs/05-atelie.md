@@ -1,0 +1,173 @@
+# 05 · Telas e identidade visual
+
+Referência de fluxo e visual para `apps/web`. Cobre as cinco abas do MVP, o
+visual novo (três paletas escuras trocáveis) e o que aproveitar do protótipo
+antigo.
+
+## Fontes de referência
+
+- **Visual novo:** página de comparação das três paletas
+  (https://claude.ai/artifact/D7WcPfUGme2wxEX3uEeKXs). É referência de cor e de
+  atmosfera. O protótipo definitivo (HTML, no PC primeiro) é feito no épico de
+  identidade visual, antes do front, e aprovado pelo Márcio.
+- **Protótipo antigo** (`docs/historico/prototipo-antigo/index.html`, HTML único
+  com Tailwind CDN): serve só para o **fluxo** e para a **geometria da Árvore**.
+  O visual dele (tinta escura e bronze) foi descartado. Não editar.
+
+## Identidade visual (D-025)
+
+O app inteiro tem visual novo. **Só modo escuro.** Três paletas trocáveis, por
+tokens semânticos; a escolha fica em `settings.tema` e vale em todos os
+aparelhos. Padrão: **G**.
+
+| Paleta | `settings.tema` | Ideia |
+|---|---|---|
+| **E** | `tokyo` | Tokyo Night com âmbar; cartões pretos |
+| **G** | `borgonha` | Borgonha e ouro; a padrão |
+| **H** | `verde` | Verde escuro (estilo Spotify) com detalhes dourados e cartões pretos |
+
+### Tokens
+
+Nomes definitivos dos tokens (Tailwind, via variáveis CSS trocadas por
+`data-theme` no `<html>`). Os componentes só usam estes nomes.
+
+| Token | Uso | E | G | H |
+|---|---|---|---|---|
+| `bg` | fundo da página | `#140E2B` | `#0D0D0D` | `#0D1B15` |
+| `surface` | cartões | `#060606` | `#17110F` | `#060606` |
+| `surface-2` | cartão elevado, hover | `#15111F` | `#241A17` | `#141414` |
+| `line` | bordas | `#2E2559` | `#3A2C26` | `#27302B` |
+| `text` | texto | `#F3ECFF` | `#EFE5D2` | `#F7F4EA` |
+| `muted` | texto secundário | `#A99BC9` | `#B8AC98` | `#A9B8B0` |
+| `accent` | ação primária | `#FF7EE3` | `#C28D39` | `#1ED760` |
+| `on-accent` | texto sobre `accent` | `#16081A` | `#0D0D0D` | `#06130C` |
+| `hot` | ofensiva (decorativo) | `#EA6113` | `#710912` | `#A37E2C` |
+| `hot-2` | ofensiva (brilho) | `#FBB931` | `#C28D39` | `#E8CF8A` |
+| `xp` | XP e nível | `#FBB931` | `#C28D39` | `#D9B45F` |
+| `halo` | brilho de fundo | `rgba(91,42,134,.6)` | `rgba(113,9,18,.55)` | `rgba(0,112,74,.5)` |
+| `glow` | brilho de destaque | `rgba(248,143,34,.7)` | `rgba(194,141,57,.6)` | `rgba(217,180,95,.6)` |
+
+Iguais nas três: `ok` `#6FD9A0` (sucesso), `bad` `#FF7B6B` (risco, erro).
+
+Tokens de detalhe, que variam por paleta (ornamento próprio de cada uma): na H,
+`hairline` (`rgba(201,163,78,.55)`), `ring` (`#D9B45F`), `eyebrow`
+(`#D9B45F`), logo em gradiente dourado e **coroa** do nível. Para E e G, o
+ornamento equivalente (um símbolo e um filete próprios) é desenhado no
+protótipo (A-009).
+
+Os valores de G e H partem de marcas de referência (borgonha e ouro; verde de
+streaming e dourado de relógio) e foram estimados de memória; o épico de
+identidade visual confirma e fecha os valores.
+
+Regras:
+
+- Cada matéria tem uma cor própria usada só para identificar a matéria: ponto,
+  tag, leque da Árvore. Nunca para estado.
+- **Contraste mínimo 4,5:1 para texto, em cada paleta**, com teste automático
+  no CI (`text` e `muted` sobre `bg`, `surface` e `surface-2`; `on-accent` sobre
+  `accent`). Tokens decorativos (`hot`, `halo`, `glow`) **nunca** são texto: na
+  paleta G, o borgonha e o espresso não passam como texto sobre `bg`.
+- `prefers-reduced-motion` desliga os brilhos (`halo`, `glow`) e animações.
+
+### Tipografia
+
+Fonte **atrelada à paleta** (D-025): G usa Libre Baskerville; E e H usam
+Montserrat (sugestão a confirmar no protótipo). Roboto Flex fica como
+alternativa de texto corrido. A Gotham HTF tem licença comercial e não é usada;
+Montserrat é o substituto livre. Se a serifada da G vale só para títulos ou
+também para o texto, decide o protótipo (A-009).
+
+Cantos e formas, pelo protótipo novo.
+
+### Componentes base
+
+`Card`, `Button` (primary/ghost/quiet), `Chip`, `Eyebrow`, `Bar`, `Tag`,
+`IconBtn`, `StatCard`, `ProgressRing`, `Toast`, mais os de gamificação (anel de
+ofensiva, barra de XP, coroa do nível). Um arquivo cada em
+`apps/web/components/ui`.
+
+## Estrutura de navegação
+
+```
+[rail]      Painel · Planejar · Biblioteca · Praticar · Ficha
+[menu]      itens da aba ativa (some quando a aba tem um item só)
+[tela]      conteúdo
+```
+
+Sidebar dupla: o rail nunca muda; o menu contextual muda com a aba. No celular,
+o rail vira barra inferior e o menu vira gaveta. Configuração (paleta, Google
+Agenda) abre por um botão fixo.
+
+## As telas (MVP)
+
+### Painel
+
+1. **Sessão do dia** (Gregor): os 4 blocos com minutos e motivo, modo
+   **Completa** ou **Curta**, e o botão **Começar** (executa o bloco 1; os
+   outros são fila). Bloco vazio aparece pulado, com o motivo.
+2. Ofensiva (dias seguidos), nível e XP com barra.
+3. Revisões vencidas (itens e cartões) e Ofícios que "precisam revisar".
+4. Mini evolução: domínio geral e por matéria.
+
+Funcionamento mínimo: sem agenda do dia, sem missões, sem captura rápida.
+
+### Planejar
+
+Grade da semana com os eventos do Google Agenda e a ação **"Planejar sessão"**:
+o Márcio escolhe o dia e a hora de início e o app cria **um** evento com os 4
+blocos na descrição. O Gregor não escolhe horário.
+
+### Biblioteca
+
+**Materiais** (lista, ligação a Ofícios) e **Importar** (`.json` pelo validador;
+`.md` guardado até a Jane converter), com as instruções do fluxo. A tela
+**Livros** fica fora do MVP e será criada depois.
+
+### Praticar
+
+**Fila de hoje**: Ofícios com as 5 dimensões como barras; botão **Resolver**
+abre o modal de prova. **Cartões**: virar e quatro notas (Errei, Difícil, Bom,
+Fácil). O modal de prova implementa as regras de C-05, C-06, C-07 e C-10 de
+`docs/02-ciencia.md`: ver a solução invalida, resposta rápida pede raciocínio,
+Explicação exige texto, cronômetro nas provas de fluência. O modal **não**
+decide se a prova foi conquistada: envia o log a `/api/review` e mostra o que a
+API devolver.
+
+### Ficha
+
+Resumo (nível, XP, ofensiva, domínio por matéria) e a **Árvore** em versão
+simples: SVG com leque radial por matéria. Cada Ofício é um nó com: disco
+(estado: Bloqueado, Disponível, Em prática, Liberado, Dominado), cinco
+satélites (um por dimensão), marcador "precisa revisar", rótulo. Arestas
+apagadas/abertas/acesas conforme desbloqueio. Pan, zoom, teclado, painel de
+detalhe com pré-requisitos, provas, materiais e o que desbloqueia. Filtro por
+matéria. Conquistas e Evolução ficam para depois.
+
+Geometria (do protótipo antigo, vale como ponto de partida): `R0 = 180`,
+`STEP = 140` por profundidade, leque de 170° dividido entre matérias por número
+de Ofícios, `lane` desloca lateralmente dentro do setor.
+
+## Fora do MVP nesta camada
+
+Painel da Jane (chat), sessão em etapas com relógio, botão Fases, captura rápida,
+missões, tela Livros, Evolução, Conquistas.
+
+## Decisões de UX que continuam valendo
+
+- Sidebar só com itens da aba; matérias são filtro, não navegação (D-016).
+- 3 cliques até qualquer ação principal, a partir do Painel.
+- PDF, quando entrar, abre em tela inteira (D-014).
+- Árvore é o mapa de pré-requisitos; a linha do tempo é visão separada
+  (Evolução, depois do MVP) (D-015).
+- Escrita entra como 6ª prova para humanas, depois do MVP.
+
+## Como usar estas referências ao construir `apps/web`
+
+1. Para cada tela, abrir o protótipo novo aprovado e o `docs/01-arquitetura.md`
+   lado a lado. Copiar a estrutura de componentes e os tokens, não o
+   JavaScript.
+2. Onde o protótipo simula (Gregor, importação), ligar ao real: rota
+   `/api/session`, `/api/review`, importação.
+3. Os dados de exemplo do protótipo antigo (`DATA` no JS) são um bom seed:
+   três matérias, 20 Ofícios, questões com explicação. Converter para
+   `imports/*.json` no formato de `docs/09-schema-importacao.md`.

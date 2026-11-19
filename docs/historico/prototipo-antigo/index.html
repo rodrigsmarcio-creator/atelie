@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Ateliê</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      screens: { sm: '560px', md: '760px', lg: '1024px', xl: '1280px', '2xl': '1536px' },
+      extend: {
+        colors: {
+          ink: { 950: '#05070c', 900: '#080b12', 800: '#0d1220', 700: '#131a2b', 600: '#1b2438', 500: '#2a3650' },
+          line: '#232d42', text: '#e7eaf1', muted: '#929cb0',
+          bronze: { DEFAULT: '#c8925a', light: '#e3b685', dark: '#8d5f33' },
+          gold: '#e8c15a', gain: '#7ccf9b', risk: '#e57b5d'
+        },
+        fontFamily: { sans: ['ui-sans-serif', 'system-ui', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'] }
+      }
+    }
+  };
+</script>
+<style>
+  /* Ateliê: tinta escura, bronze, uma só paleta (tema único, por escolha). Layout: rail + sidebar contextual + tela + Mestre. */
+  :root { --bg:#080b12; --surface:#0d1220; --line:#232d42; --text:#e7eaf1; --muted:#929cb0; --bronze:#c8925a; --bronze-light:#e3b685; --gold:#e8c15a; --gain:#7ccf9b; --risk:#e57b5d; color-scheme: dark; }
+  html, body { height: 100%; }
+  @media (min-width: 1000px) { html { font-size: 106%; } }
+  body { background: var(--bg); color: var(--text); overscroll-behavior: none; }
+  *:focus-visible { outline: 2px solid #e3b685; outline-offset: 2px; border-radius: 6px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #232d42; border-radius: 8px; border: 2px solid #080b12; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { scrollbar-width: none; }
+
+  @keyframes pulse-ring { from { transform: scale(1); opacity: .6; } to { transform: scale(1.7); opacity: 0; } }
+  @keyframes pop { 0% { transform: scale(.2); opacity: 0; } 55% { transform: scale(1.9); opacity: 1; } 100% { transform: scale(1); } }
+  @keyframes ripple { from { transform: scale(.6); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+  @keyframes flash-edge { 0% { stroke-opacity: .2; } 50% { stroke-opacity: 1; stroke-width: 9; } 100% { stroke-opacity: 1; } }
+  @keyframes toast-in { from { transform: translateY(-10px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes toast-out { to { transform: translateY(-6px); opacity: 0; } }
+  @keyframes particle { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.2); opacity: 0; } }
+  @keyframes rise { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(200,146,90,.35); } 50% { box-shadow: 0 0 0 10px rgba(200,146,90,0); } }
+  @keyframes flicker { 0%, 100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.08) rotate(2deg); } }
+  .rise { animation: rise .35s ease both; } .fade-in { animation: fade .3s ease both; }
+  .breathe { animation: breathe 2.6s ease-in-out infinite; }
+  .flicker { animation: flicker 2.2s ease-in-out infinite; transform-origin: 50% 90%; }
+
+  .toast { display: flex; align-items: center; gap: .6rem; padding: .6rem .9rem; border-radius: .9rem; background: #131a2b; border: 1px solid #2a3650; color: #e7eaf1; font-size: .875rem; box-shadow: 0 10px 30px rgba(0,0,0,.45); animation: toast-in .3s ease both; }
+  .toast.out { animation: toast-out .28s ease both; }
+  .toast-ic { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 999px; background: rgba(200,146,90,.18); color: #e3b685; flex: none; }
+  .toast-ic[data-tone="gain"] { background: rgba(124,207,155,.16); color: #7ccf9b; }
+  .toast-ic[data-tone="risk"] { background: rgba(229,123,93,.16); color: #e57b5d; }
+  .particle { position: absolute; border-radius: 999px; animation: particle .9s ease-out forwards; }
+
+  /* marcadores de fase do plano (F2 a F6); o botão no rail liga e desliga */
+  .fase { display: inline-block; vertical-align: middle; margin-left: .35rem; padding: 0 .3rem; border-radius: 4px; border: 1px solid #2a3650; font: 600 10px/1.5 ui-monospace, Menlo, monospace; color: #929cb0; letter-spacing: .04em; }
+  .fase.f2 { color: #7ccf9b; border-color: #7ccf9b88; } .fase.f3, .fase.f4 { color: #e3b685; border-color: #e3b68588; } .fase.f5, .fase.f6 { color: #e57b5d; border-color: #e57b5d88; }
+  body.sem-fases .fase { display: none; }
+
+  /* árvore (SVG) */
+  .tnode { cursor: pointer; outline: none; }
+  .tnode .focus-ring { opacity: 0; fill: none; stroke: #e3b685; stroke-width: 2.5; stroke-dasharray: 5 5; }
+  .tnode:focus-visible .focus-ring { opacity: 1; }
+  .tnode .disc { stroke-width: 1.5; transition: fill .4s; }
+  .tnode .ico { color: #10141c; }
+  .tnode .ring-track { fill: none; stroke: #1b2438; stroke-width: 4; }
+  .tnode .ring { fill: none; stroke: var(--c); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1); }
+  .tnode .nlabel { fill: #b4bccd; font-size: 12.5px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: #080b12; stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+  .st-locked .disc { fill: #0f1522; stroke: #2a3447; } .st-locked .ico { color: #465269; } .st-locked .nlabel { fill: #5c667c; }
+  .st-disponivel .disc { fill: #8b94a6; stroke: #b4bccd; }
+  .st-visto .disc { fill: #b0b8c6; stroke: #cdd2dc; }
+  .st-praticado .disc { fill: #cdd2dc; stroke: #e3e6ee; }
+  .st-dominado .disc { fill: #eef0f5; stroke: #ffffff; }
+  .st-mestre .disc { fill: #f6e7b8; stroke: #e8c15a; stroke-width: 2.5; } .st-mestre .ring { stroke: #e8c15a; }
+  .risk .disc { fill: #a8aebb; } .risk .glow { opacity: .25; }
+  .pulse { transform-box: fill-box; transform-origin: center; animation: pulse-ring 2.4s ease-out infinite; fill: none; stroke: var(--c); stroke-width: 2.5; }
+  .sat .sdisc { fill: #0d1220; stroke: #34415c; stroke-width: 1.4; transition: fill .3s; } .sat .sico { color: #4b5873; }
+  .sat.on .sdisc { fill: var(--c); stroke: #ffffffaa; } .sat.on .sico { color: #0a0e16; }
+  .sat-line { stroke: #2a3447; stroke-width: 1.6; } .sat-line.on { stroke: var(--c); stroke-width: 2; }
+  .sat-pop, .node-pop { transform-box: fill-box; transform-origin: center; animation: pop .8s cubic-bezier(.2,1.2,.3,1) both; }
+  .ripple { transform-box: fill-box; transform-origin: center; animation: ripple 1s ease-out both; fill: none; stroke: var(--c); stroke-width: 3; }
+  .edge { stroke-linecap: round; transition: stroke .4s; }
+  .edge-locked { stroke: #1c2536; stroke-width: 4; } .edge-open { stroke: #5d677d; stroke-width: 4; } .edge-lit { stroke: #dfe3ec; stroke-width: 5; }
+  .edge.flash { animation: flash-edge 1.2s ease both; }
+  .dim { opacity: .14; } .dim-soft { opacity: .5; }
+  #treeSvg { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; } #treeSvg.grabbing { cursor: grabbing; }
+  .tree-vignette { background: radial-gradient(ellipse at 50% 85%, rgba(200,146,90,.07), transparent 55%), radial-gradient(ellipse at center, transparent 40%, rgba(2,3,6,.75) 100%); }
+
+  /* capas, anéis de progresso, cartões que viram */
+  .cover { position: relative; aspect-ratio: 3 / 4; border-radius: 6px 12px 12px 6px; overflow: hidden; container-type: inline-size; background: linear-gradient(160deg, var(--a), var(--b)); border: 1px solid #232d42; box-shadow: inset 6px 0 0 rgba(0,0,0,.28), inset 7px 0 0 rgba(255,255,255,.06), 0 12px 24px rgba(0,0,0,.45); }
+  .cover::before { content: ""; position: absolute; inset: 14px 14px 14px 22px; border: 1px solid rgba(232,193,90,.45); border-radius: 4px; }
+  .cover::after { content: attr(data-glyph); position: absolute; right: 8%; bottom: -6%; font-family: Georgia, serif; font-size: 6rem; line-height: 1; color: rgba(255,255,255,.07); }
+  .cover .t { position: absolute; left: 12%; right: 8%; top: 20%; font-family: Georgia, serif; font-size: clamp(.8rem, 9.5cqw, 1.3rem); line-height: 1.15; color: #f1dfb8; }
+  .cover .a { position: absolute; left: 12%; right: 34%; bottom: 8%; font-size: clamp(.45rem, 4.2cqw, .65rem); letter-spacing: .14em; text-transform: uppercase; color: rgba(241,223,184,.7); }
+  .pring { position: relative; display: grid; place-items: center; border-radius: 999px; background: conic-gradient(var(--c, #c8925a) calc(var(--p) * 1%), #1b2438 0); flex-shrink: 0; }
+  .pring::after { content: ""; position: absolute; inset: 4px; border-radius: 999px; background: var(--in, #0d1220); }
+  .pring > * { position: relative; z-index: 1; }
+  .flip { perspective: 800px; } .flip > div { transition: transform .5s; transform-style: preserve-3d; position: relative; min-height: 9rem; }
+  .flip.on > div { transform: rotateY(180deg); }
+  .flip .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: grid; place-items: center; padding: 1rem; text-align: center; border-radius: 1rem; }
+  .flip .back { transform: rotateY(180deg); }
+
+  /* modal, opções de questão, campos */
+  .modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 1rem; background: rgba(3,5,9,.72); backdrop-filter: blur(3px); animation: fade .2s ease both; }
+  .modal-panel { width: min(640px, 100%); max-height: calc(100dvh - 2rem); overflow: auto; border-radius: 1.25rem; border: 1px solid #2a3650; background: #0d1220; box-shadow: 0 30px 80px rgba(0,0,0,.6); animation: rise .28s ease both; }
+  .opt { display: flex; width: 100%; align-items: center; gap: .75rem; padding: .7rem .9rem; border-radius: .85rem; border: 1px solid #232d42; background: #131a2b; text-align: left; transition: border-color .15s, background .15s; }
+  .opt:hover { border-color: #3a4a6b; } .opt[aria-checked="true"] { border-color: #c8925a; background: rgba(200,146,90,.12); }
+  .opt .k { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 999px; border: 1px solid #34415c; font-size: .75rem; font-weight: 700; color: #929cb0; flex: none; }
+  .opt[aria-checked="true"] .k { background: #c8925a; color: #080b12; border-color: #c8925a; }
+  .field { width: 100%; border-radius: .85rem; border: 1px solid #232d42; background: #080b12; padding: .65rem .85rem; font-size: .875rem; color: #e7eaf1; }
+  .field::placeholder { color: #667189; } .field:focus { border-color: #c8925a; outline: none; box-shadow: 0 0 0 3px rgba(200,146,90,.18); }
+  .sr-only-x { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* planejamento: grade da semana em linhas de 30 min (7h às 22h) */
+  .cal { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); border: 1px solid #232d42; border-radius: 1rem; overflow: hidden; background: #0d1220; }
+  .cal .h { padding: .5rem .25rem; text-align: center; font-weight: 600; font-size: .8rem; border-bottom: 1px solid #232d42; background: #131a2b; }
+  .cal .h small { display: block; font-weight: 400; color: #929cb0; }
+  .cal .h.hoje { color: #e3b685; }
+  .cal .col { display: grid; grid-template-rows: repeat(30, 13px); border-left: 1px solid #232d42; position: relative; }
+  .cal .col::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, transparent 0 25px, #1b2438 25px 26px); opacity: .7; }
+  .cal .hours { display: grid; grid-template-rows: repeat(30, 13px); }
+  .cal .hours span { grid-row: span 2; font: 10px ui-monospace, Menlo, monospace; color: #929cb0; text-align: right; padding-right: 5px; transform: translateY(-5px); }
+  .bloco { position: relative; margin: 1px 3px; border-radius: 6px; padding: 2px 6px; font-size: 10.5px; line-height: 1.25; overflow: hidden; background: #131a2b; border-left: 3px solid #4b5873; color: #929cb0; }
+  .bloco.est { background: rgba(200,146,90,.16); border-left-color: #c8925a; color: #e7eaf1; }
+  .bloco.livre { background: rgba(124,207,155,.1); border-left-color: #7ccf9b; color: #e7eaf1; border-style: dashed; }
+
+  /* Mestre (Claude): painel à direita */
+  .msg { padding: .6rem .8rem; border-radius: .9rem; max-width: 94%; font-size: .85rem; line-height: 1.45; }
+  .msg.eu { align-self: flex-end; background: rgba(200,146,90,.16); border: 1px solid rgba(200,146,90,.3); }
+  .msg.ia { align-self: flex-start; background: #131a2b; border: 1px solid #232d42; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+    .pulse { display: none; }
+  }
+</style>
+
+<style type="text/tailwindcss">
+  @layer components {
+    .card { @apply rounded-2xl border border-line bg-ink-800/80; }
+    .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 select-none disabled:cursor-not-allowed disabled:opacity-40; }
+    .btn-primary { @apply btn bg-bronze text-ink-900 hover:bg-bronze-light active:scale-[.98]; }
+    .btn-ghost { @apply btn border border-line bg-ink-700/70 text-text hover:border-ink-500 hover:bg-ink-600; }
+    .btn-quiet { @apply btn text-muted hover:bg-ink-700 hover:text-text; }
+    .chip { @apply inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-ink-800/70 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-ink-700 hover:text-text; }
+    .chip[aria-pressed="true"], .chip[aria-checked="true"] { @apply border-bronze/70 bg-bronze/15 text-bronze-light; }
+    .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[.16em] text-bronze; }
+    .bar { @apply h-2 w-full overflow-hidden rounded-full bg-ink-600; }
+    .bar > i { @apply block h-full rounded-full bg-gradient-to-r from-bronze-dark to-bronze-light; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+    .rail-btn { @apply relative flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-medium text-muted transition hover:bg-ink-700 hover:text-text; }
+    .rail-btn.is-active { @apply bg-ink-700 text-bronze-light; }
+    .side-item { @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-ink-700 hover:text-text; }
+    .side-item.is-active { @apply bg-ink-700 text-text; } .side-item.is-active svg { @apply text-bronze-light; }
+    .stat { @apply flex flex-col items-start gap-1 rounded-xl border border-line bg-ink-700/50 p-4 text-left transition hover:border-ink-500 hover:bg-ink-700; }
+    .tag { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold; }
+    .glass { @apply rounded-2xl border border-line bg-ink-800/90 backdrop-blur; }
+    .icon-btn { @apply grid h-10 w-10 place-items-center rounded-xl border border-line bg-ink-800/90 text-text transition hover:bg-ink-600 active:scale-95; }
+    .statcard { @apply rounded-2xl border border-line bg-ink-800/80 px-5 py-4; }
+  }
+</style>
+</head>
+
+<body class="bg-ink-900 font-sans text-text antialiased">
+<svg width="0" height="0" class="absolute" aria-hidden="true" focusable="false"><defs>
+  <symbol id="i-hex" viewBox="0 0 24 24"><path d="M12 2.5 20.5 7.5v9L12 21.5 3.5 16.5v-9z"/><path d="M12 8l4 2.3v4.4L12 17l-4-2.3v-4.4z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 5.5C4.5 4 8 4 12 6c4-2 7.5-2 10-.5V19c-2.5-1.5-6-1.5-10 .5-4-2-7.5-2-10-.5z"/><path d="M12 6v13.5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><circle cx="5.5" cy="18.5" r="2.2"/><circle cx="18.5" cy="18.5" r="2.2"/><circle cx="12" cy="13" r="2"/><path d="M12 7.2V11M10.4 14.3 7 16.6M13.6 14.3 17 16.6"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 13h5l1.5 2.5h5L16 13h5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-calendar-check" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M9.5 15l2 2 3.5-3.5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><rect x="3.5" y="4" width="4" height="16" rx="1"/><rect x="9.5" y="4" width="4" height="16" rx="1"/><path d="m15.5 7 3.6-1 3.2 12.5-3.6 1z"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11V9a3 3 0 0 1 3-3h11M15 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H6M9 21l-3-3 3-3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19z"/><path d="M12 10v5M12 17.5v.5"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5M9.5 2.5h5"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5A3.5 3.5 0 0 1 16.5 11M12 14v4M8.5 21h7M9.5 18h5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="m7.5 15 3.5-4 3 2.5 4.5-6"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21c-3.9 0-6.5-2.7-6.5-6.2 0-2.6 1.6-4.5 3-6C9.9 7.5 11 5.8 11 3c3 1.6 5.2 4.2 5.4 7.2 1-.6 1.6-1.6 1.6-2.7 1.2 2.5 2 4.7 2 7 0 3.9-3.6 6.5-8 6.5z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-crosshair" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.3 3.3 0 0 1 4.7 4.7L9.5 17a1.7 1.7 0 0 1-2.4-2.4L14.5 7"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 14h6M9 17.5h4"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12C4 9 7.5 6 12 6s8 3 9.5 6c-1.5 3-5 6-9.5 6S4 15 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M2.5 12C4 9 7.5 6 12 6s8 3 9.5 6c-1.5 3-5 6-9.5 6S4 15 2.5 12z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3.5c3 0 4 2 5.5 5s2.5 5 5.5 5H21M3 17h3.5c1.5 0 2.5-.7 3.3-1.8M14 8.8c.8-1 1.8-1.8 3.5-1.8H21M18 4l3 3-3 3M18 14l3 3-3 3"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 15a2 2 0 0 1-2 2H9l-5 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-sigma" viewBox="0 0 24 24"><path d="M18 5H6l6.5 7L6 19h12"/></symbol>
+  <symbol id="i-divide" viewBox="0 0 24 24"><path d="M5 12h14"/><circle cx="12" cy="6.5" r="1.5"/><circle cx="12" cy="17.5" r="1.5"/></symbol>
+  <symbol id="i-func" viewBox="0 0 24 24"><path d="M10 4c-2 0-3 1-3 3v10c0 2-1 3-3 3M5 11h5M13 11l6 7M19 11l-6 7"/></symbol>
+  <symbol id="i-line-up" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M7 16l11-9"/></symbol>
+  <symbol id="i-parabola" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M7 5c1.5 14 8.5 14 10 0"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.6 0l3-3a4 4 0 0 0-5.6-5.6l-1 1M14 10a4 4 0 0 0-5.6 0l-3 3a4 4 0 0 0 5.6 5.6l1-1"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 4.5-9 4.5-9-4.5z"/><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 3 10.5l7 3 3 7z"/><path d="M10 13.5 21 3"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M3 8l9-5 9 5v9l-9 5-9-5zM3 8l9 5 9-5M12 13v9"/></symbol>
+  <symbol id="i-landmark" viewBox="0 0 24 24"><path d="M3 9.5 12 4l9 5.5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18M3 18h18"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M4 11V8a3 3 0 0 1 3-3M4 11h4v6H4zM14 11V8a3 3 0 0 1 3-3M14 11h4v6h-4z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3-6 6.5-6s6 2 6.5 6M16 5a3.5 3.5 0 0 1 0 7M18 14c2 .8 3.2 2.8 3.5 6"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v18M12 8h4M12 12h4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21v-7M8 3h8l-1 6 3 3H6l3-3z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h6"/><circle cx="17" cy="12" r="2"/><circle cx="13" cy="17" r="2"/><circle cx="8" cy="7" r="2"/></symbol>
+  <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 3a4 4 0 0 1 4 4v1a4 4 0 0 1 2 7v2a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-2a4 4 0 0 1 2-7V7a4 4 0 0 1 4-4z"/><path d="M9 14h6M12 14v3"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></symbol>
+</defs></svg>
+
+<div id="app" class="flex h-[100dvh] w-full overflow-hidden">
+  <nav id="rail" aria-label="Seções" class="fixed inset-x-0 bottom-0 z-40 flex h-16 items-center justify-around border-t border-line bg-ink-800 px-2 md:static md:h-auto md:w-[5.5rem] md:shrink-0 md:flex-col md:justify-start md:gap-1 md:border-r md:border-t-0 md:px-0 md:py-3"></nav>
+  <div id="scrim" class="fixed inset-0 z-30 hidden bg-black/60 md:hidden" data-act="drawer-close"></div>
+  <aside id="side" aria-label="Menu da seção" class="fixed bottom-16 left-0 top-0 z-30 flex w-72 -translate-x-full flex-col border-r border-line bg-ink-800 transition-transform duration-200 md:static md:bottom-auto md:z-auto md:w-60 md:shrink-0 md:translate-x-0 md:transition-none"></aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header id="topbar" class="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-ink-900/90 px-3 md:px-5"></header>
+    <main id="screen" class="min-h-0 flex-1" tabindex="-1"></main>
+  </div>
+  <aside id="mestre" aria-label="Mestre" class="hidden w-[320px] shrink-0 flex-col border-l border-line bg-ink-800 xl:flex"></aside>
+</div>
+<div id="inboxHost"></div>
+<div id="modalHost"></div>
+<div id="toasts" role="status" aria-live="polite" class="pointer-events-none fixed inset-x-3 top-3 z-[80] flex flex-col items-center gap-2 md:inset-x-auto md:right-4 md:items-end"></div>
+<div id="fx" class="pointer-events-none fixed inset-0 z-[70]" aria-hidden="true"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   DATA: tudo do protótipo mora aqui. No produto, vem do banco (packages/db).
+   Um Ofício = nó da Árvore. `proofs` tem 5 posições (uma por tipo de prova):
+   número = há quantos dias foi conquistada, null = pendente.
+   ===================================================================== */
+const DATA = {
+  today: '2026-11-15',
+  user: { name: 'Márcio', level: 5, xp: 420, xpNext: 700 },
+  xpPerProof: 40,
+  streak: { days: 12, best: 23 },
+  week: { labels: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'], names: ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'], studied: [true, true, true, true, false, true, false], todayIndex: 6 },
+  freeToday: '2h30',
+  missions: [
+    { id: 'prova', text: 'Conquistar 1 prova', done: 0, goal: 1, xp: 30, icon: 'i-target' },
+    { id: 'cartoes', text: 'Revisar 5 cartões', done: 2, goal: 5, xp: 20, icon: 'i-repeat' },
+    { id: 'sessao', text: 'Concluir a sessão do Curador', done: 0, goal: 1, xp: 50, icon: 'i-play' }
+  ],
+  subjects: {
+    calc: { name: 'Cálculo I', color: '#5b8fd9', icon: 'i-sigma', exam: 'prova em 22/11' },
+    red: { name: 'Redes de Computadores', short: 'Redes', color: '#4fb3a9', icon: 'i-globe' },
+    fil: { name: 'Filosofia · A República', short: 'Filosofia', color: '#9a7fd1', icon: 'i-landmark' }
+  },
+  subjectOrder: ['calc', 'red', 'fil'],
+  weights: { calc: 40, red: 35, fil: 25 },
+  proofTypes: [
+    { id: 'sem', name: 'Sem consultar', hint: 'Acertei sem ver a solução', icon: 'i-eye-off' },
+    { id: 'var', name: 'Variante nova', hint: 'Acertei uma questão diferente', icon: 'i-shuffle' },
+    { id: 'dia', name: 'Outro dia', hint: 'Acertei em outro dia', icon: 'i-calendar' },
+    { id: 'cro', name: 'Cronometrado', hint: 'Simulado no tempo', icon: 'i-timer' },
+    { id: 'exp', name: 'Expliquei', hint: 'Expliquei com minhas palavras', icon: 'i-chat' }
+  ],
+  stepInfo: {
+    rev: { name: 'Revisão', color: '#7a5a42', text: 'Releia o que você já sabe, em voz alta.' },
+    teo: { name: 'Teoria', color: '#9a6e46', text: 'Veja um exemplo resolvido e anote o passo a passo.' },
+    exe: { name: 'Exercícios', color: '#c8925a', text: 'Resolva sem consultar. Cada acerto acende uma prova.' },
+    cor: { name: 'Correção', color: '#e3b685', text: 'Compare com a solução e anote o erro.' }
+  },
+  sessionPlans: {
+    15: [{ k: 'rev', min: 5 }, { k: 'exe', min: 8 }, { k: 'cor', min: 2 }],
+    30: [{ k: 'rev', min: 5 }, { k: 'teo', min: 5 }, { k: 'exe', min: 15 }, { k: 'cor', min: 5 }],
+    60: [{ k: 'rev', min: 10 }, { k: 'teo', min: 15 }, { k: 'exe', min: 25 }, { k: 'cor', min: 10 }],
+    livre: [{ k: 'rev', min: null }, { k: 'teo', min: null }, { k: 'exe', min: null }, { k: 'cor', min: null }]
+  },
+  /* d = profundidade no leque, lane = posição lateral (-1 a 1) dentro do setor da matéria */
+  topics: [
+    { id: 'lim', subject: 'calc', name: 'Limites', icon: 'i-divide', req: [], d: 1, lane: 0, proofs: [40, 33, 25] },
+    { id: 'seq', subject: 'calc', name: 'Sequências', icon: 'i-line-up', req: ['lim'], d: 2, lane: 0.6, proofs: [15] },
+    { id: 'cont', subject: 'calc', name: 'Continuidade', icon: 'i-parabola', req: ['lim'], d: 2, lane: -0.45, proofs: [20, 12] },
+    { id: 'der', subject: 'calc', name: 'Derivadas', icon: 'i-func', req: ['cont'], d: 3, lane: -0.45, proofs: [9, 3] },
+    { id: 'cad', subject: 'calc', name: 'Regra da cadeia', icon: 'i-link', req: ['der'], d: 4, lane: -0.55, proofs: [2], risk: true, riskDays: 2 },
+    { id: 'int', subject: 'calc', name: 'Integrais', icon: 'i-sigma', req: ['der'], d: 4, lane: 0.35, proofs: [] },
+    { id: 'oti', subject: 'calc', name: 'Otimização', icon: 'i-target', req: ['cad'], d: 5, lane: -0.8, proofs: [] },
+    { id: 'imp', subject: 'calc', name: 'Derivação implícita', label: 'Deriv. implícita', icon: 'i-shuffle', req: ['cad'], d: 5, lane: -0.1, proofs: [] },
+    { id: 'osi', subject: 'red', name: 'Modelo OSI', icon: 'i-layers', req: [], d: 1, lane: 0, proofs: [30, 22, 14, 5] },
+    { id: 'fis', subject: 'red', name: 'Camada física', icon: 'i-grid', req: ['osi'], d: 2, lane: 0.6, proofs: [25, 11] },
+    { id: 'enl', subject: 'red', name: 'Camada de enlace', icon: 'i-link', req: ['osi'], d: 2, lane: -0.45, proofs: [18, 10] },
+    { id: 'ip', subject: 'red', name: 'IP e roteamento', icon: 'i-globe', req: ['enl'], d: 3, lane: -0.45, proofs: [8], risk: true, riskDays: 1 },
+    { id: 'sub', subject: 'red', name: 'Sub-redes', icon: 'i-box', req: ['ip'], d: 4, lane: 0.3, proofs: [] },
+    { id: 'tcp', subject: 'red', name: 'TCP e UDP', icon: 'i-send', req: ['ip'], d: 4, lane: -0.6, proofs: [] },
+    { id: 'http', subject: 'red', name: 'DNS e HTTP', icon: 'i-globe', req: ['tcp'], d: 5, lane: -0.4, proofs: [] },
+    { id: 'l1', subject: 'fil', name: 'Livro I · O que é justiça', label: 'Livro I', icon: 'i-book', req: [], d: 1, lane: 0, proofs: [35, 28, 20, 10, 4], book: 'rep' },
+    { id: 'l2', subject: 'fil', name: 'Livro II · A cidade nasce', label: 'Livro II', icon: 'i-book', req: ['l1'], d: 2, lane: -0.4, proofs: [12, 6], book: 'rep' },
+    { id: 'just', subject: 'fil', name: 'Justiça na alma', icon: 'i-users', req: ['l1'], d: 2, lane: 0.6, proofs: [] },
+    { id: 'l3', subject: 'fil', name: 'Livro III · Educação', label: 'Livro III', icon: 'i-book', req: ['l2'], d: 3, lane: -0.4, proofs: [], book: 'rep' },
+    { id: 'cav', subject: 'fil', name: 'Alegoria da caverna', icon: 'i-quote', req: ['l3'], d: 4, lane: 0, proofs: [], book: 'rep' }
+  ],
+  desc: {
+    lim: 'Noção intuitiva, limites laterais e no infinito. Base de tudo que vem depois.', cont: 'Continuidade num ponto e teorema do valor intermediário.',
+    der: 'Definição pela reta tangente, regras básicas, produto e quociente.', cad: 'Derivada de função composta: derive a de fora, multiplique pela de dentro.',
+    int: 'Antiderivada, integral definida e teorema fundamental.', oti: 'Máximos e mínimos em problemas com restrição.', imp: 'Derivar quando y não está isolado.', seq: 'Sequências numéricas e convergência.',
+    osi: 'As 7 camadas e o que cada uma entrega para a de cima.', enl: 'Quadros, MAC, detecção de erros e acesso ao meio.', ip: 'Endereçamento IPv4, tabela de rotas e encaminhamento.',
+    fis: 'Bits no meio: sinais, meios e codificação.', sub: 'Máscaras, CIDR e divisão de redes.', tcp: 'Confiabilidade, portas e controle de fluxo versus simplicidade.', http: 'Resolução de nomes e o protocolo da web.',
+    l1: 'Céfalo, Polemarco e Trasímaco: as primeiras definições de justiça e por que Sócrates as derruba.', l2: 'O anel de Giges e a cidade como espelho ampliado da alma.',
+    just: 'A tripartição da alma e a justiça como harmonia entre as partes.', l3: 'A censura dos poetas e a educação dos guardiões.', cav: 'Prisioneiros, sombras, a saída e o retorno. A teoria das formas em imagem.'
+  },
+  questions: {
+    lim: [{ q: 'Quanto vale lim (x→2) (x² − 4)/(x − 2)?', opts: ['0', '2', '4', 'Não existe'], ok: 2, sol: 'Fatore: (x−2)(x+2)/(x−2) = x+2. Em x = 2, dá 4.' }],
+    cont: [{ q: 'f(x) = 1/x é contínua em:', opts: ['Todo ℝ', 'ℝ exceto 0', 'Só em x > 0', 'Nenhum ponto'], ok: 1, sol: 'Em x = 0 a função não está definida. Fora dele, é contínua.' }],
+    der: [{ q: 'A derivada de x³ é:', opts: ['x²', '3x²', '3x', 'x³/3'], ok: 1, sol: 'Regra da potência: n·xⁿ⁻¹ = 3x².' }],
+    cad: [
+      { q: 'Calcule a derivada de f(x) = (3x² + 1)⁵.', opts: ['5(3x² + 1)⁴', '30x(3x² + 1)⁴', '15x(3x² + 1)⁴', '6x(3x² + 1)⁵'], ok: 1, sol: 'Fora: 5(3x²+1)⁴. Dentro: 6x. Produto: 30x(3x²+1)⁴.' },
+      { q: 'A derivada de sen(2x) é:', opts: ['cos(2x)', '2cos(2x)', '−2cos(2x)', '2sen(2x)'], ok: 1, sol: 'cos(2x) vezes a derivada de 2x, que é 2.' }
+    ],
+    int: [{ q: '∫ 2x dx é:', opts: ['x² + C', '2x² + C', 'x + C', '2 + C'], ok: 0, sol: 'A antiderivada de 2x é x².' }],
+    seq: [{ q: 'A sequência 1/n converge para:', opts: ['1', '0', '∞', 'Não converge'], ok: 1, sol: 'Quanto maior n, mais perto de 0.' }],
+    osi: [{ q: 'Qual camada do OSI cuida do roteamento?', opts: ['Enlace', 'Rede', 'Transporte', 'Sessão'], ok: 1, sol: 'A camada de rede (3) escolhe caminhos entre redes.' }],
+    enl: [{ q: 'O que a camada de enlace faz que a física não faz?', opts: ['Transmite bits', 'Entrega quadros entre vizinhos com endereço MAC', 'Escolhe rotas', 'Criptografa'], ok: 1, sol: 'Enlace: quadros, MAC, erros e acesso ao meio. Física só transmite bits.' }],
+    ip: [{ q: 'Um roteador decide o próximo salto usando:', opts: ['O endereço MAC de destino', 'A tabela de rotas e o IP de destino', 'A porta TCP', 'O nome DNS'], ok: 1, sol: 'Roteamento é decisão por prefixo IP na tabela de rotas.' }],
+    fis: [{ q: 'Qual meio é imune a interferência eletromagnética?', opts: ['Par trançado', 'Coaxial', 'Fibra óptica', 'Wi-Fi'], ok: 2, sol: 'Fibra transmite luz, não sinal elétrico.' }],
+    sub: [{ q: 'Quantos hosts úteis tem um /26?', opts: ['62', '64', '126', '30'], ok: 0, sol: '2⁶ = 64 endereços, menos rede e broadcast: 62.' }],
+    tcp: [{ q: 'Qual protocolo garante entrega ordenada?', opts: ['UDP', 'TCP', 'IP', 'ARP'], ok: 1, sol: 'TCP numera segmentos e confirma recebimento.' }],
+    l1: [{ q: 'Para Trasímaco, justiça é:', opts: ['Dar a cada um o que é devido', 'A conveniência do mais forte', 'Fazer bem aos amigos', 'A harmonia da alma'], ok: 1, sol: 'Trasímaco define justiça como o interesse do mais forte; Sócrates ataca isso.' }],
+    l2: [{ q: 'O anel de Giges serve para perguntar:', opts: ['Se a cidade precisa de rei', 'Se alguém seria justo sem ser visto', 'Se os deuses existem', 'Se a poesia educa'], ok: 1, sol: 'Glauco usa o anel da invisibilidade para testar se a justiça vale por si.' }],
+    just: [{ q: 'As três partes da alma em Platão são:', opts: ['Corpo, mente e espírito', 'Razão, ânimo e apetite', 'Memória, vontade e razão', 'Prazer, dor e dever'], ok: 1, sol: 'Razão governa, o ânimo apoia, o apetite obedece: isso é justiça na alma.' }]
+  },
+  books: [
+    { id: 'rep', title: 'A República', author: 'Platão', cover: ['#3b2a5a', '#120a24'], glyph: 'R', pages: 480, status: 'lendo', subject: 'fil', where: 'Livro II' },
+    { id: 'stw', title: 'Cálculo · Vol. 1', author: 'James Stewart', cover: ['#1d3a66', '#0a1428'], glyph: '∫', pages: 640, status: 'lendo', subject: 'calc', where: 'cap. 3.4' },
+    { id: 'tan', title: 'Redes de Computadores', author: 'Tanenbaum', cover: ['#1f5a54', '#08191a'], glyph: 'T', pages: 720, status: 'lendo', subject: 'red', where: 'cap. 5' },
+    { id: 'kr', title: 'Redes de Computadores e a Internet', author: 'Kurose & Ross', cover: ['#5a2f2a', '#1a0d0b'], glyph: 'K', pages: 600, status: 'novo', subject: 'red', where: '' }
+  ],
+  /* materiais ligados a um Ofício */
+  materials: [
+    { id: 'm1', topic: 'cad', kind: 'pdf', title: 'Stewart · cap. 3.4', meta: 'p. 198–210', progress: 55, book: 'stw' },
+    { id: 'm2', topic: 'cad', kind: 'video', title: 'Chain rule · 3Blue1Brown', meta: '18 min', progress: 100 },
+    { id: 'm3', topic: 'cad', kind: 'nota', title: 'Resumo gerado pelo Mestre', meta: '12/11', progress: 100 },
+    { id: 'm4', topic: 'der', kind: 'pdf', title: 'Stewart · cap. 3.1 a 3.3', meta: 'p. 140–197', progress: 100, book: 'stw' },
+    { id: 'm5', topic: 'ip', kind: 'pdf', title: 'Tanenbaum · cap. 5.6', meta: 'p. 420–460', progress: 30, book: 'tan' },
+    { id: 'm6', topic: 'ip', kind: 'link', title: 'RFC 791 · Internet Protocol', meta: 'ietf.org', progress: 0 },
+    { id: 'm7', topic: 'l2', kind: 'pdf', title: 'A República · Livro II', meta: 'p. 54–90', progress: 70, book: 'rep' },
+    { id: 'm8', topic: 'l2', kind: 'nota', title: 'Mapa: cidade e alma', meta: 'minha anotação', progress: 100 },
+    { id: 'm9', topic: 'osi', kind: 'video', title: 'OSI em 10 minutos', meta: '10 min', progress: 100 }
+  ],
+  cards: [
+    { topic: 'ip', q: 'O que um roteador consulta para escolher o próximo salto?', a: 'A tabela de rotas, pelo prefixo mais longo que casa com o IP de destino.' },
+    { topic: 'ip', q: 'Qual a diferença entre roteador e switch de camada 3?', a: 'Função parecida; o switch L3 roteia em hardware dentro da LAN, o roteador liga redes distintas e WAN.' },
+    { topic: 'cad', q: 'Regra da cadeia em uma frase', a: 'Derive a função de fora mantendo a de dentro, depois multiplique pela derivada da de dentro.' },
+    { topic: 'enl', q: 'O que é um quadro?', a: 'A unidade da camada de enlace: cabeçalho com MAC, dados e verificação de erro.' },
+    { topic: 'l1', q: 'Quem defende que justiça é a conveniência do mais forte?', a: 'Trasímaco, no Livro I.' },
+    { topic: 'der', q: 'Derivada de um produto f·g', a: "f'·g + f·g'" },
+    { topic: 'osi', q: 'Camada 4 do OSI', a: 'Transporte (TCP, UDP).' },
+    { topic: 'lim', q: 'Limite lateral', a: 'O valor para o qual f se aproxima vindo só de um lado (esquerda ou direita).' }
+  ],
+  inbox: [
+    { id: 1, text: 'Dúvida: por que a derivada de constante é zero?', cat: null, when: 'hoje' },
+    { id: 2, text: 'Ideia: usar o cap. 3 do Stewart como base da sessão de sábado', cat: 'Ideias', when: 'ontem' },
+    { id: 3, text: 'Revisar OSI antes da prova de 22/11', cat: 'Lembretes', when: '13/11' },
+    { id: 4, text: 'Diferença real entre roteador e switch de camada 3?', cat: 'Dúvidas', when: '12/11' },
+    { id: 5, text: 'Platão usa a cidade como espelho da alma. Vale um mapa mental.', cat: 'Ideias', when: '11/11' }
+  ],
+  /* planejamento: dia (0 = seg), início, fim, classe, texto */
+  calendar: [
+    [0, 8, 17, '', 'Trabalho'], [1, 8, 17, '', 'Trabalho'], [2, 8, 17, '', 'Trabalho'], [3, 8, 17, '', 'Trabalho'], [4, 8, 17, '', 'Trabalho'],
+    [0, 19, 22, '', 'Faculdade'], [2, 19, 22, '', 'Faculdade'],
+    [1, 19, 20.5, 'est', 'Cálculo · Regra da cadeia'], [3, 19, 20, 'est', 'Redes · revisões'], [4, 19, 20, 'livre', 'Livre sugerido · 1h'],
+    [5, 9, 11, 'est', 'Filosofia · Livro II'], [5, 11, 11.5, 'est', 'Revisões'],
+    [6, 9, 10, 'est', 'Cálculo · Regra da cadeia'], [6, 10.5, 11, 'est', 'Redes · revisões'], [6, 15, 15.75, 'est', 'Leitura · Livro II']
+  ],
+  weekMinutes: [45, 80, 30, 70, 0, 95, 40],
+  nav: [
+    { id: 'hoje', label: 'Hoje', icon: 'i-sun', default: 'painel', blurb: 'Seu dia, já montado pelo Curador.', items: [
+      { id: 'painel', label: 'Painel', icon: 'i-layout' }, { id: 'inbox', label: 'Captura rápida', icon: 'i-inbox', action: 'inbox', fase: 3 }, { id: 'revisao-semanal', label: 'Revisão semanal', icon: 'i-calendar-check', fase: 4 }] },
+    { id: 'planejamento', label: 'Planejar', icon: 'i-calendar', default: 'semana', blurb: 'Rotina, prioridades e tempo livre.', items: [
+      { id: 'semana', label: 'Semana', icon: 'i-calendar' }, { id: 'prioridades', label: 'Prioridades', icon: 'i-sliders', fase: 5 }, { id: 'metas', label: 'Metas', icon: 'i-flag', fase: 4 }] },
+    { id: 'biblioteca', label: 'Biblioteca', icon: 'i-library', default: 'materiais', blurb: 'Tudo que você estuda, ligado aos Ofícios.', items: [
+      { id: 'materiais', label: 'Materiais', icon: 'i-folder' }, { id: 'livros', label: 'Livros', icon: 'i-book' }, { id: 'importar', label: 'Importar', icon: 'i-upload', fase: 3 }] },
+    { id: 'pratica', label: 'Praticar', icon: 'i-target', default: 'fila', blurb: 'Treine e prove que aprendeu.', items: [
+      { id: 'fila', label: 'Fila de hoje', icon: 'i-target' }, { id: 'cartoes', label: 'Cartões de revisão', icon: 'i-repeat' }, { id: 'erros', label: 'Caderno de erros', icon: 'i-alert', fase: 4 }, { id: 'simulados', label: 'Simulados', icon: 'i-timer', fase: 4 }] },
+    { id: 'arvore', label: 'Árvore', icon: 'i-tree', default: 'arvore', blurb: 'Seu progresso, Ofício a Ofício.', items: [
+      { id: 'arvore', label: 'Árvore de Ofícios', icon: 'i-tree' }, { id: 'conquistas', label: 'Conquistas', icon: 'i-trophy', fase: 4 }, { id: 'evolucao', label: 'Evolução', icon: 'i-chart', fase: 4 }] }
+  ],
+  empty: {
+    'revisao-semanal': { icon: 'i-calendar-check', title: 'Revisão semanal', text: 'Aos domingos: o que foi feito, o que ficou para trás e o que o Curador redistribuiu.', cta: 'Voltar ao painel', to: 'painel', fase: 4 },
+    prioridades: { icon: 'i-sliders', title: 'Pesos por matéria', text: 'Você define a prioridade; o Curador monta a semana. Hoje: Cálculo 40%, Redes 35%, Filosofia 25%.', cta: 'Ver a semana', to: 'semana', fase: 5 },
+    metas: { icon: 'i-flag', title: 'Metas', text: 'Horas por semana, Ofícios a dominar até uma data, livros a terminar.', cta: 'Ver a semana', to: 'semana', fase: 4 },
+    importar: { icon: 'i-upload', title: 'Importar material', text: 'Solte um PDF, link ou vídeo. Ele fica ligado a um Ofício; na fase 6, o Mestre extrai questões dele.', cta: 'Ver materiais', to: 'materiais', fase: 3 },
+    erros: { icon: 'i-alert', title: 'Caderno de erros', text: 'Cada erro em prova vira uma nota com o motivo. Refazer erros alimenta o domínio.', cta: 'Ir para a fila', to: 'fila', fase: 4 },
+    simulados: { icon: 'i-timer', title: 'Simulados', text: 'Prova no tempo, misturando Ofícios. Acende a prova "Cronometrado".', cta: 'Ir para a fila', to: 'fila', fase: 4 },
+    conquistas: { icon: 'i-trophy', title: 'Conquistas', text: 'Marcos de constância, provas e leitura. Representam progresso real, não substituem domínio.', cta: 'Ver a Árvore', to: 'arvore', fase: 4 },
+    evolucao: { icon: 'i-chart', title: 'Evolução', text: 'Domínio por matéria ao longo dos meses, minutos por semana e marcos.', cta: 'Ver a Árvore', to: 'arvore', fase: 4 }
+  }
+};
+/* ===================================================================== Utilidades ===================================================================== */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isMobile = () => innerWidth < 760;
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const icon = (id, cls = 'h-5 w-5') => `<svg class="${cls}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#${id}"/></svg>`;
+const svgUse = (id, x, y, size, sw = 1.8) => `<use href="#${id}" x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const fase = n => (n ? `<span class="fase f${n}">F${n}</span>` : '');
+function dateFromAgo(days) { const d = new Date(DATA.today + 'T12:00:00'); d.setDate(d.getDate() - days); return d; }
+const fmtDate = days => { const d = dateFromAgo(days); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+const fmtAgo = days => (days === 0 ? 'hoje' : days === 1 ? 'ontem' : `há ${days} dias`);
+const pct = v => Math.round(v * 100);
+const signed = n => (n > 0 ? `+${n}` : `${n}`);
+const subName = s => DATA.subjects[s].short || DATA.subjects[s].name;
+const subDot = s => `<span class="inline-block h-2.5 w-2.5 rounded-full" style="background:${DATA.subjects[s].color}"></span>`;
+
+/* ===================================================================== Modelo: provas, estados e domínio (no produto: packages/core, o Curador) ===================================================================== */
+const STATUS_LABEL = { locked: 'Bloqueado', disponivel: 'Disponível', visto: 'Visto', praticado: 'Praticado', dominado: 'Dominado', mestre: 'Mestre' };
+const topicOf = id => DATA.topics.find(t => t.id === id);
+const topicsOf = subject => DATA.topics.filter(t => t.subject === subject);
+const proofCount = (t, minAgo = 0) => t.proofs.filter(p => p !== null && p >= minAgo).length;
+const isAtRisk = t => !!t.risk && proofCount(t) >= 1;
+const riskTopics = () => DATA.topics.filter(isAtRisk);
+const isUnlocked = (t, minAgo = 0) => t.req.every(id => proofCount(topicOf(id), minAgo) >= 2);
+function statusOf(t, minAgo = 0) {
+  if (!isUnlocked(t, minAgo)) return 'locked';
+  const c = proofCount(t, minAgo);
+  return c >= 5 ? 'mestre' : c >= 3 ? 'dominado' : c === 2 ? 'praticado' : c === 1 ? 'visto' : 'disponivel';
+}
+function masteryOf(subject, minAgo = 0) {
+  const list = topicsOf(subject); if (!list.length) return 0;
+  return list.reduce((s, t) => s + Math.min(proofCount(t, minAgo), 3), 0) / (list.length * 3);
+}
+const overallMastery = (minAgo = 0) => DATA.topics.reduce((s, t) => s + Math.min(proofCount(t, minAgo), 3), 0) / (DATA.topics.length * 3);
+const totalProofs = () => DATA.topics.reduce((s, t) => s + proofCount(t), 0);
+const missingToMaster = t => Math.max(0, 3 - proofCount(t));
+const weekCount = () => DATA.week.studied.filter(Boolean).length;
+const studiedToday = () => DATA.week.studied[DATA.week.todayIndex];
+const dueCards = () => DATA.cards.filter(c => !state.cardsDone[c.q]);
+
+/* O Curador v0: regras simples. Prioridade: risco > prova próxima > menos provas no Ofício liberado. */
+function currentTopic() {
+  const f = topicOf(state.focus);
+  if (f && isUnlocked(f) && proofCount(f) < 3) return f;
+  const list = DATA.topics.filter(t => isUnlocked(t) && proofCount(t) < 3);
+  list.sort((a, b) => (isAtRisk(b) - isAtRisk(a)) || ((DATA.subjects[b.subject].exam ? 1 : 0) - (DATA.subjects[a.subject].exam ? 1 : 0)) || proofCount(b) - proofCount(a));
+  return list[0] || null;
+}
+function curadorPlan() {
+  const out = [], cur = currentTopic(), risk = riskTopics().find(t => !cur || t.id !== cur.id), cards = dueCards().length;
+  if (cur) out.push({ t: cur, kind: 'Prática', min: 30, why: `${isAtRisk(cur) ? 'revisão vencida' : proofCount(cur) + ' de 5 provas'}${DATA.subjects[cur.subject].exam ? ' e ' + DATA.subjects[cur.subject].exam : ''}`, act: 'session-start', id: cur.id });
+  if (risk) out.push({ t: risk, kind: 'Revisão', min: 15, why: `${cards} cartões vencidos${risk.riskDays ? ' há ' + risk.riskDays + (risk.riskDays === 1 ? ' dia' : ' dias') : ''}`, act: 'nav', id: 'cartoes' });
+  const read = topicOf('l2');
+  if (read && (!cur || cur.id !== 'l2')) out.push({ t: read, kind: 'Leitura', min: 40, why: 'pré-requisito de "Livro III" e "Alegoria da caverna"', act: 'nav', id: 'materiais', topic: 'l2' });
+  return out.slice(0, 3);
+}
+function markStudiedToday() {
+  if (studiedToday()) return null;
+  DATA.week.studied[DATA.week.todayIndex] = true;
+  DATA.streak.days += 1; DATA.streak.best = Math.max(DATA.streak.best, DATA.streak.days);
+  return DATA.streak.days;
+}
+function addXp(n) {
+  const u = DATA.user; let leveled = false; u.xp += n;
+  while (u.xp >= u.xpNext) { u.xp -= u.xpNext; u.level += 1; u.xpNext = Math.round(u.xpNext * 1.12); leveled = true; }
+  return leveled;
+}
+function bumpMission(id) { const m = DATA.missions.find(x => x.id === id); if (!m || m.done >= m.goal) return null; m.done += 1; return m.done >= m.goal ? m : null; }
+function grantProof(t, slot) {
+  const unlockedBefore = DATA.topics.filter(x => isUnlocked(x)).map(x => x.id), from = proofCount(t);
+  if (slot >= 0) t.proofs[slot] = 0;
+  const riskCleared = !!t.risk; t.risk = false;
+  const to = proofCount(t);
+  const ev = { topicId: t.id, slot, from, to, xp: slot >= 0 ? DATA.xpPerProof : 20, dominated: from < 3 && to >= 3, mastered: from < 5 && to >= 5, riskCleared, leveled: false, missions: [], unlocked: DATA.topics.filter(x => isUnlocked(x) && !unlockedBefore.includes(x.id)).map(x => x.id) };
+  ev.leveled = addXp(ev.xp); ev.streak = markStudiedToday();
+  const mission = slot >= 0 ? bumpMission('prova') : null;
+  if (mission) { ev.missions.push(mission); ev.leveled = addXp(mission.xp) || ev.leveled; }
+  if (ev.dominated && state.focus === t.id) state.focus = null;
+  return ev;
+}
+
+/* ===================================================================== Estado da interface (só em memória) ===================================================================== */
+const state = {
+  macro: 'hoje', screen: 'painel', time: 30, drawer: false, focus: 'cad', fases: true, mestreOpen: true,
+  tree: { subject: 'all', risk: false, selected: 'cad', view: null, legend: false },
+  miniMode: 'now', libTopic: 'cad', reading: null, cardsDone: {}, cardIdx: 0, cardFlip: false, cardOk: 0, cardBad: 0,
+  inbox: structuredClone(DATA.inbox), inboxOpen: false, inboxBusy: false, inboxDraft: '',
+  qCursor: {}, prova: null, session: null, modal: null, chat: []
+};
+const ACTIONS = {};
+const allItems = () => DATA.nav.flatMap(m => m.items);
+const macroOf = screen => DATA.nav.find(m => m.items.some(i => i.id === screen));
+const itemOf = screen => allItems().find(i => i.id === screen);
+
+/* ===================================================================== Avisos, partículas, modais ===================================================================== */
+function toast(text, { icon: ic = 'i-star', tone = 'bronze', ms = 3400 } = {}) {
+  const el = document.createElement('div'); el.className = 'toast';
+  el.innerHTML = `<span class="toast-ic" data-tone="${tone}">${icon(ic, 'h-4 w-4')}</span><span>${esc(text)}</span>`;
+  const host = $('#toasts'); host.appendChild(el);
+  while (host.children.length > 4) host.firstChild.remove();
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, ms);
+}
+function burst(x, y, color = '#e3b685', n = 24) {
+  if (reduceMotion()) return;
+  const host = $('#fx');
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i'), a = Math.random() * Math.PI * 2, dist = 40 + Math.random() * 80, size = 3 + Math.random() * 5;
+    p.className = 'particle'; p.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px;background:${color};--dx:${Math.cos(a) * dist}px;--dy:${Math.sin(a) * dist}px`;
+    host.appendChild(p); setTimeout(() => p.remove(), 1000);
+  }
+}
+function burstAt(el, color, n) { if (!el) return; const r = el.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, color, n); }
+function openModal(inner, { wide = false, label = 'Diálogo', onClose = null } = {}) {
+  const last = state.modal ? state.modal.last : document.activeElement;
+  state.modal = { onClose, last };
+  $('#modalHost').innerHTML = `<div class="modal-backdrop" data-act="modal-backdrop"><div class="modal-panel ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(label)}" id="modalPanel">${inner}</div></div>`;
+  focusInModal();
+}
+function setModal(inner) { const p = $('#modalPanel'); if (p) p.innerHTML = inner; }
+function closeModal() {
+  const m = state.modal; if (!m) return;
+  $('#modalHost').innerHTML = ''; state.modal = null;
+  if (m.onClose) m.onClose();
+  if (m.last && m.last.focus && document.contains(m.last)) m.last.focus({ preventScroll: true });
+}
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select, [tabindex]:not([tabindex="-1"])';
+function focusInModal(selector) {
+  const panel = $('#modalPanel'); if (!panel) return;
+  const el = (selector && $(selector, panel)) || $('[data-autofocus]', panel) || $(FOCUSABLE, panel);
+  if (el) el.focus({ preventScroll: true });
+}
+function trapTab(e, root) {
+  const items = $$(FOCUSABLE, root).filter(el => el.offsetParent !== null); if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+/* ===================================================================== Navegação: rail, sidebar contextual, topo, Mestre ===================================================================== */
+function go(screen) {
+  const item = itemOf(screen); if (!item) return;
+  if (item.action === 'inbox') { openInbox(); return; }
+  state.macro = macroOf(screen).id; state.screen = screen; state.drawer = false;
+  renderAll(); $('#screen').scrollTop = 0;
+}
+function renderRail() {
+  const btn = m => `<button class="rail-btn ${m.id === state.macro ? 'is-active' : ''}" data-act="macro" data-id="${m.id}" title="${m.label}" aria-label="${m.label}" ${m.id === state.macro ? 'aria-current="true"' : ''}>${icon(m.icon, 'h-6 w-6')}<span>${m.label}</span>${m.id === 'pratica' && dueCards().length ? '<span class="absolute right-2.5 top-2 h-2 w-2 rounded-full bg-risk"></span>' : ''}</button>`;
+  $('#rail').innerHTML = `<div class="mb-2 hidden h-10 w-10 items-center justify-center text-bronze md:flex" aria-hidden="true">${icon('i-hex', 'h-8 w-8')}</div>${DATA.nav.map(btn).join('')}
+    <div class="hidden flex-1 md:block"></div>
+    <button class="rail-btn hidden md:flex ${state.fases ? '' : 'opacity-60'}" data-act="toggle-fases" title="Mostrar ou ocultar marcadores de fase (F2 a F6)" aria-pressed="${state.fases}">${icon('i-sliders', 'h-5 w-5')}<span>Fases</span></button>
+    <button class="rail-btn hidden md:flex ${state.mestreOpen ? 'is-active' : ''}" data-act="toggle-mestre" title="Mestre (Claude)" aria-pressed="${state.mestreOpen}">${icon('i-brain', 'h-5 w-5')}<span>Mestre</span></button>`;
+}
+function levelCard() {
+  const u = DATA.user;
+  return `<div class="m-3 rounded-xl border border-line bg-ink-700/50 p-3">
+    <div class="flex items-center justify-between text-xs"><span class="font-semibold text-bronze-light">Nível ${u.level}</span><span class="text-muted">${u.xp}/${u.xpNext} XP</span></div>
+    <div class="bar mt-2"><i style="width:${pct(u.xp / u.xpNext)}%"></i></div>
+    <p class="mt-2 flex items-center gap-1.5 text-xs text-muted">${icon('i-flame', `h-4 w-4 ${studiedToday() ? 'text-bronze' : 'text-muted'}`)} <b class="text-text">${DATA.streak.days}</b> dias seguidos</p></div>`;
+}
+function sideExtra() {
+  if (state.macro === 'hoje' || state.macro === 'arvore') return `<div class="px-3 pt-2"><p class="eyebrow px-3 pb-1">Matérias</p><ul class="space-y-1">${DATA.subjectOrder.map(s => `<li><button class="side-item" data-act="folder-tree" data-id="${s}">${subDot(s)}<span class="flex-1 truncate text-left">${subName(s)}</span><span class="text-xs">${pct(masteryOf(s))}%</span></button></li>`).join('')}</ul></div>`;
+  if (state.macro === 'biblioteca') return `<div class="px-3 pt-2"><p class="eyebrow px-3 pb-1">Ofícios com material</p><ul class="space-y-0.5">${[...new Set(DATA.materials.map(m => m.topic))].map(id => { const t = topicOf(id); return `<li><button class="side-item !py-2 ${state.libTopic === id ? 'is-active' : ''}" data-act="lib-topic" data-id="${id}">${subDot(t.subject)}<span class="flex-1 truncate text-left">${esc(t.label || t.name)}</span><span class="text-xs">${DATA.materials.filter(m => m.topic === id).length}</span></button></li>`; }).join('')}</ul></div>`;
+  if (state.macro === 'planejamento') return `<div class="px-3 pt-2"><p class="eyebrow px-3 pb-1">Pesos ${fase(5)}</p><ul class="space-y-2 px-3">${DATA.subjectOrder.map(s => `<li><div class="flex justify-between text-xs"><span class="flex items-center gap-2">${subDot(s)}${subName(s)}</span><b>${DATA.weights[s]}%</b></div><div class="bar mt-1 !h-1.5"><i style="width:${DATA.weights[s]}%;background:${DATA.subjects[s].color}"></i></div></li>`).join('')}</ul></div>`;
+  return '';
+}
+function renderSide() {
+  const m = DATA.nav.find(x => x.id === state.macro), risk = riskTopics().length, unsorted = state.inbox.filter(x => !x.cat).length;
+  const item = i => {
+    const badge = i.id === 'inbox' && unsorted ? `<span class="rounded-full bg-bronze px-2 py-0.5 text-[11px] font-bold text-ink-900">${unsorted}</span>` : i.id === 'arvore' && risk ? `<span class="rounded-full bg-risk/15 px-2 py-0.5 text-[11px] font-semibold text-risk">${risk} em risco</span>` : i.id === 'cartoes' && dueCards().length ? `<span class="rounded-full bg-risk/15 px-2 py-0.5 text-[11px] font-semibold text-risk">${dueCards().length}</span>` : '';
+    return `<li><button class="side-item ${i.id === state.screen ? 'is-active' : ''}" data-act="nav" data-id="${i.id}" ${i.id === state.screen ? 'aria-current="page"' : ''}>${icon(i.icon)}<span class="flex-1 text-left">${i.label}${fase(i.fase)}</span>${badge}</button></li>`;
+  };
+  $('#side').innerHTML = `<div class="px-5 pb-3 pt-5"><p class="eyebrow">${m.label}</p><p class="mt-1 text-sm text-muted">${m.blurb}</p></div>
+    <ul class="space-y-1 px-3 py-1">${m.items.map(item).join('')}</ul><div class="flex-1 overflow-auto">${sideExtra()}</div>${levelCard()}`;
+}
+function renderTopbar() {
+  const m = macroOf(state.screen), it = itemOf(state.screen), u = DATA.user;
+  $('#topbar').innerHTML = `<div class="flex min-w-0 items-center gap-2">
+      <button class="icon-btn md:hidden" data-act="drawer-open" aria-label="Abrir menu">${icon('i-menu')}</button>
+      <span class="hidden text-sm text-muted sm:inline">${m.label}</span><span class="hidden text-muted sm:inline" aria-hidden="true">/</span>
+      <h1 class="truncate text-sm font-semibold md:text-base">${it.label}</h1></div>
+    <div class="flex items-center gap-3">
+      <span class="hidden items-center gap-1 text-xs text-muted lg:flex">${icon('i-clock', 'h-4 w-4')}${DATA.freeToday} livres hoje</span>
+      <span class="flex items-center gap-1 text-sm font-bold ${studiedToday() ? 'text-bronze-light' : 'text-muted'}" title="${DATA.streak.days} dias seguidos">${icon('i-flame', 'h-5 w-5')}${DATA.streak.days}</span>
+      <div class="flex items-center gap-2 rounded-full border border-line bg-ink-800 py-1 pl-1 pr-3" title="Nível ${u.level}"><span class="grid h-6 min-w-6 place-items-center rounded-full bg-bronze px-1 text-xs font-bold text-ink-900">${u.level}</span><div class="w-16 md:w-28"><div class="bar !h-1.5"><i style="width:${pct(u.xp / u.xpNext)}%"></i></div></div></div>
+      <button class="icon-btn xl:hidden" data-act="mestre-sheet" aria-label="Abrir o Mestre">${icon('i-brain')}</button></div>`;
+}
+function applyDrawer() { $('#side').classList.toggle('-translate-x-full', !state.drawer); $('#scrim').classList.toggle('hidden', !state.drawer); }
+
+/* Mestre (Claude dentro do Ateliê): contexto = tela + Ofício em foco. Protótipo: respostas simuladas. */
+const MESTRE_ACTIONS = { painel: ['Replanejar hoje', 'Montar matéria nova', 'Explicar a sugestão'], semana: ['Replanejar a semana', 'Bloquear horário'], materiais: ['Resumir o capítulo', 'Gerar 5 questões', 'Criar flashcards'], livros: ['Resumir o capítulo', 'Perguntar sobre um trecho'], fila: ['Pedir uma pista', 'Explicar meu erro', 'Gerar questões parecidas'], cartoes: ['Criar cartões deste Ofício'], arvore: ['Por que está bloqueado?', 'Decompor em Ofícios menores'] };
+function mestreMarkup() {
+  const cur = currentTopic(), it = itemOf(state.screen);
+  const acts = MESTRE_ACTIONS[state.screen] || ['Explicar', 'Gerar questões'];
+  const chat = state.chat.length ? state.chat : [
+    { who: 'ia', text: `Bom dia, Márcio. Você tem ${DATA.freeToday} livres e a prova de Cálculo é em 7 dias. ${cur ? `<b>${esc(cur.name)}</b> está com ${proofCount(cur)} de 5 provas${isAtRisk(cur) ? ' e revisão vencida' : ''}. Sugiro começar por ele.` : ''}` },
+    { who: 'eu', text: 'Antes das questões, me explica de novo a ideia central em 3 linhas.' },
+    { who: 'ia', text: 'Função composta é uma função dentro de outra. Derive a de fora tratando a de dentro como um bloco, depois multiplique pela derivada da de dentro. É multiplicar taxas de variação encadeadas. Tente a questão e me conte o raciocínio.' }
+  ];
+  return `<header class="border-b border-line p-4"><div class="flex items-center justify-between"><p class="flex items-center gap-2 font-semibold">${icon('i-brain', 'h-5 w-5 text-bronze-light')}Mestre${fase(6)}</p><span class="tag bg-bronze/15 text-bronze-light">Claude</span></div>
+      <p class="mt-1 text-xs text-muted">Contexto: ${it.label}${cur ? ` · ${esc(cur.name)}` : ''}</p></header>
+    <div class="flex flex-1 flex-col gap-2 overflow-auto p-4" id="chatLog">${chat.map(m => `<div class="msg ${m.who}">${m.text}</div>`).join('')}</div>
+    <div class="flex flex-wrap gap-1.5 px-4 pb-2">${acts.map(a => `<button class="chip" data-act="mestre-quick" data-q="${esc(a)}">${esc(a)}</button>`).join('')}</div>
+    <form class="border-t border-line p-3" data-act="mestre-form" id="mestreForm"><input id="mestreInput" class="field" placeholder="Pergunte sobre o que está estudando…" aria-label="Mensagem ao Mestre" autocomplete="off"></form>`;
+}
+function renderMestre() { const el = $('#mestre'); el.classList.toggle('xl:flex', state.mestreOpen); el.innerHTML = mestreMarkup(); const log = $('#chatLog'); if (log) log.scrollTop = log.scrollHeight; }
+function mestreSay(q) {
+  const cur = currentTopic();
+  state.chat = [...(state.chat.length ? state.chat : []), { who: 'eu', text: esc(q) }];
+  renderMestre();
+  setTimeout(() => {
+    const reply = /replanej/i.test(q) ? `Movi a leitura do Livro II para 15h e deixei 1h de Cálculo às 9h. Mantive 20 min de cartões de Redes. Confirma?` : /quest/i.test(q) ? `Gerei 5 questões sobre ${cur ? esc(cur.name) : 'o Ofício em foco'} no formato do Ateliê. Elas entram na fila de hoje. Quer que a primeira seja cronometrada?` : /pista|erro/i.test(q) ? `Pista: a função de fora é (·)⁵. Derive ela como se o parêntese fosse um bloco e só depois olhe para o que tem dentro.` : /resum|capít/i.test(q) ? `Resumo do cap. 3.4 em 4 pontos: 1) composta = função dentro de função; 2) derive a de fora; 3) multiplique pela de dentro; 4) teste com (3x²+1)⁵. Salvei como nota ligada ao Ofício.` : /bloquead/i.test(q) ? `Otimização abre quando Regra da cadeia tiver 2 provas. Falta 1. Uma sessão de 15 min resolve.` : `Entendi. No produto, esta resposta vem do Claude com o contexto do Ofício, dos materiais e do seu histórico. Aqui é uma simulação.`;
+    state.chat = [...state.chat, { who: 'ia', text: reply }]; renderMestre();
+  }, 700);
+}
+function openMestreSheet() {
+  openModal(`<div class="flex h-[80dvh] flex-col">${mestreMarkup()}</div>`, { label: 'Mestre' });
+}
+
+/* ===================================================================== Telas vazias (fases futuras) e render geral ===================================================================== */
+function renderEmpty(root, id) {
+  const e = DATA.empty[id];
+  root.className = 'min-h-0 flex-1 overflow-auto pb-16 md:pb-0';
+  root.innerHTML = `<div class="mx-auto flex min-h-full max-w-md flex-col items-center justify-center px-6 py-12 text-center rise">
+      <div class="relative grid h-44 w-44 place-items-center"><span class="absolute inset-0 rounded-full border border-dashed border-ink-500"></span><span class="absolute inset-5 rounded-full border border-line"></span><span class="absolute inset-10 rounded-full bg-ink-700"></span>
+        <span class="relative grid h-16 w-16 place-items-center rounded-full border border-bronze/50 bg-ink-800 text-bronze-light breathe">${icon(e.icon, 'h-8 w-8')}</span></div>
+      <h2 class="mt-6 text-xl font-semibold">${e.title}${fase(e.fase)}</h2><p class="mt-2 text-muted">${e.text}</p>
+      <button class="btn-primary mt-6" data-act="nav" data-id="${e.to}">${e.cta}${icon('i-arrow-right', 'h-4 w-4')}</button>
+      <p class="mt-6 text-xs text-muted">Entra na fase ${e.fase} do plano.</p></div>`;
+}
+const SCREENS = {};
+function renderScreen() { const root = $('#screen'); (SCREENS[state.screen] || (r => renderEmpty(r, state.screen)))(root, state.screen); }
+function renderAll() { renderRail(); renderSide(); renderTopbar(); renderScreen(); renderMestre(); applyDrawer(); document.body.classList.toggle('sem-fases', !state.fases); }
+
+Object.assign(ACTIONS, {
+  macro(el) { const m = DATA.nav.find(x => x.id === el.dataset.id); if (isMobile()) { state.macro = m.id; state.drawer = true; renderRail(); renderSide(); applyDrawer(); } else go(m.default); },
+  nav(el) { go(el.dataset.id); },
+  'drawer-open'() { state.drawer = true; applyDrawer(); },
+  'drawer-close'() { state.drawer = false; applyDrawer(); },
+  'modal-close'() { closeModal(); },
+  'modal-backdrop'(el, e) { if (e.target === el) closeModal(); },
+  'toggle-fases'() { state.fases = !state.fases; renderAll(); },
+  'toggle-mestre'() { state.mestreOpen = !state.mestreOpen; renderRail(); renderMestre(); },
+  'mestre-sheet'() { openMestreSheet(); },
+  'mestre-quick'(el) { mestreSay(el.dataset.q); },
+  'folder-tree'(el) { Object.assign(state.tree, { subject: el.dataset.id, risk: false, view: null, selected: null }); go('arvore'); }
+});
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true' || el.tagName === 'FORM') return;
+  const fn = ACTIONS[el.dataset.act]; if (fn) fn(el, e);
+});
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'mestreForm') return;
+  e.preventDefault(); const q = $('#mestreInput', e.target).value.trim(); if (q) mestreSay(q);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Tab') { const panel = $('#modalPanel') || (state.inboxOpen && $('#inboxPanel')); if (panel) trapTab(e, panel); return; }
+  if (e.key !== 'Escape') return;
+  if (state.modal) closeModal();
+  else if (state.inboxOpen) closeInbox();
+  else if (state.drawer) { state.drawer = false; applyDrawer(); }
+  else if (state.screen === 'arvore' && state.tree.selected) selectTopic(null);
+});
+/* ===================================================================== Tela Hoje ===================================================================== */
+function gamifyStrip() {
+  const u = DATA.user, w = DATA.week, s = DATA.streak, done = studiedToday();
+  const days = w.labels.map((l, i) => { const on = w.studied[i], today = i === w.todayIndex;
+    return `<div class="flex flex-col items-center gap-1" title="${w.names[i]}${on ? ': estudou' : today ? ': hoje' : ''}"><span class="grid h-7 w-7 place-items-center rounded-full border text-[11px] font-bold ${on ? 'border-bronze bg-bronze text-ink-900' : today ? 'border-bronze text-bronze-light breathe' : 'border-line text-muted'}">${on ? icon('i-check', 'h-4 w-4') : ''}</span><span class="text-[10px] ${today ? 'text-bronze-light' : 'text-muted'}">${l}</span></div>`; }).join('');
+  const missions = DATA.missions.map(m => { const ok = m.done >= m.goal;
+    return `<li class="flex items-center gap-3"><span class="grid h-7 w-7 shrink-0 place-items-center rounded-full ${ok ? 'bg-gain/20 text-gain' : 'bg-ink-600 text-muted'}">${icon(ok ? 'i-check' : m.icon, 'h-4 w-4')}</span>
+      <div class="min-w-0 flex-1"><div class="flex justify-between gap-2 text-sm"><span class="truncate ${ok ? 'text-muted line-through' : ''}">${m.text}</span><span class="shrink-0 text-xs text-muted">${m.done}/${m.goal}</span></div><div class="bar mt-1 !h-1.5"><i style="width:${pct(m.done / m.goal)}%"></i></div></div>
+      <span class="shrink-0 text-xs font-semibold text-bronze-light">+${m.xp}</span></li>`; }).join('');
+  const flame = icon('i-flame', 'h-14 w-14').replace('fill="none"', 'fill="currentColor" fill-opacity=".3"');
+  return `<section class="card flex flex-wrap items-center gap-x-10 gap-y-6 p-4 md:p-5" aria-label="Seu progresso de hoje">
+    <div class="flex items-center gap-4"><div class="grid h-20 w-20 shrink-0 place-items-center rounded-full ${done ? 'bg-gradient-to-b from-bronze/30 to-transparent text-bronze' : 'bg-ink-700 text-muted'}"><span class="${done ? 'flicker' : ''}">${flame}</span></div>
+      <div><p class="text-5xl font-extrabold leading-none ${done ? 'text-bronze-light' : 'text-text'}">${s.days}</p><p class="mt-1 text-sm font-semibold">dias seguidos${fase(2)}</p><p class="text-xs text-muted">${done ? 'Hoje já conta.' : `Estude hoje para chegar a ${s.days + 1}.`} Recorde: ${s.best}</p></div></div>
+    <div class="flex items-center gap-4"><div class="pring h-[72px] w-[72px]" style="--p:${pct(u.xp / u.xpNext)};--in:#0d1220"><span class="text-center leading-none"><span class="block text-[10px] font-semibold text-muted">NÍVEL</span><span class="text-2xl font-bold text-bronze-light">${u.level}</span></span></div>
+      <div><p class="eyebrow">Experiência${fase(4)}</p><p class="mt-1 text-lg font-semibold">${u.xp} <span class="text-sm font-normal text-muted">/ ${u.xpNext} XP</span></p><p class="text-xs text-muted">Faltam ${u.xpNext - u.xp} XP</p></div></div>
+    <div><p class="text-sm font-semibold">${weekCount()} de 7 dias nesta semana</p><div class="mt-2 flex gap-2">${days}</div></div>
+    <div class="min-w-[260px] flex-1"><p class="eyebrow mb-2">Missões do dia${fase(4)}</p><ul class="space-y-2.5">${missions}</ul></div></section>`;
+}
+function sessionBar(plan) {
+  return `<div class="flex gap-1.5">${plan.map(s => `<div class="h-3 rounded-full" style="flex:${s.min || 1} 1 0;background:${DATA.stepInfo[s.k].color}"></div>`).join('')}</div>
+    <div class="mt-2 flex gap-1.5">${plan.map(s => `<div class="min-w-[3.4rem]" style="flex:${s.min || 1} 1 0"><p class="truncate text-xs font-medium">${DATA.stepInfo[s.k].name}</p><p class="text-xs text-muted">${s.min ? s.min + ' min' : 'sem relógio'}</p></div>`).join('')}</div>`;
+}
+function curadorCard() {
+  const plan = curadorPlan(), cur = currentTopic(), chips = [15, 30, 60, 'livre'].map(v => `<button class="chip" role="radio" aria-checked="${state.time === v}" data-act="time" data-val="${v}">${v === 'livre' ? 'Livre' : v + ' min'}</button>`).join('');
+  const rows = plan.map((p, i) => { const sub = DATA.subjects[p.t.subject];
+    return `<div class="flex items-center gap-3 rounded-xl border p-3 ${i === 0 ? 'border-bronze/60 bg-bronze/10' : 'border-line bg-ink-700/40'}"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-base font-bold ${i === 0 ? 'bg-bronze text-ink-900' : 'bg-ink-600 text-bronze-light'}">${i + 1}</span>
+      <div class="min-w-0 flex-1"><p class="truncate font-semibold">${esc(p.t.name)} <span class="tag" style="background:${sub.color}22;color:${sub.color}">${subName(p.t.subject)}</span></p><p class="truncate text-xs text-muted">${p.kind} · ${p.min} min · ${p.why}</p></div>
+      <button class="${i === 0 ? 'btn-primary' : 'btn-ghost'} !px-3 !py-2 !text-xs" data-act="${p.act}" data-id="${p.id}" ${p.topic ? `data-topic="${p.topic}"` : ''}>${i === 0 ? icon('i-play', 'h-4 w-4') + 'Começar' : 'Abrir'}</button></div>`; }).join('');
+  if (!cur) return `<section class="card p-6"><p class="eyebrow">1 · Agora</p><h2 class="mt-2 text-2xl font-semibold">Tudo dominado por enquanto</h2><p class="mt-2 text-muted">Desbloqueie novos Ofícios na Árvore.</p></section>`;
+  return `<section class="card relative overflow-hidden p-5 md:p-7" aria-labelledby="sessTitle">
+    <div class="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-20 blur-3xl" style="background:${DATA.subjects[cur.subject].color}"></div>
+    <p class="eyebrow">1 · Agora</p><h2 id="sessTitle" class="mt-2 text-2xl font-semibold md:text-3xl">O Curador sugere${fase(2)}</h2>
+    <p class="mt-1 text-sm text-muted">Ordem por revisão vencida, prova próxima e pré-requisitos. ${plan.reduce((s, p) => s + p.min, 0)} min no total.</p>
+    <div class="mt-4 space-y-2">${rows}</div>
+    <div class="mt-5"><p class="eyebrow mb-2">2 · Seu tempo</p><div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Quanto tempo você tem">${chips}</div><div class="mt-3">${sessionBar(DATA.sessionPlans[state.time])}</div></div>
+    <div class="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center"><button class="btn-primary w-full !px-8 !py-4 text-lg sm:w-auto breathe" data-act="session-start">${icon('i-play', 'h-5 w-5')}Começar a sessão</button><p class="text-sm text-muted">Você só precisa clicar. O resto está montado.</p></div></section>`;
+}
+function overdueCard() {
+  const risk = riskTopics(), cards = dueCards().length;
+  return `<section class="card flex flex-col p-5" aria-labelledby="lateTitle"><p class="eyebrow">3 · Atrasado</p><h2 id="lateTitle" class="mt-2 text-lg font-semibold">O que pede atenção</h2>
+    <div class="mt-4 grid flex-1 grid-cols-2 gap-3">
+      <button class="stat" data-act="nav" data-id="cartoes"><span class="text-3xl font-bold ${cards ? 'text-bronze-light' : 'text-gain'}">${cards}</span><span class="text-sm text-muted">Cartões vencidos</span></button>
+      <button class="stat" data-act="risk-view"><span class="flex items-center gap-1.5 text-3xl font-bold ${risk.length ? 'text-risk' : 'text-gain'}">${risk.length}${risk.length ? icon('i-clock', 'h-5 w-5') : ''}</span><span class="text-sm text-muted">Ofícios em risco</span></button></div>
+    <p class="mt-3 text-xs text-muted">${risk.length ? 'Em risco: ' + risk.map(t => esc(t.name)).join(', ') + '.' : 'Tudo em dia.'}</p>
+    <div class="mt-4 border-t border-line pt-3"><p class="eyebrow mb-2">Agenda de hoje</p><ul class="space-y-1.5 text-sm">${DATA.calendar.filter(b => b[0] === 6).map(b => `<li class="flex gap-3"><span class="w-12 shrink-0 font-mono text-xs text-muted">${String(Math.floor(b[1])).padStart(2, '0')}:${b[1] % 1 ? '30' : '00'}</span><span class="${b[3] === 'est' ? 'text-text' : 'text-muted'}">${esc(b[4])}</span></li>`).join('')}</ul></div></section>`;
+}
+function miniTree(minAgo, subject) {
+  const sectors = sectorsFor([subject]), pos = treeLayout([subject]), cur = minAgo ? null : currentTopic(), list = topicsOf(subject);
+  const maxR = TREE.R0 + (Math.max(...list.map(t => t.d)) - 1) * TREE.STEP + 90;
+  const edges = list.flatMap(t => (t.req.length ? t.req : [null]).map(r => { const a = r ? pos[r] : { x: 0, y: 0 }, b = pos[t.id]; return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${isUnlocked(t, minAgo) ? '#6b7589' : '#1c2536'}" stroke-width="7" stroke-linecap="round"/>`; })).join('');
+  const nodes = list.map(t => { const st = statusOf(t, minAgo), p = pos[t.id], c = DATA.subjects[t.subject].color, fill = { locked: '#121826', disponivel: '#8b94a6', visto: '#b0b8c6', praticado: '#cdd2dc', dominado: '#f1f3f8', mestre: '#f6e7b8' }[st];
+    return `<circle cx="${p.x}" cy="${p.y}" r="${st === 'locked' ? 22 : 28}" fill="${fill}" stroke="${st === 'locked' ? '#2a3447' : st === 'mestre' ? '#e8c15a' : c}" stroke-width="${st === 'locked' ? 4 : 8}"/>`; }).join('');
+  const next = cur && pos[cur.id] ? `<circle class="pulse" style="--c:#e3b685;stroke-width:8" cx="${pos[cur.id].x}" cy="${pos[cur.id].y}" r="44"/><circle cx="${pos[cur.id].x}" cy="${pos[cur.id].y}" r="40" fill="none" stroke="#e3b685" stroke-width="7"/>` : '';
+  const col = DATA.subjects[subject].color, [a0, a1] = sectors[subject];
+  return `<svg viewBox="${-maxR} ${-maxR - 40} ${maxR * 2} ${maxR + 160}" class="w-full" role="img" aria-label="Prévia da árvore de ${subName(subject)}"><path d="${wedgePath(maxR, a0, a1)}" fill="${col}" opacity=".07"/>${edges}${nodes}${next}
+    <path d="${arcPath(66, 96, a0, a1)}" fill="${col}" opacity="${0.35 + 0.65 * masteryOf(subject, minAgo)}"/><circle r="60" fill="#0c111c" stroke="#c8925a" stroke-width="6"/></svg>`;
+}
+function evolutionCard() {
+  const now = pct(overallMastery()), then = pct(overallMastery(30)), cur = currentTopic(), mode = state.miniMode;
+  const rows = DATA.subjectOrder.map(s => { const n = pct(masteryOf(s)), b = pct(masteryOf(s, 30)), c = DATA.subjects[s].color;
+    return `<li><div class="flex items-center justify-between text-sm"><span class="flex items-center gap-2">${subDot(s)}${subName(s)}</span><span class="flex items-center gap-2"><span class="font-semibold">${n}%</span><span class="tag bg-gain/15 text-gain">${signed(n - b)}%</span></span></div>
+      <div class="relative mt-1.5 h-2 rounded-full bg-ink-600"><i class="absolute inset-y-0 left-0 rounded-full" style="width:${n}%;background:${c}"></i><i class="absolute -top-0.5 h-3 w-0.5 bg-white/70" style="left:${b}%" title="Há 30 dias: ${b}%"></i></div></li>`; }).join('');
+  return `<section class="card overflow-hidden p-5 md:p-6"><p class="eyebrow">4 · Você está evoluindo${fase(4)}</p>
+    <div class="mt-2 grid gap-6 lg:grid-cols-[1fr_1.1fr]"><div>
+        <div class="flex flex-wrap items-end gap-x-4 gap-y-1"><span class="text-6xl font-bold leading-none text-bronze-light">${now}%</span><span class="tag mb-1 bg-gain/15 !text-sm text-gain">${signed(now - then)}% no mês</span></div>
+        <p class="mt-2 text-muted">de domínio geral. Há 30 dias: <b class="text-text">${then}%</b>. Domínio vem de provas, não de pontos.</p>
+        <ul class="mt-5 space-y-3.5">${rows}</ul><p class="mt-3 text-xs text-muted">A marca branca mostra onde você estava há 30 dias.</p></div>
+      <div class="rounded-2xl border border-line bg-ink-900/60 p-3 md:p-4"><div class="flex items-center justify-between gap-2"><div class="flex gap-1.5" role="radiogroup" aria-label="Época da árvore"><button class="chip" role="radio" aria-checked="${mode === 'now'}" data-act="mini-mode" data-val="now">Agora</button><button class="chip" role="radio" aria-checked="${mode === 'then'}" data-act="mini-mode" data-val="then">Há 30 dias</button></div>
+          <button class="btn-quiet !px-3 !py-1.5 text-xs" data-act="nav" data-id="arvore">Abrir Árvore${icon('i-arrow-right', 'h-4 w-4')}</button></div>
+        <div class="mt-2">${miniTree(mode === 'then' ? 30 : 0, cur ? cur.subject : 'calc')}</div>
+        <p class="mt-2 text-sm text-muted">${cur ? `${subName(cur.subject)}. Próximo Ofício: <b class="text-bronze-light">${esc(cur.name)}</b>. Faltam ${missingToMaster(cur)} ${missingToMaster(cur) === 1 ? 'prova' : 'provas'}.` : 'Nenhum Ofício pendente.'}</p></div></div></section>`;
+}
+function nextStepCard() {
+  const t = currentTopic(), risk = riskTopics()[0], slot = t ? t.proofs.indexOf(null) : -1, lines = [];
+  if (t && slot >= 0) lines.push(`Depois da sessão: faça a prova "${DATA.proofTypes[slot].name}" de ${t.name}.`);
+  if (risk) lines.push(`Amanhã: revise ${risk.name}, que está em risco.`);
+  if (t) lines.push(`Meta da semana: dominar ${t.name}. Faltam ${missingToMaster(t)} ${missingToMaster(t) === 1 ? 'prova' : 'provas'}.`);
+  const unsorted = state.inbox.filter(i => !i.cat).length;
+  return `<div class="grid gap-4 lg:grid-cols-[1.4fr_1fr]"><section class="card p-5 md:p-6"><p class="eyebrow">5 · Depois</p><h2 class="mt-2 text-lg font-semibold">Próximo passo</h2>
+    <ol class="mt-3 space-y-2.5">${lines.map((l, i) => `<li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink-600 text-xs font-bold text-bronze-light">${i + 1}</span><span>${l}</span></li>`).join('')}</ol></section>
+    <section class="card p-5 md:p-6"><p class="eyebrow">Captura rápida${fase(3)}</p><h2 class="mt-2 text-lg font-semibold">Anote agora, organize depois</h2>
+      <input id="captura" class="field mt-3" placeholder="Uma ideia, uma dúvida, um lembrete…" aria-label="Captura rápida">
+      <div class="mt-3 flex items-center justify-between text-xs text-muted"><span>${unsorted ? unsorted + ' sem categoria' : 'Tudo organizado'}</span><button class="btn-quiet !px-3 !py-1.5 !text-xs" data-act="inbox">Abrir inbox${icon('i-arrow-right', 'h-4 w-4')}</button></div></section></div>`;
+}
+function renderHoje(root) {
+  root.className = 'min-h-0 flex-1 overflow-auto pb-16 md:pb-0';
+  root.innerHTML = `<div class="mx-auto max-w-6xl space-y-4 p-3 md:p-6">${gamifyStrip()}<div class="grid gap-4 lg:grid-cols-[1.7fr_1fr]">${curadorCard()}${overdueCard()}</div>${evolutionCard()}${nextStepCard()}</div>`;
+}
+SCREENS.painel = renderHoje;
+Object.assign(ACTIONS, {
+  time(el) { state.time = el.dataset.val === 'livre' ? 'livre' : Number(el.dataset.val); renderScreen(); const b = $(`[data-act="time"][data-val="${el.dataset.val}"]`); if (b) b.focus({ preventScroll: true }); },
+  'risk-view'() { Object.assign(state.tree, { subject: 'all', risk: true, view: null, selected: null }); go('arvore'); },
+  'mini-mode'(el) { state.miniMode = el.dataset.val; renderScreen(); const b = $(`[data-act="mini-mode"][data-val="${el.dataset.val}"]`); if (b) b.focus({ preventScroll: true }); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.id !== 'captura') return;
+  const text = e.target.value.trim(); if (!text) return;
+  state.inbox.unshift({ id: Date.now(), text, cat: null, when: 'agora' }); e.target.value = '';
+  toast('Anotado. Ligado a ' + (currentTopic() ? subName(currentTopic().subject) : 'hoje') + '.', { icon: 'i-inbox', tone: 'gain' }); renderSide();
+});
+
+/* ===================================================================== Planejamento: semana ===================================================================== */
+function renderSemana(root) {
+  const dias = [['seg', '10'], ['ter', '11'], ['qua', '12'], ['qui', '13'], ['sex', '14'], ['sáb', '15'], ['dom', '16']];
+  const r = h => Math.round((h - 7) * 2) + 1;
+  const cols = dias.map((_, d) => `<div class="col">${DATA.calendar.filter(b => b[0] === d).map(b => `<div class="bloco ${b[3]}" style="grid-row:${r(b[1])} / ${r(b[2])};grid-column:1">${esc(b[4])}</div>`).join('')}</div>`).join('');
+  const hours = `<div class="hours">${[...Array(15)].map((_, k) => `<span>${k + 7}h</span>`).join('')}</div>`;
+  const total = DATA.weekMinutes.reduce((a, b) => a + b, 0), maxM = Math.max(...DATA.weekMinutes);
+  root.className = 'min-h-0 flex-1 overflow-auto pb-16 md:pb-0';
+  root.innerHTML = `<div class="mx-auto max-w-6xl space-y-4 p-3 md:p-6">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">${[['Planejado', '9h', 'nesta semana'], ['Feito', (total / 60).toFixed(1).replace('.', 'h') + 'min', `${weekCount()} dias ativos`], ['Blocos de estudo', DATA.calendar.filter(b => b[3] === 'est').length, 'distribuídos pelo Curador'], ['Prova mais próxima', '22/11', 'Cálculo I']].map(([l, v, s]) => `<div class="statcard"><p class="eyebrow">${l}</p><p class="mt-1 text-3xl font-bold text-bronze-light">${v}</p><p class="text-xs text-muted">${s}</p></div>`).join('')}</div>
+    <section class="card p-4 md:p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div class="flex items-center gap-2"><button class="btn-ghost !px-2.5 !py-1.5">${icon('i-arrow-left', 'h-4 w-4')}</button><b>10 a 16 de novembro</b><button class="btn-ghost !px-2.5 !py-1.5">${icon('i-arrow-right', 'h-4 w-4')}</button></div>
+        <div class="flex flex-wrap gap-2 text-xs"><span class="chip">■ compromisso</span><span class="chip" style="color:#e3b685">■ estudo</span><span class="chip" style="color:#7ccf9b">■ livre sugerido</span><button class="btn-primary !px-3 !py-1.5 !text-xs" data-act="replan">${icon('i-sparkles', 'h-4 w-4')}Replanejar${fase(5)}</button></div></div>
+      <div class="mt-4 overflow-x-auto"><div class="cal min-w-[720px]"><div class="h"></div>${dias.map((d, i) => `<div class="h ${i === 6 ? 'hoje' : ''}">${d[0]}<small>${d[1]}</small></div>`).join('')}${hours}${cols}</div></div></section>
+    <div class="grid gap-4 lg:grid-cols-2"><section class="card p-5"><p class="eyebrow">Como o Curador distribuiu${fase(5)}</p><p class="mt-2 text-sm text-muted">9h planejadas: 40% Cálculo (prova em 22/11), 35% Redes (revisões acumuladas), 25% Filosofia. Blocos de no máximo 1h30, sempre depois de um compromisso fixo. Nenhum bloco antes das 7h. Sexta ficou vazia, então 1h foi para sábado e domingo.</p>
+        <div class="mt-3 flex gap-2"><button class="btn-ghost !text-xs" data-act="nav" data-id="prioridades">Ajustar pesos</button><button class="btn-ghost !text-xs">Bloquear horário</button></div></section>
+      <section class="card p-5"><p class="eyebrow">Minutos por dia</p><div class="mt-3 flex h-32 items-end gap-2">${DATA.weekMinutes.map((v, i) => `<div class="flex flex-1 flex-col items-center justify-end gap-1"><span class="text-[11px] font-semibold text-muted">${v}</span><div class="w-full rounded-t-lg ${i === 6 ? 'bg-bronze' : 'bg-gradient-to-t from-bronze-dark to-bronze-light'}" style="height:${v / maxM * 100}%"></div><span class="text-[11px] text-muted">${dias[i][0]}</span></div>`).join('')}</div></section></div></div>`;
+}
+SCREENS.semana = renderSemana;
+ACTIONS.replan = () => toast('Semana replanejada pelo Curador (simulado).', { icon: 'i-calendar-check', tone: 'gain' });
+/* ===================================================================== Biblioteca: materiais ligados a Ofícios, livros e leitura com o Mestre ===================================================================== */
+const KIND = { pdf: ['PDF', 'i-file'], video: ['Vídeo', 'i-video'], link: ['Link', 'i-link'], nota: ['Nota', 'i-note'] };
+function materialCard(m) {
+  const [label, ic] = KIND[m.kind], done = m.progress >= 100;
+  return `<article class="card flex flex-col gap-3 p-4"><div class="flex items-start gap-3"><span class="grid h-12 w-10 shrink-0 place-items-center rounded-md border border-line bg-ink-700 text-bronze-light">${icon(ic, 'h-5 w-5')}</span>
+      <div class="min-w-0 flex-1"><p class="truncate font-semibold">${esc(m.title)}</p><p class="text-xs text-muted">${label} · ${esc(m.meta)}</p></div></div>
+    <div class="bar !h-1.5"><i style="width:${m.progress}%"></i></div>
+    <div class="flex items-center justify-between"><span class="text-xs ${done ? 'text-gain' : 'text-muted'}">${done ? 'concluído' : m.progress + '% lido'}</span>
+      ${m.kind === 'pdf' ? `<button class="btn-primary !px-3 !py-1.5 !text-xs" data-act="read-open" data-id="${m.id}">${icon('i-brain', 'h-4 w-4')}Ler com o Mestre${fase(6)}</button>` : `<button class="btn-ghost !px-3 !py-1.5 !text-xs">Abrir</button>`}</div></article>`;
+}
+function readingMarkup(m) {
+  const t = topicOf(m.topic);
+  return `<section class="card p-4 md:p-5 rise"><div class="flex flex-wrap items-center justify-between gap-2"><div><p class="eyebrow">Leitura assistida${fase(6)}</p><h3 class="text-lg font-semibold">${esc(m.title)} · ${esc(t.name)}</h3></div><button class="icon-btn !h-9 !w-9" data-act="read-close" aria-label="Fechar leitura">${icon('i-x', 'h-4 w-4')}</button></div>
+    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+      <div class="rounded-xl border border-line bg-[#0b1020] p-6 leading-7" style="font-family:Georgia,serif"><b>3.4 A Regra da Cadeia</b><br>Suponha que você precise derivar F(x) = √(x² + 1). As fórmulas vistas até aqui não bastam. Observe que F é uma função composta: se y = f(u) = √u e u = g(x) = x² + 1, então F = f ∘ g. <mark class="rounded bg-bronze/25 px-0.5 text-text">Parece razoável que a derivada de uma composta seja o produto das derivadas de f e de g.</mark> Esse fato é um dos mais importantes do cálculo e se chama Regra da Cadeia.
+        <p class="mt-3 text-xs text-muted" style="font-family:inherit">Trecho ilustrativo, parafraseado. No produto, a página do PDF é renderizada aqui e o trecho marcado vai para o Mestre.</p></div>
+      <div class="flex flex-col gap-2 rounded-xl border border-line bg-ink-900/60 p-4"><div class="msg eu">Por que "parece razoável" que seja o produto? Não vi de onde isso vem.</div>
+        <div class="msg ia">Pense em taxas de variação. Se u muda 3 vezes mais rápido que x, e y muda 2 vezes mais rápido que u, então y muda 2·3 = 6 vezes mais rápido que x. A regra da cadeia é essa multiplicação de taxas. Quer montar um exemplo numérico com x² + 1 e verificar sozinho?</div>
+        <div class="msg eu">Sim, mas me deixa tentar primeiro.</div>
+        <div class="mt-auto flex flex-wrap gap-1.5 pt-2">${['Explicar o trecho marcado', 'Gerar 5 questões desta seção', 'Resumir o capítulo', 'Criar flashcards'].map(a => `<button class="chip" data-act="mestre-quick" data-q="${a}">${a}</button>`).join('')}</div></div></div></section>`;
+}
+function renderMateriais(root) {
+  const t = topicOf(state.libTopic), list = DATA.materials.filter(m => m.topic === t.id), sub = DATA.subjects[t.subject], reading = state.reading ? DATA.materials.find(m => m.id === state.reading) : null;
+  root.className = 'min-h-0 flex-1 overflow-auto pb-16 md:pb-0';
+  root.innerHTML = `<div class="mx-auto max-w-6xl space-y-4 p-3 md:p-6">
+    <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider" style="color:${sub.color}">${subDot(t.subject)}${subName(t.subject)}</p><h2 class="mt-1 text-2xl font-bold">${esc(t.name)}</h2><p class="text-sm text-muted">${esc(DATA.desc[t.id] || '')}</p></div>
+      <div class="flex flex-wrap gap-2"><button class="btn-ghost !text-xs" data-act="nav" data-id="importar">${icon('i-upload', 'h-4 w-4')}PDF</button><button class="btn-ghost !text-xs" data-act="nav" data-id="importar">${icon('i-link', 'h-4 w-4')}Link</button><button class="btn-ghost !text-xs" data-act="nav" data-id="importar">${icon('i-video', 'h-4 w-4')}Vídeo</button><button class="btn-primary !text-xs" data-act="tree-open" data-id="${t.id}">${icon('i-tree', 'h-4 w-4')}Ver na Árvore</button></div></div>
+    ${reading ? readingMarkup(reading) : ''}
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">${list.map(materialCard).join('')}
+      <button class="card flex min-h-[140px] flex-col items-center justify-center gap-2 border-dashed p-4 text-center text-sm text-muted transition hover:border-bronze/60 hover:text-text" data-act="nav" data-id="importar">${icon('i-upload', 'h-6 w-6 text-bronze-light')}Arraste um PDF, link ou vídeo.<br>Ele fica ligado a este Ofício.${fase(3)}</button></div>
+    <section class="card p-5"><p class="eyebrow">Provas deste Ofício</p><div class="mt-3 flex flex-wrap gap-2">${DATA.proofTypes.map((pt, i) => { const on = t.proofs[i] !== null; return `<span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${on ? 'border-transparent text-ink-900' : 'border-line text-muted'}" style="${on ? `background:${sub.color}` : ''}">${icon(pt.icon, 'h-3.5 w-3.5')}${pt.name}</span>`; }).join('')}</div>
+      <p class="mt-3 text-sm text-muted">Material lido não vira domínio. Domínio vem de prova.</p><button class="btn-primary mt-3 !text-xs" data-act="prova" data-id="${t.id}" ${isUnlocked(t) ? '' : 'disabled'}>${icon('i-target', 'h-4 w-4')}Fazer prova</button></section></div>`;
+}
+function renderLivros(root) {
+  const cover = b => `<div class="cover" data-glyph="${esc(b.glyph)}" style="--a:${b.cover[0]};--b:${b.cover[1]}"><span class="t">${esc(b.title)}</span><span class="a">${esc(b.author)}</span></div>`;
+  const cards = DATA.books.map(b => { const sub = DATA.subjects[b.subject], chaps = DATA.topics.filter(t => t.book === b.id), p = chaps.length ? pct(chaps.reduce((s, t) => s + Math.min(proofCount(t), 3), 0) / (chaps.length * 3)) : (b.status === 'lendo' ? 30 : 0);
+    return `<article class="flex flex-col"><div class="relative">${cover(b)}<span class="pring absolute -bottom-3 right-2 h-11 w-11 text-[11px] font-bold" style="--p:${p};--c:${sub.color};--in:#0d1220"><span>${p}%</span></span></div>
+      <p class="mt-5 truncate font-semibold" title="${esc(b.title)}">${esc(b.title)}</p><p class="text-xs text-muted">${subName(b.subject)} · ${b.pages} págs.${b.where ? ' · ' + esc(b.where) : ''}</p>
+      <button class="btn-primary mt-2 w-full !py-2 !text-xs" data-act="book-open" data-id="${b.id}">${b.status === 'novo' ? 'Começar' : 'Continuar'}${icon('i-arrow-right', 'h-4 w-4')}</button></article>`; }).join('');
+  root.className = 'min-h-0 flex-1 overflow-auto pb-16 md:pb-0';
+  root.innerHTML = `<div class="mx-auto max-w-6xl space-y-4 p-3 md:p-6">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">${[['Livros', DATA.books.length, `${DATA.books.filter(b => b.status === 'lendo').length} em leitura`], ['Capítulos na Árvore', DATA.topics.filter(t => t.book).length, 'de A República'], ['Provas em livros', DATA.topics.filter(t => t.book).reduce((s, t) => s + proofCount(t), 0), 'conquistadas'], ['Páginas na semana', 62, 'meta: 80']].map(([l, v, s]) => `<div class="statcard"><p class="eyebrow">${l}</p><p class="mt-1 text-3xl font-bold text-bronze-light">${v}</p><p class="text-xs text-muted">${s}</p></div>`).join('')}</div>
+    <section class="card p-5"><div class="flex items-end justify-between gap-3"><div><p class="eyebrow">Livros</p><h2 class="text-xl font-semibold">Mesa de estudos</h2><p class="text-sm text-muted">Cada capítulo de um livro de leitura vira um Ofício na Árvore. Livros de estudo ficam ligados aos Ofícios da matéria.</p></div><button class="btn-ghost !text-xs" data-act="nav" data-id="importar">${icon('i-upload', 'h-4 w-4')}Importar${fase(3)}</button></div>
+      <div class="mt-5 grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 xl:grid-cols-4">${cards}</div></section></div>`;
+}
+Object.assign(SCREENS, { materiais: renderMateriais, livros: renderLivros });
+Object.assign(ACTIONS, {
+  'lib-topic'(el) { state.libTopic = el.dataset.id; state.reading = null; renderSide(); renderScreen(); },
+  'read-open'(el) { state.reading = el.dataset.id; renderScreen(); $('#screen').scrollTop = 0; },
+  'read-close'() { state.reading = null; renderScreen(); },
+  'book-open'(el) { const b = DATA.books.find(x => x.id === el.dataset.id); const m = DATA.materials.find(x => x.book === b.id); if (m) { state.libTopic = m.topic; state.reading = m.id; go('materiais'); } else toast(`Abrindo "${b.title}" (simulado)`, { icon: 'i-book' }); },
+  'tree-open'(el) { const t = topicOf(el.dataset.id); Object.assign(state.tree, { subject: t.subject, risk: false, view: null, selected: t.id }); go('arvore'); }
+});
+document.addEventListener('click', e => { const b = e.target.closest('[data-act="nav"][data-topic]'); if (b) state.libTopic = b.dataset.topic; }, true);
+
+/* ===================================================================== Prática: fila de hoje e cartões de revisão ===================================================================== */
+function renderFila(root) {
+  const list = DATA.topics.filter(t => isUnlocked(t) && proofCount(t) < 5 && DATA.questions[t.id]).sort((a, b) => (isAtRisk(b) - isAtRisk(a)) || proofCount(a) - proofCount(b));
+  const sheets = list.map(t => { const q = DATA.questions[t.id][0], c = proofCount(t), sub = DATA.subjects[t.subject], slot = t.proofs.indexOf(null);
+    return `<article class="card relative p-4"><div class="flex items-center justify-between gap-2"><span class="tag" style="background:${sub.color}26;color:${sub.color}">${subName(t.subject)}</span>${isAtRisk(t) ? `<span class="tag bg-risk/15 text-risk">${icon('i-clock', 'h-3 w-3')}&nbsp;em risco</span>` : `<span class="text-xs text-muted">${c}/5 provas</span>`}</div>
+      <h3 class="mt-2 text-lg font-semibold leading-tight">${esc(t.name)}</h3><p class="mt-2 line-clamp-2 text-sm text-muted">${esc(q.q)}</p>
+      <div class="mt-3 flex gap-1.5" aria-hidden="true">${DATA.proofTypes.map((x, i) => `<span class="h-1.5 flex-1 rounded-full" style="background:${t.proofs[i] !== null ? sub.color : '#1b2438'}"></span>`).join('')}</div>
+      <div class="mt-3 flex items-center justify-between"><span class="text-xs text-muted">${slot >= 0 ? 'Próxima: ' + DATA.proofTypes[slot].name : 'Mestre'}</span><button class="btn-primary !px-3 !py-1.5 !text-xs" data-act="prova" data-id="${t.id}">Resolver${icon('i-arrow-right', 'h-4 w-4')}</button></div></article>`; }).join('');
+  root.className = 'min-h-0 flex-1 overflow-auto pb-16 md:pb-0';
+  root.innerHTML = `<div class="mx-auto max-w-6xl space-y-4 p-3 md:p-6">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">${[['Na fila', list.length, 'Ofícios liberados'], ['Provas conquistadas', totalProofs(), `de ${DATA.topics.length * 5}`], ['Cartões vencidos', dueCards().length, 'para hoje'], ['XP por prova', '+' + DATA.xpPerProof, 'sem consultar']].map(([l, v, s]) => `<div class="statcard"><p class="eyebrow">${l}</p><p class="mt-1 text-3xl font-bold text-bronze-light">${v}</p><p class="text-xs text-muted">${s}</p></div>`).join('')}</div>
+    <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="eyebrow">Praticar${fase(2)}</p><h2 class="text-xl font-semibold">Fila de hoje</h2><p class="text-sm text-muted">Cada acerto sem consultar acende uma prova no Ofício. Ver a solução não conta, e o Mestre só dá pista.</p></div><button class="btn-ghost !text-xs" data-act="nav" data-id="cartoes">${icon('i-repeat', 'h-4 w-4')}Cartões (${dueCards().length})</button></div>
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">${sheets}</div></div>`;
+}
+function renderCartoes(root) {
+  const due = dueCards(), card = due[0], s = state;
+  const review = card ? `<section class="card p-6"><div class="flex items-center justify-between text-sm text-muted"><span class="flex items-center gap-2">${subDot(topicOf(card.topic).subject)}${subName(topicOf(card.topic).subject)} · ${esc(topicOf(card.topic).name)}</span><b>${s.cardOk + s.cardBad + 1} / ${s.cardOk + s.cardBad + due.length}</b></div>
+      <div class="flip ${s.cardFlip ? 'on' : ''} mt-4"><div><span class="face border border-line bg-ink-700 text-lg font-semibold">${esc(card.q)}</span><span class="face back border border-bronze/50 bg-bronze/10 text-base">${esc(card.a)}</span></div></div>
+      ${s.cardFlip ? `<p class="mt-5 text-sm text-muted">Como foi lembrar?</p><div class="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">${['Errei', 'Difícil', 'Bom', 'Fácil'].map((l, k) => `<button class="stat !items-center text-center ${k === 0 ? '!border-risk/50' : k === 3 ? '!border-gain/50' : ''}" data-act="card-rate" data-k="${k}"><b class="text-lg">${l}</b><span class="text-xs text-muted">volta em ${['10 min', '1 dia', '3 dias', '7 dias'][k]}${fase(5)}</span></button>`).join('')}</div>`
+        : `<button class="btn-primary mt-6" data-act="card-flip" data-autofocus>${icon('i-eye', 'h-4 w-4')}Mostrar resposta</button>`}</section>`
+    : `<section class="card p-8 text-center"><span class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-gain/15 text-gain">${icon('i-check', 'h-8 w-8')}</span><h3 class="mt-4 text-2xl font-bold">Cartões em dia</h3><p class="mt-1 text-muted">${s.cardOk} lembrados e ${s.cardBad} para rever em breve.</p><button class="btn-ghost mt-4" data-act="card-restart">Revisar de novo</button></section>`;
+  root.className = 'min-h-0 flex-1 overflow-auto pb-16 md:pb-0';
+  root.innerHTML = `<div class="mx-auto max-w-5xl space-y-4 p-3 md:p-6">
+    <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="eyebrow">Praticar${fase(2)}</p><h2 class="text-xl font-semibold">Cartões de revisão</h2><p class="text-sm text-muted">Intervalos fixos agora (1, 3, 7, 14 dias). FSRS entra na fase 5, com dados reais.</p></div></div>
+    <div class="grid gap-4 xl:grid-cols-[1.5fr_1fr]">${review}
+      <div class="space-y-4"><section class="card p-5"><p class="eyebrow">Próximos 7 dias</p><div class="mt-3 flex h-28 items-end gap-2">${[9, 6, 11, 4, 7, 3, 5].map((v, i) => `<div class="flex flex-1 flex-col items-center justify-end gap-1"><span class="text-[11px] font-semibold text-muted">${v}</span><div class="w-full rounded-t-lg bg-gradient-to-t from-bronze-dark to-bronze-light" style="height:${v / 11 * 100}%"></div><span class="text-[11px] text-muted">${['hoje', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][i]}</span></div>`).join('')}</div></section>
+        <section class="card p-5"><p class="eyebrow">Memória</p><div class="mt-3 grid grid-cols-3 gap-3 text-center"><div><b class="text-2xl text-bronze-light">86%</b><p class="text-xs text-muted">retenção</p></div><div><b class="text-2xl text-bronze-light">${62 + s.cardOk + s.cardBad}</b><p class="text-xs text-muted">revisados</p></div><div><b class="text-2xl text-bronze-light">12</b><p class="text-xs text-muted">dias de revisão</p></div></div></section></div></div></div>`;
+}
+Object.assign(SCREENS, { fila: renderFila, cartoes: renderCartoes });
+Object.assign(ACTIONS, {
+  'card-flip'() { state.cardFlip = true; renderScreen(); const b = $('[data-act="card-rate"][data-k="2"]'); if (b) b.focus({ preventScroll: true }); },
+  'card-rate'(el) {
+    const k = Number(el.dataset.k), card = dueCards()[0]; if (!card) return;
+    state.cardsDone[card.q] = true; k >= 2 ? state.cardOk++ : state.cardBad++; state.cardFlip = false;
+    const m = bumpMission('cartoes'); const st = markStudiedToday();
+    if (m) { addXp(m.xp); toast(`Missão cumprida: ${m.text} (+${m.xp} XP)`, { icon: 'i-check', tone: 'gain' }); }
+    if (st) toast(`Sequência de ${st} dias`, { icon: 'i-flame' });
+    if (k === 0) toast('Sem problema. O cartão volta mais cedo.', { icon: 'i-repeat' });
+    renderAll();
+  },
+  'card-restart'() { state.cardsDone = {}; state.cardOk = 0; state.cardBad = 0; state.cardFlip = false; renderAll(); }
+});
+
+/* ===================================================================== Inbox: captura rápida (gaveta) ===================================================================== */
+const INBOX_CATS = ['Dúvidas', 'Lembretes', 'Ideias'];
+function categorize(text) { const t = text.toLowerCase(); if (t.includes('?') || t.includes('dúvida')) return 'Dúvidas'; if (/(revis|lembr|prova|entreg)/.test(t)) return 'Lembretes'; return 'Ideias'; }
+function inboxList() {
+  if (state.inboxBusy) return `<div class="space-y-2">${state.inbox.map(() => '<div class="h-12 animate-pulse rounded-xl bg-ink-700"></div>').join('')}</div>`;
+  const groups = [[null, 'Sem categoria'], ...INBOX_CATS.map(c => [c, c])];
+  return groups.map(([cat, label]) => { const items = state.inbox.filter(i => (i.cat || null) === cat); if (!items.length) return '';
+    return `<div class="mb-4"><p class="eyebrow mb-2">${label} <span class="text-muted">(${items.length})</span></p><ul class="space-y-2">${items.map(i => `<li class="rounded-xl border border-line bg-ink-700/40 p-3 text-sm ${cat ? 'rise' : ''}"><p>${esc(i.text)}</p><p class="mt-1 text-xs text-muted">${esc(i.when)}</p></li>`).join('')}</ul></div>`; }).join('') || '<p class="py-8 text-center text-sm text-muted">Nada por aqui. Anote a primeira ideia.</p>';
+}
+function renderInbox() {
+  const unsorted = state.inbox.filter(i => !i.cat).length;
+  $('#inboxHost').innerHTML = `<div class="fixed inset-0 z-50 bg-black/55" data-act="inbox-backdrop" style="animation:fade .2s ease both"></div>
+  <aside id="inboxPanel" role="dialog" aria-modal="true" aria-label="Captura rápida" class="fixed bottom-0 right-0 top-0 z-50 flex w-[min(420px,100%)] flex-col border-l border-line bg-ink-800 shadow-2xl" style="animation:rise .25s ease both">
+    <div class="flex items-center justify-between border-b border-line p-4"><div><p class="eyebrow">Captura rápida${fase(3)}</p><p class="text-sm text-muted">Anote agora. Organize depois.</p></div><button class="icon-btn !h-9 !w-9" data-act="inbox-close" aria-label="Fechar">${icon('i-x', 'h-4 w-4')}</button></div>
+    <div class="border-b border-line p-4"><label class="sr-only-x" for="inboxText">Nova anotação</label><textarea id="inboxText" class="field" rows="3" placeholder="O que veio à cabeça?">${esc(state.inboxDraft)}</textarea>
+      <div class="mt-3 flex gap-2"><button class="btn-ghost" aria-label="Anexar">${icon('i-paperclip', 'h-4 w-4')}Anexar</button><button class="btn-primary flex-1" data-act="inbox-save">Salvar</button></div></div>
+    <div class="flex-1 overflow-auto p-4" aria-live="polite">${inboxList()}</div>
+    <div class="border-t border-line p-4"><button class="btn-ghost w-full" data-act="inbox-ai" ${state.inboxBusy || !unsorted ? 'disabled' : ''}>${icon('i-sparkles', 'h-4 w-4 text-bronze-light')}${state.inboxBusy ? 'Organizando...' : 'Organizar com o Mestre'}${fase(6)}</button></div></aside>`;
+}
+function openInbox() { state.inboxOpen = true; state.drawer = false; applyDrawer(); renderInbox(); const ta = $('#inboxText'); if (ta) ta.focus(); }
+function closeInbox() { state.inboxOpen = false; $('#inboxHost').innerHTML = ''; renderSide(); }
+Object.assign(ACTIONS, {
+  inbox() { openInbox(); }, 'inbox-close'() { closeInbox(); }, 'inbox-backdrop'() { closeInbox(); },
+  'inbox-save'() { const text = $('#inboxText').value.trim(); if (!text) { toast('Escreva algo para salvar.', { icon: 'i-info' }); return; } state.inbox.unshift({ id: Date.now(), text, cat: null, when: 'agora' }); state.inboxDraft = ''; renderInbox(); $('#inboxText').focus(); toast('Salvo no inbox', { icon: 'i-inbox' }); },
+  'inbox-ai'() { state.inboxDraft = $('#inboxText').value; state.inboxBusy = true; renderInbox(); setTimeout(() => { const todo = state.inbox.filter(i => !i.cat); todo.forEach(i => { i.cat = categorize(i.text); }); state.inboxBusy = false; if (state.inboxOpen) renderInbox(); renderSide(); toast(`${todo.length} ${todo.length === 1 ? 'item organizado' : 'itens organizados'}`, { icon: 'i-sparkles', tone: 'gain' }); }, 1200); }
+});
+/* ===================================================================== Árvore de Ofícios: geometria (leque radial por matéria) ===================================================================== */
+const TREE = { R0: 180, STEP: 140, RING: 30, ORBIT: 41, SAT: 7.5, FAN: [175, 5] };
+const visibleSubjects = () => (state.tree.subject === 'all' ? DATA.subjectOrder : [state.tree.subject]);
+const visibleTopics = () => { const v = visibleSubjects(); return DATA.topics.filter(t => v.includes(t.subject)); };
+function sectorsFor(subjects) {
+  if (subjects.length === 1) return { [subjects[0]]: [175, 5] };
+  const weights = subjects.map(s => topicsOf(s).length), total = weights.reduce((a, b) => a + b, 0), out = {};
+  let a = 175;
+  subjects.forEach((s, i) => { const size = 170 * weights[i] / total; out[s] = [a, a - size]; a -= size; });
+  return out;
+}
+function polar(deg, r) { const a = deg * Math.PI / 180; return { x: Math.cos(a) * r, y: -Math.sin(a) * r }; }
+function treeLayout(subjects = visibleSubjects()) {
+  const sectors = sectorsFor(subjects), pos = {};
+  DATA.topics.filter(t => subjects.includes(t.subject)).forEach(t => {
+    const [a0, a1] = sectors[t.subject], center = (a0 + a1) / 2, half = (a0 - a1) / 2, angle = center + t.lane * half * 0.62, r = TREE.R0 + (t.d - 1) * TREE.STEP;
+    pos[t.id] = { ...polar(angle, r), angle, r };
+  });
+  return pos;
+}
+function arcPath(r0, r1, a0, a1) { const s0 = polar(a0, r1), s1 = polar(a1, r1), e1 = polar(a1, r0), e0 = polar(a0, r0); return `M${s0.x} ${s0.y} A${r1} ${r1} 0 0 1 ${s1.x} ${s1.y} L${e1.x} ${e1.y} A${r0} ${r0} 0 0 0 ${e0.x} ${e0.y} Z`; }
+function wedgePath(R, a0, a1) { const p0 = polar(a0, R), p1 = polar(a1, R); return `M0 0 L${p0.x} ${p0.y} A${R} ${R} 0 0 1 ${p1.x} ${p1.y} Z`; }
+function wrapLabel(name) { const lines = []; let cur = ''; name.split(' ').forEach(w => { if (cur && (cur + ' ' + w).length > 14) { lines.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w; }); if (cur) lines.push(cur); return lines.slice(0, 2); }
+const dimmed = t => state.tree.risk && !isAtRisk(t);
+
+/* ---------- desenho (SVG) ---------- */
+function bgMarkup() {
+  const subs = visibleSubjects(), sectors = sectorsFor(subs), list = visibleTopics(), multi = subs.length > 1, maxD = Math.max(...list.map(t => t.d)), [fa, fb] = TREE.FAN, rMax = TREE.R0 + (maxD - 1) * TREE.STEP + 60;
+  const wedges = subs.map(s => `<path d="${wedgePath(rMax, ...sectors[s])}" fill="${DATA.subjects[s].color}" opacity="${multi ? '.05' : '.04'}"/>`).join('');
+  const guides = [...Array(maxD)].map((_, i) => { const r = TREE.R0 + i * TREE.STEP, p0 = polar(fa, r), p1 = polar(fb, r); return `<path d="M${p0.x} ${p0.y} A${r} ${r} 0 0 1 ${p1.x} ${p1.y}" fill="none" stroke="#fff" stroke-opacity=".06" stroke-dasharray="3 9"/>`; }).join('');
+  const seps = [...new Set(subs.flatMap(s => sectors[s]))].map(a => { const p = polar(a, rMax); return `<line x1="0" y1="0" x2="${p.x}" y2="${p.y}" stroke="#fff" stroke-opacity=".05"/>`; }).join('');
+  const labels = !multi ? '' : subs.map(s => { const [a0, a1] = sectors[s], sub = DATA.subjects[s], md = Math.max(...topicsOf(s).map(t => t.d)), p = polar((a0 + a1) / 2, TREE.R0 + (md - 1) * TREE.STEP + 92);
+    return `<g transform="translate(${p.x} ${p.y})" style="color:${sub.color}"><circle r="16" fill="${sub.color}" fill-opacity=".14" stroke="${sub.color}" stroke-opacity=".6"/>${svgUse(sub.icon, -9, -9, 18, 1.8)}
+      <text y="36" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="2" fill="${sub.color}">${subName(s).toUpperCase()}</text><text y="52" text-anchor="middle" font-size="11.5" fill="#929cb0">${pct(masteryOf(s))}% dominado</text></g>`; }).join('');
+  return wedges + guides + seps + labels;
+}
+function edgesMarkup(pos) {
+  const out = [];
+  visibleTopics().forEach(t => (t.req.length ? t.req : [null]).forEach(rid => {
+    const a = rid ? pos[rid] : { x: 0, y: 0 }, b = pos[t.id]; if (!a) return;
+    const unlocked = isUnlocked(t), lit = unlocked && (!rid || proofCount(topicOf(rid)) >= 3);
+    out.push(`<line class="edge ${!unlocked ? 'edge-locked' : lit ? 'edge-lit' : 'edge-open'} ${dimmed(t) ? 'dim' : ''}" data-to="${t.id}" data-from="${rid || 'hub'}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`);
+  }));
+  return out.join('');
+}
+function hubMarkup() {
+  const u = DATA.user, subs = visibleSubjects(), sectors = sectorsFor(subs), single = subs.length === 1, circ = 2 * Math.PI * 38;
+  const segs = subs.map(s => { const [a0, a1] = sectors[s]; return `<path d="${arcPath(53, 67, a0 - 1.2, a1 + 1.2)}" fill="${DATA.subjects[s].color}" opacity="${0.4 + 0.6 * masteryOf(s)}"/>`; }).join('');
+  const sub = DATA.subjects[subs[0]];
+  const center = single ? `<g style="color:${sub.color}">${svgUse(sub.icon, -11, -26, 22, 1.8)}</g><text y="14" text-anchor="middle" font-size="15" font-weight="700" fill="#e7eaf1">${pct(masteryOf(subs[0]))}%</text>`
+    : `<text y="-2" text-anchor="middle" font-size="15" font-weight="700" fill="#e7eaf1">Você</text><text y="15" text-anchor="middle" font-size="11.5" font-weight="600" fill="#e3b685">Nv ${u.level}</text>`;
+  return `<g id="hub" aria-hidden="true"><circle r="60" fill="none" stroke="#141b2a" stroke-width="14"/>${segs}<circle r="46" fill="#0b101b" stroke="#c8925a" stroke-width="2"/><circle r="38" fill="none" stroke="#1b2438" stroke-width="3"/>
+    <circle r="38" fill="none" stroke="#e3b685" stroke-width="3" stroke-linecap="round" transform="rotate(-90)" stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - u.xp / u.xpNext)}"/>${center}</g>`;
+}
+function satsMarkup(t) {
+  const col = DATA.subjects[t.subject].color;
+  return DATA.proofTypes.map((pt, i) => { const a = (-90 + 72 * i) * Math.PI / 180, sx = Math.cos(a) * TREE.ORBIT, sy = Math.sin(a) * TREE.ORBIT, ago = t.proofs[i], on = ago !== null;
+    return `<line class="sat-line ${on ? 'on' : ''}" x1="0" y1="0" x2="${sx.toFixed(1)}" y2="${sy.toFixed(1)}"/><g class="sat ${on ? 'on' : ''}" id="s-${t.id}-${i}" data-tip="${esc(pt.name + ': ' + (on ? 'conquistada em ' + fmtDate(ago) : 'pendente'))}" style="--c:${col}"><g class="satg"><circle class="sdisc" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${TREE.SAT}"/><g class="sico">${svgUse(pt.icon, (sx - 4.5).toFixed(1), (sy - 4.5).toFixed(1), 9, 2.6)}</g></g></g>`; }).join('');
+}
+function nodeMarkup(t, p) {
+  const st = statusOf(t), c = proofCount(t), risk = isAtRisk(t), sub = DATA.subjects[t.subject], sel = state.tree.selected === t.id, circ = 2 * Math.PI * TREE.RING, off = circ * (1 - Math.min(c, 3) / 3);
+  const label = wrapLabel(t.label || t.name).map((l, i) => `<tspan x="0" dy="${i ? 14 : 0}">${esc(l)}</tspan>`).join('');
+  return `<g class="tnode st-${st} ${risk ? 'risk' : ''} ${dimmed(t) ? 'dim' : ''}" id="n-${t.id}" data-id="${t.id}" data-tip="${esc(`${t.name} · ${STATUS_LABEL[st]}${risk ? ' · em risco' : ''} · ${c}/5 provas`)}" tabindex="0" role="button" aria-label="${esc(`${t.name}. ${STATUS_LABEL[st]}. ${c} de 5 provas.`)}" aria-pressed="${sel}" transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})" style="--c:${sub.color}">
+    ${c >= 3 ? `<circle class="glow" r="54" fill="url(#glow-${t.subject})"/>` : ''}${st === 'disponivel' ? '<circle class="pulse" r="27"/>' : ''}
+    <g class="sats ${st === 'locked' ? 'dim-soft' : ''}">${satsMarkup(t)}</g><circle class="ring-track" r="${TREE.RING}"/>
+    <circle class="ring" id="ring-${t.id}" r="${TREE.RING}" transform="rotate(-90)" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" ${c === 0 ? 'opacity="0"' : ''}/>
+    ${st === 'mestre' ? '<circle r="35" fill="none" stroke="#e8c15a" stroke-width="2"/>' : ''}<circle class="disc" r="25"/><g class="ico">${svgUse(st === 'locked' ? 'i-lock' : t.icon, -11, -11, 22, 1.8)}</g>
+    ${risk ? `<g transform="translate(19 -19)"><circle r="9.5" fill="#e57b5d" stroke="#080b12" stroke-width="2"/><g style="color:#fff">${svgUse('i-clock', -6, -6, 12, 2.2)}</g></g>` : ''}
+    ${sel ? '<circle r="54" fill="none" stroke="#fff" stroke-width="2.2"/><circle r="59" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.4"/>' : ''}<circle class="focus-ring" r="64"/><text class="nlabel" y="${sel ? 76 : 63}">${label}</text></g>`;
+}
+const defsMarkup = () => '<defs>' + DATA.subjectOrder.map(s => { const c = DATA.subjects[s].color; return `<radialGradient id="glow-${s}"><stop offset="0" stop-color="${c}" stop-opacity=".55"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`; }).join('') + '</defs>';
+
+/* ---------- painéis HTML ---------- */
+function renderChips() {
+  const st = state.tree, nRisk = riskTopics().length, subj = (id, label, dot) => `<button class="chip" aria-pressed="${st.subject === id}" data-act="tree-subject" data-id="${id}">${dot ? `<span class="h-2 w-2 rounded-full" style="background:${dot}"></span>` : ''}${label}</button>`;
+  $('#treeChips').innerHTML = `<div class="flex gap-2 md:flex-wrap md:justify-end" role="group" aria-label="Matérias">${subj('all', 'Todas')}${DATA.subjectOrder.map(s => subj(s, subName(s), DATA.subjects[s].color)).join('')}<button class="chip" aria-pressed="${st.risk}" data-act="tree-risk">${icon('i-clock', 'h-3.5 w-3.5 text-risk')}Em risco${nRisk ? ` (${nRisk})` : ''}</button></div>`;
+}
+function detailMarkup(t) {
+  const st = statusOf(t), c = proofCount(t), sub = DATA.subjects[t.subject], locked = st === 'locked', missing = t.req.map(topicOf).filter(r => proofCount(r) < 2);
+  const tone = { locked: 'bg-ink-600 text-muted', disponivel: 'bg-ink-500 text-text', visto: 'bg-ink-500 text-text', praticado: 'bg-ink-500 text-text', dominado: 'bg-white/90 text-ink-900', mestre: 'bg-gold text-ink-900' }[st];
+  const reqs = t.req.length ? t.req.map(id => { const r = topicOf(id), ok = proofCount(r) >= 2; return `<button class="chip !py-1 ${ok ? '' : '!text-risk'}" data-act="tree-select" data-id="${id}" data-center="1">${icon(ok ? 'i-check' : 'i-lock', 'h-3 w-3')}${esc(r.label || r.name)}</button>`; }).join('') : '<span class="text-sm text-muted">Nenhum. É o início do ramo.</span>';
+  const proofs = DATA.proofTypes.map((pt, i) => { const ago = t.proofs[i], on = ago !== null; return `<li class="flex items-center gap-3 py-1.5"><span class="grid h-7 w-7 shrink-0 place-items-center rounded-full ${on ? 'text-ink-900' : 'border border-line text-muted'}" style="${on ? `background:${sub.color}` : ''}">${icon(pt.icon, 'h-4 w-4')}</span><div class="min-w-0 flex-1"><p class="text-sm leading-tight ${on ? '' : 'text-muted'}">${pt.name}</p><p class="text-xs text-muted">${pt.hint}</p></div><span class="shrink-0 text-xs ${on ? 'font-semibold text-text' : 'text-muted'}">${on ? fmtDate(ago) : 'Pendente'}</span></li>`; }).join('');
+  const mats = DATA.materials.filter(m => m.topic === t.id), unlocks = DATA.topics.filter(x => x.req.includes(t.id));
+  return `<div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider" style="color:${sub.color}">${subDot(t.subject)}${subName(t.subject)}</p><h2 class="mt-1 text-lg font-semibold leading-snug">${esc(t.name)}</h2></div><button class="icon-btn !h-8 !w-8 shrink-0" data-act="tree-close" aria-label="Fechar detalhes">${icon('i-x', 'h-4 w-4')}</button></div>
+  <div class="mt-2 flex flex-wrap items-center gap-1.5"><span class="tag ${tone}">${STATUS_LABEL[st]}</span>${isAtRisk(t) ? `<span class="tag bg-risk/15 text-risk">${icon('i-clock', 'h-3 w-3')}&nbsp;Em risco</span>` : ''}<span class="text-xs text-muted">${c}/5 provas</span></div>
+  ${isAtRisk(t) ? `<p class="mt-3 flex items-start gap-2 rounded-lg bg-risk/10 p-2.5 text-xs text-risk">${icon('i-clock', 'h-4 w-4 shrink-0')}<span>Revisão vencida há ${t.riskDays || 2} ${t.riskDays === 1 ? 'dia' : 'dias'}. Uma prova sem consultar renova este Ofício.</span></p>` : ''}
+  <p class="mt-3 text-sm leading-relaxed text-muted">${esc(DATA.desc[t.id] || `Ofício de ${subName(t.subject)}.`)}</p>
+  <p class="eyebrow mt-4">Pré-requisitos</p><div class="mt-1.5 flex flex-wrap gap-1.5">${reqs}</div>
+  <p class="eyebrow mt-4">Provas de domínio</p><ul class="mt-1 divide-y divide-line/60">${proofs}</ul>
+  ${mats.length ? `<p class="eyebrow mt-4">Onde estudar</p><ul class="mt-1.5 space-y-1.5">${mats.map(m => `<li><button class="flex w-full items-center gap-2 rounded-lg bg-ink-700/50 px-3 py-2 text-left text-sm hover:bg-ink-600" data-act="lib-go" data-id="${t.id}">${icon(KIND[m.kind][1], 'h-4 w-4 text-bronze-light')}<span class="min-w-0 flex-1 truncate">${esc(m.title)}</span>${icon('i-arrow-right', 'h-4 w-4 text-muted')}</button></li>`).join('')}</ul>` : ''}
+  ${unlocks.length ? `<p class="mt-3 text-xs text-muted">Desbloqueia: ${unlocks.map(x => esc(x.label || x.name)).join(', ')}.</p>` : ''}
+  ${locked ? `<p class="mt-3 text-xs text-muted">Para liberar: ${missing.map(r => esc(r.label || r.name)).join(', ')} precisa de 2 provas.</p>` : ''}
+  <div class="mt-4 grid grid-cols-2 gap-2"><button class="btn-primary" data-act="study" data-id="${t.id}" ${locked ? 'disabled' : ''}>${icon('i-play', 'h-4 w-4')}Estudar agora</button><button class="btn-ghost" data-act="prova" data-id="${t.id}" ${locked ? 'disabled' : ''}>${icon('i-target', 'h-4 w-4')}Fazer prova</button></div>`;
+}
+function renderDetail() { const el = $('#treeDetail'), t = topicOf(state.tree.selected); el.classList.toggle('hidden', !t); if (t) el.innerHTML = detailMarkup(t); }
+function renderCounter() {
+  const cur = currentTopic(), list = visibleTopics(), n = list.reduce((s, t) => s + proofCount(t), 0), cap = list.length * 5, miss = cur ? missingToMaster(cur) : 0, subs = visibleSubjects();
+  $('#treeCounter').innerHTML = `<div class="flex items-baseline justify-between gap-3"><span class="truncate text-xs font-semibold uppercase tracking-wider text-muted">Provas · ${subs.length === 1 ? subName(subs[0]) : 'todas as matérias'}</span><span class="shrink-0 font-semibold"><span class="text-lg text-bronze-light">${n}</span> / ${cap}</span></div><div class="bar mt-2"><i style="width:${pct(n / cap)}%"></i></div>
+    ${cur ? `<button class="mt-2 flex w-full items-center justify-between gap-2 text-left text-sm text-muted hover:text-text" data-act="tree-select" data-id="${cur.id}" data-center="1"><span class="truncate"><b class="text-text">${esc(cur.name)}</b>: faltam ${miss} ${miss === 1 ? 'prova' : 'provas'}</span>${icon('i-crosshair', 'h-4 w-4 shrink-0')}</button>` : ''}`;
+}
+function renderLegend() {
+  const dot = (bg, extra = '') => `<span class="inline-block h-3.5 w-3.5 rounded-full border" style="background:${bg};${extra}"></span>`;
+  const rows = [[dot('#0f1522', 'border-color:#2a3447'), 'Bloqueado'], [dot('#8b94a6', 'border-color:#b4bccd'), 'Disponível'], [dot('#b0b8c6', 'border-color:#cdd2dc'), 'Visto (1 prova)'], [dot('#cdd2dc', 'border-color:#e3e6ee'), 'Praticado (2)'], [dot('#eef0f5', 'border-color:#fff'), 'Dominado (3)'], [dot('#f6e7b8', 'border-color:#e8c15a;border-width:2px'), 'Mestre (5)'], [`<span class="text-risk">${icon('i-clock', 'h-3.5 w-3.5')}</span>`, 'Em risco']];
+  $('#treeLegend').classList.toggle('hidden', !state.tree.legend);
+  $('#treeLegend').innerHTML = `<ul class="space-y-1.5">${rows.map(([d, l]) => `<li class="flex items-center gap-2 text-xs text-muted">${d}${l}</li>`).join('')}</ul>`;
+}
+function refreshTree() {
+  if (!$('#treeSvg')) return;
+  const pos = treeLayout();
+  $('#gBg').innerHTML = bgMarkup(); $('#gEdges').innerHTML = edgesMarkup(pos) + hubMarkup(); $('#gNodes').innerHTML = visibleTopics().map(t => nodeMarkup(t, pos[t.id])).join('');
+  renderChips(); renderDetail(); renderCounter(); renderLegend(); $('#legendBtn').setAttribute('aria-pressed', state.tree.legend); applyView();
+}
+
+/* ---------- câmera: arrastar, zoom, centralizar ---------- */
+let tweenId = 0;
+function svgSize() { const r = $('#treeSvg').getBoundingClientRect(); return { w: Math.max(r.width, 200), h: Math.max(r.height, 200) }; }
+function applyView() { const v = state.tree.view, vp = $('#vp'); if (vp && v) vp.setAttribute('transform', `translate(${v.x.toFixed(1)} ${v.y.toFixed(1)}) scale(${v.k.toFixed(4)})`); }
+function insets() { const { h } = svgSize(), desk = !isMobile(); return { l: desk && state.tree.selected ? 360 : 0, r: 0, t: desk ? 56 : (state.tree.selected ? Math.round(h * 0.5) : 56), b: desk ? 120 : 130 }; }
+function fitBox(box, ins, kMin, kMax) {
+  const { w, h } = svgSize(), aw = Math.max(120, w - ins.l - ins.r), ah = Math.max(120, h - ins.t - ins.b);
+  const k = clamp(Math.min(aw / (box.maxX - box.minX), ah / (box.maxY - box.minY)), kMin, kMax), cx = (box.minX + box.maxX) / 2, cy = (box.minY + box.maxY) / 2;
+  return { k, x: ins.l + aw / 2 - cx * k, y: ins.t + ah / 2 - cy * k };
+}
+function focusBox() { const pos = treeLayout(), cur = currentTopic(), p = cur && pos[cur.id] ? pos[cur.id] : { x: 0, y: -320 }, pad = 200; return { minX: Math.min(0, p.x) - pad, maxX: Math.max(0, p.x) + pad, minY: Math.min(0, p.y) - pad, maxY: Math.max(0, p.y) + pad * 0.7 }; }
+function fullBox() { const pts = Object.values(treeLayout()), pad = visibleSubjects().length > 1 ? 190 : 110, xs = pts.map(p => p.x), ys = pts.map(p => p.y); return { minX: Math.min(...xs) - pad, maxX: Math.max(...xs) + pad, minY: Math.min(...ys) - pad, maxY: 130 }; }
+function tweenView(to, ms = 450) {
+  const v = state.tree.view; cancelAnimationFrame(tweenId);
+  if (reduceMotion()) { Object.assign(v, to); applyView(); return; }
+  const from = { ...v }, t0 = performance.now();
+  const step = now => { const p = clamp((now - t0) / ms, 0, 1), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; v.x = from.x + (to.x - from.x) * e; v.y = from.y + (to.y - from.y) * e; v.k = from.k + (to.k - from.k) * e; applyView(); if (p < 1) tweenId = requestAnimationFrame(step); };
+  tweenId = requestAnimationFrame(step);
+}
+function zoomAt(factor, cx, cy) { const v = state.tree.view, k = clamp(v.k * factor, 0.3, 2.4), f = k / v.k; v.x = cx - (cx - v.x) * f; v.y = cy - (cy - v.y) * f; v.k = k; applyView(); }
+function zoomCenter(factor) { const { w, h } = svgSize(); cancelAnimationFrame(tweenId); const v = state.tree.view, k = clamp(v.k * factor, 0.3, 2.4), f = k / v.k, cx = w / 2, cy = h / 2; tweenView({ k, x: cx - (cx - v.x) * f, y: cy - (cy - v.y) * f }, 220); }
+function centerOn(id) { const p = treeLayout()[id], k = Math.max(state.tree.view.k, 0.95); tweenView(fitBox({ minX: p.x - 150, maxX: p.x + 150, minY: p.y - 150, maxY: p.y + 150 }, insets(), k, k)); }
+function ensureVisible(id) { const p = treeLayout()[id], v = state.tree.view, { w, h } = svgSize(), ins = insets(), m = 70, sx = p.x * v.k + v.x, sy = p.y * v.k + v.y; if (sx < ins.l + m || sx > w - m || sy < ins.t + m || sy > h - ins.b + m) centerOn(id); }
+function fitInitial() { state.tree.view = { x: 0, y: 0, k: 1 }; Object.assign(state.tree.view, fitBox(focusBox(), insets(), 0.55, 1.05)); }
+function setTreeScope(subject, selectId = null) { Object.assign(state.tree, { subject, selected: selectId }); fitInitial(); refreshTree(); }
+function revealTopic(id) { const t = topicOf(id); if (!visibleSubjects().includes(t.subject)) setTreeScope(t.subject, id); }
+function selectTopic(id, center = false) { state.tree.selected = id; refreshTree(); if (id) { const n = $('#n-' + id); if (n) n.focus({ preventScroll: true }); if (center) centerOn(id); } }
+
+/* ---------- montagem e eventos ---------- */
+function mountTree(root) {
+  root.className = 'relative min-h-0 flex-1 overflow-hidden';
+  root.innerHTML = `<div id="treeStage" class="absolute inset-x-0 top-0 bottom-16 overflow-hidden md:bottom-0" style="background:#080b12">
+    <div class="pointer-events-none absolute inset-0 flex select-none items-center justify-center" aria-hidden="true"><div class="text-center font-extrabold leading-[1.05] tracking-[.28em] text-white/[.035]" style="font-size:clamp(40px,8vw,128px)">ÁRVORE<br>DE OFÍCIOS</div></div>
+    <svg id="treeSvg" class="absolute inset-0 h-full w-full" tabindex="-1" role="group" aria-label="Árvore de Ofícios. Use Tab para percorrer os nós, + e - para o zoom.">${defsMarkup()}<g id="vp"><g id="gBg"></g><g id="gEdges"></g><g id="gNodes"></g></g></svg>
+    <div class="tree-vignette pointer-events-none absolute inset-0"></div>
+    <div id="treeChips" class="no-scrollbar absolute left-3 right-3 top-3 z-10 flex flex-col gap-2 overflow-x-auto md:left-auto md:max-w-[calc(100%-376px)] md:overflow-visible"></div>
+    <aside id="treeDetail" class="glass rise absolute left-3 top-28 z-10 hidden max-h-[calc(100%-14rem)] w-[min(340px,calc(100%-1.5rem))] overflow-auto p-4 md:top-3 md:max-h-[calc(100%-7.5rem)]" aria-label="Detalhe do Ofício"></aside>
+    <div class="absolute bottom-[6.5rem] right-3 z-10 flex flex-col items-end gap-2 md:bottom-3"><div id="treeLegend" class="glass hidden p-3" aria-label="Legenda"></div>
+      <div class="flex flex-col gap-2"><button class="icon-btn" id="legendBtn" aria-pressed="false" data-act="tree-legend" aria-label="Mostrar legenda" title="Legenda">${icon('i-info')}</button><button class="icon-btn" data-act="tree-zoom" data-id="in" aria-label="Aproximar">${icon('i-plus')}</button><button class="icon-btn" data-act="tree-zoom" data-id="out" aria-label="Afastar">${icon('i-minus')}</button><button class="icon-btn" data-act="tree-zoom" data-id="focus" aria-label="Centralizar no próximo Ofício">${icon('i-crosshair')}</button><button class="icon-btn" data-act="tree-zoom" data-id="fit" aria-label="Ver a árvore inteira">${icon('i-expand')}</button></div></div>
+    <div id="treeCounter" class="glass absolute bottom-3 left-1/2 z-10 w-[min(420px,calc(100%-1.5rem))] -translate-x-1/2 p-3 md:w-[min(420px,calc(100%-30rem))] md:min-w-[320px]"></div>
+    <div id="treeTip" class="pointer-events-none absolute z-20 hidden max-w-[260px] rounded-lg border border-ink-500 bg-ink-900/95 px-2.5 py-1.5 text-xs text-text shadow-lg" role="tooltip"></div></div>`;
+  if (!state.tree.view) fitInitial();
+  bindTree(); refreshTree();
+}
+function showTip(e) {
+  const tipEl = $('#treeTip'), host = e.target.closest ? e.target.closest('[data-tip]') : null;
+  if (!host) { tipEl.classList.add('hidden'); return; }
+  const r = $('#treeStage').getBoundingClientRect(); tipEl.textContent = host.dataset.tip; tipEl.classList.remove('hidden');
+  tipEl.style.left = clamp(e.clientX - r.left + 14, 4, r.width - 270) + 'px'; tipEl.style.top = clamp(e.clientY - r.top + 16, 4, r.height - 40) + 'px';
+}
+const hideTip = () => { const t = $('#treeTip'); if (t) t.classList.add('hidden'); };
+function onTreeKey(e) {
+  const node = e.target.closest ? e.target.closest('.tnode') : null;
+  if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectTopic(node.dataset.id); return; }
+  const pan = { ArrowLeft: [60, 0], ArrowRight: [-60, 0], ArrowUp: [0, 60], ArrowDown: [0, -60] }[e.key];
+  if (pan) { e.preventDefault(); const v = state.tree.view; v.x += pan[0]; v.y += pan[1]; applyView(); }
+  else if (e.key === '+' || e.key === '=') zoomCenter(1.25); else if (e.key === '-') zoomCenter(0.8);
+  else if (e.key === '0') tweenView(fitBox(fullBox(), { l: 0, r: 0, t: 40, b: 40 }, 0.3, 1));
+}
+function bindTree() {
+  const svg = $('#treeSvg'), ptrs = new Map(); let drag = null, pinch = null;
+  svg.addEventListener('pointerdown', e => {
+    if (e.button > 0) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); cancelAnimationFrame(tweenId);
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) }; drag = null; return; }
+    const v = state.tree.view, node = e.target.closest('.tnode'); drag = { sx: e.clientX, sy: e.clientY, vx: v.x, vy: v.y, moved: false, node: node ? node.dataset.id : null };
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) { showTip(e); return; }
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); const v = state.tree.view;
+    if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), r = svg.getBoundingClientRect(); zoomAt(d / pinch.d, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top); pinch.d = d; return; }
+    if (!drag) return;
+    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    if (!drag.moved && Math.hypot(dx, dy) > 5) { drag.moved = true; try { svg.setPointerCapture(e.pointerId); } catch (err) { /* ignora */ } svg.classList.add('grabbing'); hideTip(); }
+    if (drag.moved) { v.x = drag.vx + dx; v.y = drag.vy + dy; applyView(); }
+  });
+  const end = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (drag && e.type === 'pointerup' && !drag.moved && drag.node) selectTopic(drag.node); if (!ptrs.size) { drag = null; svg.classList.remove('grabbing'); } };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end); svg.addEventListener('pointerleave', hideTip);
+  svg.addEventListener('wheel', e => { e.preventDefault(); cancelAnimationFrame(tweenId); const r = svg.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  svg.addEventListener('keydown', onTreeKey);
+  svg.addEventListener('focusin', e => { const n = e.target.closest ? e.target.closest('.tnode') : null; const stage = $('#treeStage'); stage.scrollTop = 0; stage.scrollLeft = 0; if (n) ensureVisible(n.dataset.id); });
+}
+SCREENS.arvore = mountTree;
+Object.assign(ACTIONS, {
+  'tree-subject'(el) { const cur = currentTopic(), sub = el.dataset.id, ok = cur && (sub === 'all' || cur.subject === sub); setTreeScope(sub, !isMobile() && ok ? cur.id : null); const b = $(`[data-act="tree-subject"][data-id="${sub}"]`); if (b) b.focus({ preventScroll: true }); },
+  'tree-risk'() { state.tree.risk = !state.tree.risk; refreshTree(); },
+  'tree-zoom'(el) { const id = el.dataset.id; if (id === 'in') zoomCenter(1.3); else if (id === 'out') zoomCenter(1 / 1.3); else if (id === 'focus') tweenView(fitBox(focusBox(), insets(), 0.55, 1.05)); else tweenView(fitBox(fullBox(), { l: 0, r: 0, t: 40, b: 100 }, 0.3, 1)); },
+  'tree-legend'() { state.tree.legend = !state.tree.legend; renderLegend(); $('#legendBtn').setAttribute('aria-pressed', state.tree.legend); },
+  'tree-select'(el) { revealTopic(el.dataset.id); selectTopic(el.dataset.id, !!el.dataset.center); },
+  'tree-close'() { selectTopic(null); },
+  'lib-go'(el) { state.libTopic = el.dataset.id; state.reading = null; go('materiais'); }
+});
+/* ===================================================================== Fazer prova (5 tipos; ver a solução não conta; o Mestre só dá pista) ===================================================================== */
+const PROVA_SECONDS = 60;
+let provaTimer = 0, sessionTimer = 0;
+function pickQuestion(id) { const t = topicOf(id), list = DATA.questions[id] || [{ q: `Qual afirmação descreve melhor "${t.name}"?`, opts: ['A ideia central do Ofício', 'Um tema de outra matéria', 'Uma opinião pessoal', 'Nenhuma das anteriores'], ok: 0, sol: 'Revise a ideia central do Ofício e tente de novo.' }]; return list[(state.qCursor[id] || 0) % list.length]; }
+const proofTypeFor = slot => (slot >= 0 ? DATA.proofTypes[slot] : { name: 'Revisão', hint: 'Renova um Ofício em risco', icon: 'i-repeat' });
+const stopProvaTimer = () => { clearInterval(provaTimer); provaTimer = 0; };
+function openProva(id) {
+  const t = topicOf(id);
+  if (!isUnlocked(t)) { toast('Cumpra os pré-requisitos para liberar esta prova.', { icon: 'i-lock', tone: 'risk' }); return; }
+  const slot = t.proofs.indexOf(null);
+  if (slot === -1 && !isAtRisk(t)) { toast('Este Ofício já é mestre: 5 de 5 provas.', { icon: 'i-star' }); return; }
+  stopSessionTimer(); stopProvaTimer();
+  state.prova = { id, slot, q: pickQuestion(id), viewed: false, hint: false, picked: null, reasoning: '', startedAt: Date.now(), phase: 'ask', timeLeft: slot === 3 ? PROVA_SECONDS : null, event: null };
+  renderProva(true);
+  if (slot === 3) provaTimer = setInterval(tickProva, 1000);
+}
+function tickProva() {
+  const p = state.prova; if (!p || p.phase === 'ok') { stopProvaTimer(); return; }
+  p.timeLeft -= 1;
+  if (p.timeLeft <= 0) { p.timeLeft = 0; p.phase = 'timeup'; stopProvaTimer(); renderProva(); return; }
+  const el = $('#provaTime'), bar = $('#provaBar'); if (el) el.textContent = `0:${String(p.timeLeft).padStart(2, '0')}`; if (bar) bar.style.width = pct(p.timeLeft / PROVA_SECONDS) + '%';
+}
+function feedbackMarkup(p) {
+  const box = (tone, title, text) => `<div class="mt-4 rounded-xl border p-3 text-sm ${tone}" role="alert"><p class="font-semibold">${title}</p>${text ? `<p class="mt-0.5 opacity-90">${text}</p>` : ''}</div>`;
+  switch (p.phase) {
+    case 'wrong': return box('border-risk/40 bg-risk/10 text-risk', 'Ainda não.', 'Releia o enunciado, refaça a conta e tente de novo.');
+    case 'viewed': return box('border-bronze/50 bg-bronze/10 text-bronze-light', 'Essa prova só conta sem consultar.', 'Ver a solução não acende nada. Tente uma questão nova.');
+    case 'fast': return box('border-bronze/50 bg-bronze/10 text-bronze-light', 'Respondeu rápido. Explica como pensou?', 'Escreva em uma ou duas frases no campo acima e confirme de novo.');
+    case 'explain': return box('border-bronze/50 bg-bronze/10 text-bronze-light', 'Esta prova pede uma explicação.', 'Escreva com suas palavras por que a resposta está certa.');
+    case 'timeup': return box('border-risk/40 bg-risk/10 text-risk', 'Tempo esgotado.', 'Esta prova é cronometrada. Tente de novo com calma.');
+    case 'ok': { const ev = p.event, t = topicOf(p.id), lines = [`+${ev.xp} XP`, ev.slot >= 0 ? `Prova "${proofTypeFor(ev.slot).name}" acesa` : 'Revisão em dia'];
+      if (ev.dominated) lines.push(`${t.name} agora é dominado`); if (ev.unlocked.length) lines.push('Liberado: ' + ev.unlocked.map(id => topicOf(id).label || topicOf(id).name).join(', '));
+      return `<div class="mt-4 rounded-xl border border-gain/40 bg-gain/10 p-4 text-sm text-gain" role="status"><p class="flex items-center gap-2 text-base font-semibold">${icon('i-check', 'h-5 w-5')}Prova conquistada</p><ul class="mt-2 space-y-1 text-text">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`; }
+    default: return '';
+  }
+}
+function provaMarkup() {
+  const p = state.prova, t = topicOf(p.id), pt = proofTypeFor(p.slot), sub = DATA.subjects[t.subject], over = p.phase === 'ok' || p.phase === 'timeup';
+  const opts = p.q.opts.map((o, i) => `<button class="opt" role="radio" aria-checked="${p.picked === i}" data-act="pick" data-i="${i}" ${over ? 'disabled' : ''}><span class="k">${'ABCD'[i]}</span><span>${esc(o)}</span></button>`).join('');
+  const timer = p.timeLeft !== null ? `<div class="mt-4"><div class="flex items-center justify-between text-xs text-muted"><span>${icon('i-timer', 'inline h-4 w-4')} Tempo</span><b id="provaTime" class="text-sm text-text">0:${String(p.timeLeft).padStart(2, '0')}</b></div><div class="bar mt-1"><i id="provaBar" style="width:${pct(p.timeLeft / PROVA_SECONDS)}%"></i></div></div>` : '';
+  const sol = p.viewed ? `<div class="mt-4 rounded-xl border border-line bg-ink-700/60 p-3 text-sm"><p class="font-semibold text-bronze-light">Solução</p><p class="mt-1 text-muted">${esc(p.q.sol)}</p></div>` : '';
+  const hint = p.hint && !p.viewed ? `<div class="mt-4 flex items-start gap-2 rounded-xl border border-bronze/40 bg-bronze/10 p-3 text-sm"><span class="text-bronze-light">${icon('i-brain', 'h-4 w-4')}</span><span><b>Mestre:</b> ${esc(p.q.sol.split('.')[0])}. Agora tente sozinho; a pista não tira a prova.</span></div>` : '';
+  let buttons;
+  if (p.phase === 'ok') buttons = `<button class="btn-primary" data-act="prova-done" data-autofocus>${icon('i-tree', 'h-4 w-4')}Ver na Árvore</button>${p.event && p.event.to < 5 && p.event.slot >= 0 ? '<button class="btn-ghost" data-act="prova-next">Fazer outra prova</button>' : ''}`;
+  else if (p.phase === 'viewed' || p.phase === 'timeup') buttons = `<button class="btn-primary" data-act="prova-other" data-autofocus>${p.phase === 'viewed' ? 'Tentar outra questão' : 'Tentar de novo'}</button><button class="btn-ghost" data-act="modal-close">Fechar</button>`;
+  else buttons = `<div class="flex gap-2"><button class="btn-ghost" data-act="hint">${icon('i-brain', 'h-4 w-4')}Pista do Mestre${fase(6)}</button><button class="btn-quiet" data-act="solution">${icon('i-eye', 'h-4 w-4')}Ver solução</button></div><button class="btn-primary" data-act="confirm">Confirmar resposta</button>`;
+  return `<div class="p-5 md:p-6"><div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="eyebrow">${p.slot >= 0 ? `Prova ${p.slot + 1} de 5 · ` : ''}${pt.name}</p><h2 class="mt-1 text-xl font-semibold">${esc(t.name)}</h2><p class="mt-0.5 text-sm text-muted">${pt.hint}. <span style="color:${sub.color}">${subName(t.subject)}</span></p></div><button class="icon-btn !h-9 !w-9 shrink-0" data-act="modal-close" aria-label="Fechar prova">${icon('i-x', 'h-4 w-4')}</button></div>
+    <div class="mt-3 flex gap-1.5" aria-hidden="true">${DATA.proofTypes.map((x, i) => `<span class="h-1.5 flex-1 rounded-full" style="background:${t.proofs[i] !== null ? sub.color : '#1b2438'}"></span>`).join('')}</div>${timer}
+    <p class="mt-5 text-lg leading-snug">${esc(p.q.q)}</p><div class="mt-4 grid gap-2" role="radiogroup" aria-label="Alternativas">${opts}</div>
+    <label class="mt-4 block"><span class="text-sm font-medium">Seu raciocínio <span class="text-muted">${p.slot === 4 ? '(obrigatório nesta prova)' : '(opcional)'}</span></span><textarea id="reasoning" class="field mt-1.5" rows="2" placeholder="Como você chegou nessa resposta?" ${over ? 'disabled' : ''}>${esc(p.reasoning)}</textarea></label>
+    ${hint}${sol}${feedbackMarkup(p)}<div class="mt-5 flex flex-wrap items-center justify-between gap-2">${buttons}</div></div>`;
+}
+function renderProva(first) {
+  const html = provaMarkup(), p = state.prova;
+  if (first) openModal(html, { label: 'Fazer prova', onClose: onProvaClose }); else setModal(html);
+  const focus = p.phase === 'fast' || p.phase === 'explain' ? '#reasoning' : p.picked !== null && p.phase === 'ask' ? `[data-i="${p.picked}"]` : null;
+  if (focus) focusInModal(focus); else if (!first) focusInModal();
+}
+function onProvaClose() { stopProvaTimer(); const ev = state.prova ? state.prova.event : null; state.prova = null; renderAll(); if (ev) playEffects(ev); if (state.session) renderSession(true); }
+function confirmProva() {
+  const p = state.prova;
+  if (p.picked === null) { toast('Escolha uma alternativa.', { icon: 'i-info' }); return; }
+  if (p.viewed) { p.phase = 'viewed'; renderProva(); return; }
+  if (p.picked !== p.q.ok) { p.phase = 'wrong'; renderProva(); setTimeout(() => { if (state.prova === p && p.phase === 'wrong') { p.phase = 'ask'; p.picked = null; p.startedAt = Date.now(); renderProva(); } }, 1600); return; }
+  const hasWords = p.reasoning.trim().length >= 8;
+  if (p.slot === 4 && !hasWords) { p.phase = 'explain'; renderProva(); return; }
+  if (Date.now() - p.startedAt < 3000 && !hasWords) { p.phase = 'fast'; renderProva(); return; }
+  stopProvaTimer(); p.event = grantProof(topicOf(p.id), p.slot); p.phase = 'ok'; state.qCursor[p.id] = (state.qCursor[p.id] || 0) + 1; renderProva();
+}
+Object.assign(ACTIONS, {
+  prova(el) { openProva(el.dataset.id); },
+  pick(el) { const p = state.prova; if (!p || p.phase === 'ok') return; p.picked = Number(el.dataset.i); if (p.phase !== 'ask') p.phase = 'ask'; renderProva(); },
+  solution() { state.prova.viewed = true; renderProva(); },
+  hint() { state.prova.hint = true; renderProva(); },
+  confirm() { confirmProva(); },
+  'prova-other'() { const p = state.prova; state.qCursor[p.id] = (state.qCursor[p.id] || 0) + 1; Object.assign(p, { q: pickQuestion(p.id), viewed: false, hint: false, picked: null, reasoning: '', phase: 'ask', startedAt: Date.now(), timeLeft: p.slot === 3 ? PROVA_SECONDS : null }); stopProvaTimer(); if (p.slot === 3) provaTimer = setInterval(tickProva, 1000); renderProva(); },
+  'prova-done'() { const id = state.prova.id; closeModal(); if (state.screen !== 'arvore') { Object.assign(state.tree, { subject: topicOf(id).subject, risk: false, view: null, selected: id }); go('arvore'); } },
+  'prova-next'() { const id = state.prova.id, ev = state.prova.event; state.modal.onClose = null; closeModal(); stopProvaTimer(); state.prova = null; renderAll(); playEffects(ev); openProva(id); }
+});
+document.addEventListener('input', e => { if (e.target.id === 'reasoning' && state.prova) state.prova.reasoning = e.target.value; });
+
+/* ===================================================================== Efeitos depois de uma prova ===================================================================== */
+function playEffects(ev) {
+  const t = topicOf(ev.topicId), col = DATA.subjects[t.subject].color;
+  toast(`+${ev.xp} XP`, { icon: 'i-star' });
+  if (ev.streak) setTimeout(() => toast(`Sequência de ${ev.streak} dias`, { icon: 'i-flame' }), 250);
+  if (ev.riskCleared) toast(`${t.name}: revisão em dia`, { icon: 'i-check', tone: 'gain' });
+  if (ev.dominated) setTimeout(() => toast(`${t.name} dominado`, { icon: 'i-trophy' }), 350);
+  if (ev.unlocked.length) setTimeout(() => toast('Liberado: ' + ev.unlocked.map(id => topicOf(id).label || topicOf(id).name).join(', '), { icon: 'i-lock', tone: 'gain' }), 700);
+  ev.missions.forEach(m => setTimeout(() => toast(`Missão cumprida: ${m.text} (+${m.xp} XP)`, { icon: 'i-check', tone: 'gain' }), 1000));
+  if (ev.leveled) setTimeout(() => { toast(`Você chegou ao nível ${DATA.user.level}`, { icon: 'i-star' }); burst(innerWidth / 2, 120, '#e8c15a', 30); }, 1600);
+  if (state.screen === 'arvore') animateTree(ev, col); else if (ev.dominated) burst(innerWidth / 2, innerHeight / 2, col, 36);
+}
+function svgEl(tag, attrs) { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); return el; }
+function animateTree(ev, col) {
+  const node = $('#n-' + ev.topicId); if (!node) return;
+  const ring = $('#ring-' + ev.topicId);
+  if (ring && ev.slot >= 0) { const circ = 2 * Math.PI * TREE.RING, final = ring.getAttribute('stroke-dashoffset'); ring.style.strokeDashoffset = circ * (1 - Math.min(ev.from, 3) / 3); ring.getBoundingClientRect(); ring.style.strokeDashoffset = final; }
+  const sat = ev.slot >= 0 ? $(`#s-${ev.topicId}-${ev.slot}`) : null;
+  if (sat) { const g = $('.satg', sat), d = $('.sdisc', sat); g.classList.add('sat-pop'); const rip = svgEl('circle', { cx: d.getAttribute('cx'), cy: d.getAttribute('cy'), r: 9, class: 'ripple', style: `--c:${col}` }); sat.appendChild(rip); setTimeout(() => rip.remove(), 1100); burstAt(d, col, 14); }
+  if (ev.dominated) { $('.disc', node).classList.add('node-pop'); burstAt($('.disc', node), col, 36); $$(`.edge[data-from="${ev.topicId}"]`).forEach(e => e.classList.add('flash')); }
+  ev.unlocked.forEach(id => { const n = $('#n-' + id); if (!n) return; const rip = svgEl('circle', { r: 28, class: 'ripple', style: `--c:${DATA.subjects[topicOf(id).subject].color}` }); n.appendChild(rip); setTimeout(() => rip.remove(), 1100); });
+}
+
+/* ===================================================================== Sessão de estudo (botão Começar) ===================================================================== */
+const stopSessionTimer = () => { clearInterval(sessionTimer); sessionTimer = 0; };
+const clockText = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+function startSession(topicId) {
+  const t = topicOf(topicId) || currentTopic(); if (!t) return;
+  const plan = DATA.sessionPlans[state.time];
+  state.session = { topicId: t.id, plan, step: 0, left: plan[0].min ? plan[0].min * 60 : null };
+  renderSession(true);
+}
+function sessionMarkup() {
+  const s = state.session, t = topicOf(s.topicId), sub = DATA.subjects[t.subject], cur = s.plan[s.step], info = DATA.stepInfo[cur.k], last = s.step === s.plan.length - 1;
+  const steps = s.plan.map((x, i) => `<li class="flex-1"><div class="h-1.5 rounded-full" style="background:${i <= s.step ? DATA.stepInfo[x.k].color : '#1b2438'}"></div><p class="mt-1.5 truncate text-xs ${i === s.step ? 'font-semibold text-text' : 'text-muted'}">${DATA.stepInfo[x.k].name}</p></li>`).join('');
+  const tips = { rev: `Antes de seguir, relembre: ${t.req.length ? t.req.map(id => topicOf(id).name).join(', ') : 'o que você já sabe de ' + subName(t.subject)}.`, teo: `Tema de hoje: ${t.name}. O material está na Biblioteca.`, exe: 'Faça a prova do Ofício. Ver a solução não conta.', cor: 'Anote no caderno de erros o que você errou.' }[cur.k];
+  return `<div class="p-5 md:p-6"><div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="eyebrow">Sessão do Curador</p><h2 class="mt-1 text-xl font-semibold">${esc(t.name)}</h2><p class="text-sm" style="color:${sub.color}">${subName(t.subject)}</p></div><button class="icon-btn !h-9 !w-9 shrink-0" data-act="session-exit" aria-label="Sair da sessão">${icon('i-x', 'h-4 w-4')}</button></div>
+    <ol class="mt-5 flex gap-2" aria-label="Etapas">${steps}</ol>
+    <div class="mt-6 rounded-2xl border border-line bg-ink-900/60 p-5 text-center"><p class="text-sm font-semibold uppercase tracking-wider text-bronze">${info.name}</p><p id="sessTime" class="mt-1 text-5xl font-bold tabular-nums">${s.left === null ? 'Livre' : clockText(s.left)}</p><p class="mt-3 text-muted">${info.text}</p><p class="mt-1 text-sm">${tips}</p></div>
+    <div class="mt-5 flex flex-wrap items-center justify-between gap-2">${cur.k === 'exe' ? `<button class="btn-ghost" data-act="prova" data-id="${t.id}">${icon('i-target', 'h-4 w-4')}Fazer prova</button>` : cur.k === 'teo' ? `<button class="btn-ghost" data-act="session-lib" data-id="${t.id}">${icon('i-library', 'h-4 w-4')}Abrir material</button>` : '<span></span>'}<button class="btn-primary" data-act="session-next" data-autofocus>${last ? 'Concluir sessão' : 'Concluir etapa'}${icon('i-arrow-right', 'h-4 w-4')}</button></div></div>`;
+}
+function renderSession(first) {
+  if (!state.session) return;
+  if (first) openModal(sessionMarkup(), { label: 'Sessão de estudo', onClose: () => { stopSessionTimer(); state.session = null; } }); else { setModal(sessionMarkup()); focusInModal(); }
+  stopSessionTimer(); if (state.session.left !== null) sessionTimer = setInterval(tickSession, 1000);
+}
+function tickSession() { const s = state.session, el = $('#sessTime'); if (!s || !el || s.left === null) { stopSessionTimer(); return; } s.left = Math.max(0, s.left - 1); el.textContent = clockText(s.left); if (s.left === 0) stopSessionTimer(); }
+function finishSession() {
+  stopSessionTimer(); const leveled = addXp(50), m = bumpMission('sessao'); if (m) addXp(m.xp); const streak = markStudiedToday();
+  state.modal.onClose = null; closeModal(); state.session = null; renderAll();
+  toast('Sessão concluída: +50 XP', { icon: 'i-check', tone: 'gain' });
+  if (streak) setTimeout(() => toast(`Sequência de ${streak} dias`, { icon: 'i-flame' }), 300);
+  if (m) setTimeout(() => toast(`Missão cumprida: ${m.text} (+${m.xp} XP)`, { icon: 'i-check', tone: 'gain' }), 500);
+  if (leveled) setTimeout(() => toast(`Você chegou ao nível ${DATA.user.level}`, { icon: 'i-star' }), 1000);
+  burst(innerWidth / 2, innerHeight / 2.5, '#e3b685', 40);
+}
+Object.assign(ACTIONS, {
+  'session-start'(el) { startSession(el.dataset.id); },
+  study(el) { startSession(el.dataset.id); },
+  'session-next'() { const s = state.session; if (s.step >= s.plan.length - 1) { finishSession(); return; } s.step += 1; s.left = s.plan[s.step].min ? s.plan[s.step].min * 60 : null; renderSession(); },
+  'session-exit'() { closeModal(); },
+  'session-lib'(el) { state.modal.onClose = null; closeModal(); stopSessionTimer(); state.session = null; state.libTopic = el.dataset.id; state.reading = null; go('materiais'); }
+});
+
+/* ===================================================================== Início ===================================================================== */
+DATA.topics.forEach(t => { while (t.proofs.length < 5) t.proofs.push(null); });
+let wasMobile = isMobile();
+addEventListener('resize', () => { if (wasMobile !== isMobile()) { wasMobile = isMobile(); state.drawer = false; renderAll(); } });
+state.tree.legend = innerWidth >= 1024;
+if (isMobile()) state.tree.selected = null;
+renderAll();
+</script>
+</body>
+</html>
