@@ -20,7 +20,15 @@ COPY --chown=node:node packages/db/package.json packages/db/
 # Sem os scripts de instalação dos pacotes, como no CI.
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-COPY --chown=node:node . .
+# Só o que o Vitest lê, caminho por caminho: "COPY . ." levaria o contexto inteiro
+# para a imagem por descuido (regra docker:S6470 do SonarCloud).
+COPY --chown=node:node tsconfig.base.json vitest.config.ts ./
+COPY --chown=node:node apps/web/tsconfig.json apps/web/
+COPY --chown=node:node apps/web/app apps/web/app
+COPY --chown=node:node packages/core/tsconfig.json packages/core/
+COPY --chown=node:node packages/core/src packages/core/src
+COPY --chown=node:node packages/db/tsconfig.json packages/db/
+COPY --chown=node:node packages/db/src packages/db/src
 
 # A cobertura já é sempre ligada pelo vitest.config.ts (D-031), por isso não há --coverage aqui.
 CMD ["pnpm", "test"]

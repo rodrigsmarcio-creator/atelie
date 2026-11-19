@@ -7,5 +7,5 @@ coverage
 **/.next
 **/dist
 _arquivos-originais
-*.pdf
-.env*
+**/*.pdf
+**/.env*
