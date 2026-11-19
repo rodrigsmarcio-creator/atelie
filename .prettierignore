@@ -1,0 +1,9 @@
+# Prettier cuida só do código. Docs e conteúdo da Jane ficam como estão.
+*.md
+docs/
+imports/
+.claude/
+_arquivos-originais/
+pnpm-lock.yaml
+**/.next/
+**/coverage/

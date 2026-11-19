@@ -2,6 +2,9 @@ node_modules/
 data/
 .next/
 dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
 *.log
 .env*
 _arquivos-originais/
