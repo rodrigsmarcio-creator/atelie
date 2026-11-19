@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter @atelie/web dev",
     "build": "pnpm -r build",
-    "test": "echo a implementar (ATL-61)",
+    "test": "vitest run",
     "lint": "eslint . && prettier --check .",
     "db:migrate": "echo a implementar",
     "db:seed": "echo a implementar",
