@@ -1,6 +1,6 @@
-# Lint e build do monorepo (ATL-62). Os testes em Docker entram no ATL-63.
+# Lint e build do monorepo (ATL-62) e testes em Docker (ATL-63).
 # Roda em cada pull request para a main e em cada push na main.
-# O nome do job ("CI") é o que a proteção da main exige (ATL-64): não renomear sem atualizar a regra.
+# Os nomes dos jobs ("CI" e "Testes") são o que a proteção da main exige (ATL-64): não renomear sem atualizar a regra.
 name: CI
 
 on:
@@ -42,3 +42,31 @@ jobs:
 
       - name: Build
         run: pnpm -r build
+
+  testes:
+    name: Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Construir a imagem de testes
+        run: docker build -f Dockerfile.test -t atelie-test .
+
+      # Sem --rm: o container precisa existir depois dos testes para o docker cp tirar a cobertura.
+      - name: Rodar os testes no container
+        run: docker run --name atelie-test atelie-test
+
+      # always(): a cobertura sobe também quando o job falha só pelo limite de cobertura (D-031).
+      # Com teste vermelho o vitest não gera o lcov.info, e este passo falha junto: o job já estava vermelho.
+      - name: Copiar a cobertura do container
+        if: always()
+        run: |
+          mkdir -p coverage
+          docker cp atelie-test:/app/coverage/lcov.info coverage/lcov.info
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          if-no-files-found: warn

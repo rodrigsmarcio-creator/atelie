@@ -1,0 +1,11 @@
+# Fora da imagem de testes (ATL-63): peso inútil e arquivos sensíveis.
+node_modules
+**/node_modules
+.git
+.claude
+coverage
+**/.next
+**/dist
+_arquivos-originais
+**/*.pdf
+**/.env*
