@@ -25,8 +25,8 @@ Ordem do projeto: alinhar ideias → montar a esteira → criar o roadmap no Jir
 
 ## Git
 
-- Repositório **privado** no GitHub. Mesmo privado, ficam fora do Git: banco,
-  PDFs, segredos e conteúdo real (`.gitignore`).
+- Repositório **público** no GitHub (D-034). Por ser público, ficam fora do Git:
+  banco, PDFs, segredos e conteúdo real (`.gitignore`).
 - **Uma branch por subtarefa:** `ATL-<n>-descricao-curta`.
 - **Commit** em português, começando por `ATL-<n>`.
 - **PR** com título `ATL-<n> Título`. Nunca commitar direto na `main`.
@@ -36,11 +36,58 @@ Ordem do projeto: alinhar ideias → montar a esteira → criar o roadmap no Jir
 
 ## Pull request e checks
 
-- Checks obrigatórios: **CI** e **SonarCloud**. O autor não aprova o próprio PR
-  no GitHub, então a regra é "checks obrigatórios", não "aprovação
-  obrigatória".
+- Checks obrigatórios: **CI** e **Testes** (D-032, D-034). O SonarCloud roda no
+  PR, mas ainda não é check obrigatório. O autor não aprova o próprio PR no
+  GitHub, então a regra é "checks obrigatórios", não "aprovação obrigatória".
 - O Claude explica o PR em português simples (o que mudou, por que, como
   testar). O Márcio aprova e faz o merge.
+
+## Proteção da `main`
+
+Ruleset **`main protegida`** no GitHub (*Settings → Rules → Rulesets*), criado
+no ATL-64 e ativo na branch padrão (D-034):
+
+- Só entra por PR; push direto na `main` é recusado.
+- Checks obrigatórios: `CI` e `Testes` (nomes dos **jobs** do `ci.yml`; renomear
+  um job sem atualizar o ruleset trava todos os PRs).
+- Sem exigir aprovação e sem exigir a branch atualizada com a `main`.
+- Sem force-push e sem apagar a `main`.
+- **Sem exceção**: nem o administrador fura. Em emergência (por exemplo, o
+  GitHub Actions fora do ar), o Márcio desliga o ruleset em *Settings → Rules*,
+  resolve e liga de novo, registrando o motivo no ticket.
+
+Para conferir o estado atual:
+
+```
+gh api repos/rodrigsmarcio-creator/atelie/rulesets
+```
+
+Para recriar (por exemplo, se o repositório for copiado):
+
+```
+gh api -X POST repos/rodrigsmarcio-creator/atelie/rulesets --input - <<'JSON'
+{
+  "name": "main protegida",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "rules": [
+    { "type": "pull_request", "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false } },
+    { "type": "required_status_checks", "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [ { "context": "CI" }, { "context": "Testes" } ] } },
+    { "type": "non_fast_forward" },
+    { "type": "deletion" }
+  ]
+}
+JSON
+```
 
 ## CI (GitHub Actions)
 
@@ -61,8 +108,9 @@ Copiado do Zappi e adaptado depois:
 - Começa como no Zappi (análise automática, fora do repositório) e depois migra
   para análise pelo CI com cobertura. Antes da migração, desligar a análise
   automática.
-- Plano gratuito cobre repositório privado até um limite de linhas (cerca de
-  50 mil; confirmar as condições ao criar a conta).
+- O repositório é público (D-034), então o plano gratuito não tem o limite de
+  linhas que vale para repositório privado (confirmar as condições ao criar a
+  conta).
 
 ## Docker
 
