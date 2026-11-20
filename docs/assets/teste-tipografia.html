@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="borgonha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teste de tipografia do Ateliê</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
+<style>
+  /*
+    Página de teste do ATL-54 (A-009). É só referência visual: a fonte da verdade
+    dos valores é a tabela de tokens de docs/05-atelie.md. Se a tabela mudar, esta
+    página precisa ser conferida.
+  */
+  :root {
+    color-scheme: dark;
+    --f-title: "Montserrat", system-ui, sans-serif;
+    --f-text: "Montserrat", system-ui, sans-serif;
+  }
+
+  /* E · Tokyo Night com âmbar */
+  [data-theme="tokyo"] {
+    --bg: #140E2B; --surface: #060606; --surface-2: #15111F; --line: #2E2559;
+    --text: #F3ECFF; --muted: #A99BC9; --accent: #FF7EE3; --on-accent: #16081A;
+    --hot: #EA6113; --hot-2: #FBB931; --xp: #FBB931;
+    --halo: rgba(91, 42, 134, .6);
+  }
+
+  /* G · Borgonha e ouro. A serifada é só do título; o texto muda pela caixa de seleção. */
+  [data-theme="borgonha"] {
+    --bg: #0D0D0D; --surface: #17110F; --surface-2: #241A17; --line: #3A2C26;
+    --text: #EFE5D2; --muted: #B8AC98; --accent: #C28D39; --on-accent: #0D0D0D;
+    --hot: #710912; --hot-2: #C28D39; --xp: #C28D39;
+    --halo: rgba(113, 9, 18, .55);
+    --f-title: "Libre Baskerville", Georgia, serif;
+  }
+  [data-theme="borgonha"][data-texto="serifa"] {
+    --f-text: "Libre Baskerville", Georgia, serif;
+  }
+
+  /* H · Verde e ouro */
+  [data-theme="verde"] {
+    --bg: #0D1B15; --surface: #060606; --surface-2: #141414; --line: #27302B;
+    --text: #F7F4EA; --muted: #A9B8B0; --accent: #1ED760; --on-accent: #06130C;
+    --hot: #A37E2C; --hot-2: #E8CF8A; --xp: #D9B45F;
+    --halo: rgba(0, 112, 74, .5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--f-text);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -20% 10% auto -10%;
+    height: 60%;
+    background: radial-gradient(closest-side, var(--halo), transparent);
+    z-index: -1;
+  }
+  h1, h2, h3 { font-family: var(--f-title); line-height: 1.2; margin: 0; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  .controles {
+    display: flex; flex-wrap: wrap; gap: 12px 28px;
+    padding: 16px; margin-bottom: 32px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  }
+  fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  legend { float: left; margin-right: 12px; padding: 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .opcao { position: relative; }
+  .opcao input { position: absolute; opacity: 0; }
+  .opcao span {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px;
+    border: 1px solid var(--muted); border-radius: 999px; font-size: 14px;
+  }
+  .opcao input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .opcao input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+  .nota { margin: 0; flex-basis: 100%; color: var(--muted); font-size: 13px; }
+
+  .eyebrow { display: block; margin-bottom: 8px; color: var(--xp); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+  section { margin-bottom: 32px; }
+  .cartao { padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+  .cartao + .cartao { margin-top: 16px; }
+
+  .titulo-grande { font-size: clamp(30px, 6vw, 48px); font-weight: 700; margin-bottom: 8px; }
+  .subtitulo { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+  .paragrafo { max-width: 62ch; margin: 0 0 16px; }
+  .muted { color: var(--muted); }
+  .pequeno { font-size: 13px; }
+  .minimo { font-size: 12px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 16px; list-style: none; }
+  .chips li { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 12px; }
+  .botao {
+    min-height: 48px; padding: 0 32px; border: 0; border-radius: 999px;
+    background: var(--accent); color: var(--on-accent);
+    font-family: var(--f-title); font-size: 15px; font-weight: 700;
+  }
+  .opcoes { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+  .opcoes li {
+    display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 16px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 16px; font-size: 15px;
+  }
+  .opcoes b { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--muted); border-radius: 50%; color: var(--muted); font: 700 12px var(--f-title); }
+
+  .numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+  .numeros b { display: block; font-family: var(--f-title); font-size: 36px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .numeros .xp b { color: var(--xp); }
+  .numeros .fogo b { color: var(--hot-2); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1 class="subtitulo">Teste de tipografia (ATL-54 · A-009)</h1>
+
+  <form class="controles" aria-label="Opções de teste">
+    <fieldset>
+      <legend>Paleta</legend>
+      <label class="opcao"><input type="radio" name="tema" value="tokyo"><span>E · Tokyo</span></label>
+      <label class="opcao"><input type="radio" name="tema" value="borgonha" checked><span>G · Borgonha</span></label>
+      <label class="opcao"><input type="radio" name="tema" value="verde"><span>H · Verde</span></label>
+    </fieldset>
+    <fieldset>
+      <legend>Fonte da G</legend>
+      <label class="opcao"><input type="radio" name="texto" value="titulos" checked><span>Serifada só nos títulos</span></label>
+      <label class="opcao"><input type="radio" name="texto" value="serifa"><span>Serifada também no texto</span></label>
+    </fieldset>
+    <p class="nota">A escolha da fonte só muda a paleta G. E e H usam Montserrat em tudo.</p>
+  </form>
+
+  <section>
+    <div class="cartao">
+      <span class="eyebrow">Gregor sugere</span>
+      <h2 class="titulo-grande">Regra da cadeia</h2>
+      <p class="muted pequeno">Prática · Cálculo I</p>
+      <ul class="chips"><li>2 de 5 provas</li><li>Prova de Cálculo em 22/11</li></ul>
+      <button type="button" class="botao">Começar</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="cartao">
+      <span class="eyebrow">Leitura</span>
+      <h2 class="subtitulo">A derivada de uma função composta</h2>
+      <p class="paragrafo">Quando uma função está dentro de outra, a derivada do conjunto é a derivada da função de fora, calculada no valor da de dentro, multiplicada pela derivada da função de dentro. Esse é o passo que mais se esquece nas provas: derivar a casca e deixar o miolo de lado.</p>
+      <p class="paragrafo muted">Texto secundário, em <code>muted</code>. Serve para descrições, datas e dicas que não competem com o título.</p>
+      <p class="muted pequeno">Texto pequeno de 13 px, como em tabelas e legendas.</p>
+      <p class="muted minimo">Texto mínimo de 12 px, como em etiquetas e chips.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="cartao">
+      <span class="eyebrow">Prova cronometrada</span>
+      <h3 class="subtitulo">Calcule a derivada de f(x) = (3x² + 1)⁵.</h3>
+      <ul class="opcoes">
+        <li><b>A</b>5(3x² + 1)⁴</li>
+        <li><b>B</b>30x(3x² + 1)⁴</li>
+        <li><b>C</b>15x(3x² + 1)⁴</li>
+        <li><b>D</b>6x(3x² + 1)⁵</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="cartao numeros">
+      <div class="fogo"><b>12</b><span class="muted pequeno">dias de ofensiva</span></div>
+      <div class="xp"><b>420</b><span class="muted pequeno">de 700 XP</span></div>
+      <div class="xp"><b>5</b><span class="muted pequeno">nível</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const raiz = document.documentElement;
+  document.querySelectorAll('input[name="tema"]').forEach((campo) => {
+    campo.addEventListener('change', () => { raiz.dataset.theme = campo.value; });
+  });
+  document.querySelectorAll('input[name="texto"]').forEach((campo) => {
+    campo.addEventListener('change', () => { raiz.dataset.texto = campo.value; });
+  });
+</script>
+</body>
+</html>
