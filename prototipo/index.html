@@ -18,6 +18,12 @@
     14 px, botão e chip em pílula, borda de 1 px em `line`, sem sombra (só o
     brilho `glow`), filete `hairline` separando seções.
   - Cores de matéria (--mat-*) são provisórias e só identificam a matéria.
+  - Praticar e modal de prova (ATL-56): fila de hoje, prova com as regras C-05,
+    C-06, C-07 e C-10, resultado e cartões. O modal não decide a prova: a função
+    simularApi() só imita o que /api/review devolveria. Valores da D-038 (XP 10
+    por acerto e 40 por prova; cartão 3/5/7; cronômetro 60 s; resposta rápida
+    abaixo de 3 s). ?cronometro=<segundos> encurta o cronômetro para testar.
+    O Começar do Painel abre a prova só na versão A; a B fica como está.
   - Tailwind v4 (build de navegador, pelo jsDelivr) com `integrity`: o
     cdn.tailwindcss.com não manda cabeçalho CORS, então não aceita a checagem de
     integridade que o SonarCloud exige (regra S5725). Ao trocar a versão, gerar o
@@ -198,6 +204,30 @@
   .amostras { display: flex; gap: 4px; }
   .amostras i { width: 12px; height: 12px; border-radius: 50%; }
 
+  /* Praticar e modal de prova (ATL-56) */
+  .btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+  .bar-tempo > i { transition: width .25s linear; }
+  .opcao { position: relative; display: block; }
+  .opcao input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .opcao span { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px 16px; border: 1px solid var(--muted);
+    border-radius: var(--r-item); background: var(--surface-2); font-size: 15px; }
+  .opcao span::before { content: ""; flex: none; width: 18px; height: 18px; border: 2px solid var(--muted); border-radius: 50%; }
+  .opcao input:checked + span { border-color: var(--accent); }
+  .opcao input:checked + span::before { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 45%, transparent 50%); }
+  .opcao input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+  .opcao input:disabled { cursor: not-allowed; }
+  .campo { display: block; width: 100%; min-height: 120px; padding: 12px 16px; border: 1px solid var(--muted); border-radius: var(--r-item);
+    background: var(--surface-2); color: var(--text); font: inherit; resize: vertical; }
+  .nota { padding: 16px; border-radius: var(--r-item); background: var(--surface-2); font-size: 14px; }
+  .nota:empty { display: none; }
+  dialog.prova { max-width: none; width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; overflow: hidden; }
+  dialog.prova[open] { display: flex; flex-direction: column; }
+  @media (min-width: 768px) {
+    dialog.prova { width: min(680px, calc(100vw - 48px)); height: auto; max-height: calc(100dvh - 48px); margin: auto;
+      border: 1px solid var(--line); border-radius: var(--r-card); }
+  }
+  body:has(dialog.prova[open]) { overflow: hidden; }
+
   #toast { transition: opacity .25s ease; }
 </style>
 </head>
@@ -375,11 +405,11 @@
                 </div>
                 <div class="min-w-0">
                   <p class="font-title text-3xl font-bold leading-tight">Nível 7</p>
-                  <p class="text-sm text-muted"><span class="tabular-nums">412</span> de <span class="tabular-nums">700</span> XP</p>
+                  <p class="text-sm text-muted"><span id="xp-atual" class="tabular-nums">412</span> de <span class="tabular-nums">700</span> XP</p>
                 </div>
               </div>
-              <div class="bar bar-xp mt-4" role="progressbar" aria-label="XP do nível 7" aria-valuemin="0" aria-valuemax="700" aria-valuenow="412" style="--v: 0%" data-pct="59"><i></i></div>
-              <p class="mt-2 text-sm text-muted">Faltam 288 XP para o nível 8.</p>
+              <div id="xp-barra" class="bar bar-xp mt-4" role="progressbar" aria-label="XP do nível 7" aria-valuemin="0" aria-valuemax="700" aria-valuenow="412" style="--v: 0%" data-pct="59"><i></i></div>
+              <p class="mt-2 text-sm text-muted">Faltam <span id="xp-falta">288</span> XP para o nível 8.</p>
             </section>
           </div>
 
@@ -458,6 +488,36 @@
         </div>
       </section>
 
+      <!-- ===== PRATICAR ===== -->
+      <section id="tela-praticar" aria-labelledby="t-praticar" hidden>
+        <header class="mb-6">
+          <span class="eyebrow">Praticar</span>
+          <h1 id="t-praticar" class="mt-1 font-title text-3xl font-bold md:text-4xl">Praticar</h1>
+        </header>
+
+        <div id="praticar-fila">
+          <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div class="min-w-0 md:max-w-[560px]">
+              <h2 class="font-title text-2xl font-bold">Fila de hoje</h2>
+              <p class="mt-1 text-sm text-muted">Ofícios que o Gregor pôs na fila, na ordem. Cada barra é uma das 5 dimensões; <b>Resolver</b> abre a prova de hoje.</p>
+            </div>
+            <div class="proto md:max-w-[360px]">
+              <p class="eyebrow mb-1">Só no protótipo · regras da prova</p>
+              <p class="text-sm text-muted">Regra da cadeia: C-05 (ver solução). Derivadas implícitas: C-10 (60 s; <code>?cronometro=5</code> para testar). Handshake do TCP: C-07. Qualquer escolha respondida em menos de 3 s: C-06.</p>
+            </div>
+          </div>
+          <ul id="fila-lista" class="grid gap-4 md:grid-cols-2 md:gap-6"></ul>
+        </div>
+
+        <div id="praticar-cartoes" hidden>
+          <div class="mb-6 min-w-0 md:max-w-[560px]">
+            <h2 class="font-title text-2xl font-bold">Cartões</h2>
+            <p class="mt-1 text-sm text-muted">No app são os 18 cartões vencidos; aqui, 4 de exemplo. Vire o cartão e dê a nota.</p>
+          </div>
+          <div id="cartoes-corpo" class="max-w-[640px]"></div>
+        </div>
+      </section>
+
       <!-- ===== Outras abas (ainda sem tela) ===== -->
       <section id="tela-vazia" aria-labelledby="t-vazia" hidden></section>
     </main>
@@ -477,6 +537,21 @@
     </div>
     <div id="gaveta-corpo"></div>
   </div>
+</dialog>
+
+<!-- Modal de prova: só simula o que /api/review devolveria; não decide a prova. -->
+<dialog id="prova" class="prova" aria-labelledby="t-prova">
+  <div class="flex min-h-0 flex-1 flex-col">
+    <div class="flex items-start justify-between gap-4 border-b border-line p-4 md:px-6">
+      <div class="min-w-0">
+        <span class="eyebrow" id="prova-eyebrow"></span>
+        <h2 id="t-prova" class="mt-1 break-words font-title text-xl font-bold md:text-2xl"></h2>
+      </div>
+      <button type="button" class="icon-btn" data-fechar aria-label="Fechar a prova (a tentativa é descartada)"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="prova-corpo" class="min-h-0 flex-1 overflow-y-auto p-4 md:p-6"></div>
+  </div>
+  <p id="prova-aviso" class="sr-only" aria-live="polite"></p>
 </dialog>
 
 <!-- Configuração -->
@@ -568,14 +643,15 @@
   /* ----- Diálogos ----- */
   $$('[data-abrir]').forEach((b) => b.addEventListener('click', () => $(`#${b.dataset.abrir}`).showModal()));
   $$('[data-fechar]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
-  $$('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+  /* Clicar fora fecha, menos na prova: um clique perdido não deve descartar a tentativa. */
+  $$('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d && !d.classList.contains('prova')) d.close(); }));
 
   /* ----- Abas e menu contextual ----- */
   const TELAS = {
     painel: { nome: 'Painel', itens: ['Painel'] },
     planejar: { nome: 'Planejar', itens: ['Semana'], nota: 'Fora do protótipo: tem épico próprio (Google Agenda).' },
     biblioteca: { nome: 'Biblioteca', itens: ['Materiais', 'Importar'], nota: 'Fora do protótipo: tem épico próprio.' },
-    praticar: { nome: 'Praticar', itens: ['Fila de hoje', 'Cartões'], nota: 'Entra no protótipo na subtarefa ATL-56.' },
+    praticar: { nome: 'Praticar', itens: ['Fila de hoje', 'Cartões'] },
     ficha: { nome: 'Ficha', itens: ['Resumo', 'Árvore'], nota: 'Entra no protótipo na subtarefa ATL-57.' },
   };
   let telaAtual = 'painel';
@@ -598,6 +674,7 @@
     if (!b) return;
     itemAtual = Number(b.dataset.item);
     desenharMenu();
+    if (telaAtual === 'praticar') mostrarPraticar();
     $('#gaveta').close();
   });
 
@@ -611,14 +688,18 @@
       else a.removeAttribute('aria-current');
     });
     $('#tela-painel').hidden = !painel;
+    const praticar = telaAtual === 'praticar';
+    $('#tela-praticar').hidden = !praticar;
     const vazia = $('#tela-vazia');
-    vazia.hidden = painel;
-    if (!painel) {
+    const semTela = !painel && !praticar;
+    vazia.hidden = !semTela;
+    if (semTela) {
       vazia.innerHTML = `<header class="mb-6"><span class="eyebrow">Protótipo</span><h1 id="t-vazia" class="mt-1 font-title text-3xl font-bold md:text-4xl">${t.nome}</h1></header>
         <div class="card"><p>${t.nota}</p><p class="mt-2 text-sm text-muted">O menu da seção mostra os itens da aba e some quando ela tem um item só, como no Painel.</p></div>`;
     }
     desenharMenu();
-    document.title = `${t.nome} · Ateliê (protótipo)`;
+    if (praticar) mostrarPraticar();
+    document.title =`${t.nome} · Ateliê (protótipo)`;
     if (focar) $('#conteudo').focus();
   }
   window.addEventListener('hashchange', () => ir(location.hash.slice(1), true));
@@ -680,8 +761,10 @@
     i.addEventListener('change', () => { variante = i.value; gravarParametro('variante', variante); desenharSessao(); });
   });
   $('#sessao-corpo').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-comecar]');
-    if (b) aviso(`Aqui abre o bloco "${b.dataset.comecar}". O modal de prova entra na subtarefa ATL-56.`);
+    if (!e.target.closest('[data-comecar]')) return;
+    /* Versão A: o Começar executa o bloco 1 e abre a prova. A versão B não tem fluxo próprio aqui. */
+    if (variante === 'a') abrirProva(0);
+    else aviso('Na versão B o Começar não abre fluxo neste protótipo. Use a versão A.');
   });
 
   /* ----- Painel: data, anéis e barras (animam ao carregar) ----- */
@@ -692,6 +775,367 @@
     $$('.bar[data-pct]').forEach((b) => { b.style.setProperty('--v', `${b.dataset.pct}%`); });
   }));
   $$('.anel .valor').forEach((c) => { c.style.strokeDashoffset = 100; });
+
+  /* ----- Praticar e prova (ATL-56). Dados fictícios; valores da D-038 ----- */
+  const DIMS = [
+    { id: 'conceitual', nome: 'Compreensão conceitual' },
+    { id: 'fluencia', nome: 'Fluência procedimental' },
+    { id: 'problemas', nome: 'Resolução de problemas' },
+    { id: 'autonomia', nome: 'Autonomia' },
+    { id: 'explicacao', nome: 'Explicação' },
+  ];
+  const NOME_DIM = Object.fromEntries(DIMS.map((d) => [d.id, d.nome]));
+  const segundosParam = Number(params.get('cronometro'));
+  const REGRAS = {
+    FAST_ANSWER_MS: 3000, // C-06 (hipótese)
+    TIMED_PROOF_SECONDS: segundosParam > 0 ? segundosParam : 60, // C-10 (hipótese); ?cronometro= só testa
+    MIN_TEXTO: 15, // caracteres de raciocínio ou explicação; a regra diz "uma ou duas frases", sem número
+    XP_ACERTO: 10,
+    XP_PROVA: 40,
+    XP_CARTAO: { errei: 0, dificil: 3, bom: 5, facil: 7 },
+    XP_NIVEL: 700,
+  };
+
+  /* Cada Ofício da fila traz a dimensão que a prova de hoje testa (foco). */
+  const OFICIOS = [
+    { nome: 'Regra da cadeia', mat: 'Cálculo', cor: '--mat-1', revisar: true, foco: 'autonomia', tipo: 'escolha',
+      dims: { conceitual: 1, fluencia: 1, problemas: 0, autonomia: 0, explicacao: 0 },
+      enunciado: 'Qual é a derivada de f(x) = sen(3x²)?',
+      opcoes: ['cos(3x²)', '6x · cos(3x²)', 'cos(6x)', '3x² · cos(3x²)'], certa: 1,
+      solucao: 'derive a função de fora e multiplique pela derivada da de dentro: cos(3x²) · 6x.' },
+    { nome: 'Derivadas implícitas', mat: 'Cálculo', cor: '--mat-1', revisar: true, foco: 'fluencia', tipo: 'escolha',
+      dims: { conceitual: 1, fluencia: 0, problemas: 0, autonomia: 0, explicacao: 0 },
+      enunciado: 'Dada x² + y² = 25, quanto vale dy/dx no ponto (3, 4)?',
+      opcoes: ['−3/4', '3/4', '−4/3', '4/3'], certa: 0 },
+    { nome: 'Handshake do TCP', mat: 'Redes', cor: '--mat-2', revisar: true, foco: 'explicacao', tipo: 'texto',
+      dims: { conceitual: 1, fluencia: 0, problemas: 0, autonomia: 1, explicacao: 0 },
+      enunciado: 'Explique com as suas palavras por que o handshake do TCP usa três mensagens (SYN, SYN-ACK e ACK).' },
+    { nome: 'Limites laterais', mat: 'Cálculo', cor: '--mat-1', revisar: false, foco: 'conceitual', tipo: 'escolha',
+      dims: { conceitual: 0, fluencia: 0, problemas: 0, autonomia: 0, explicacao: 0 },
+      enunciado: 'Qual é o limite lateral de f(x) = 1/x quando x tende a 0 pela direita?',
+      opcoes: ['+∞', '−∞', '0', '1'], certa: 0,
+      solucao: 'com x positivo e muito pequeno, 1/x fica positivo e enorme: o limite é +∞.' },
+  ];
+  const CARTOES = [
+    { mat: 'Cálculo', cor: '--mat-1', frente: 'Qual é a derivada de cos(x)?', verso: '−sen(x).' },
+    { mat: 'Redes', cor: '--mat-2', frente: 'Quais flags o segundo segmento do handshake do TCP carrega?', verso: 'SYN e ACK, juntas (SYN-ACK).' },
+    { mat: 'Filosofia', cor: '--mat-3', frente: 'O que Descartes chama de dúvida metódica?', verso: 'Duvidar de tudo o que pode ser posto em dúvida, para achar uma verdade indubitável: o cogito.' },
+    { mat: 'Cálculo', cor: '--mat-1', frente: 'Se f é contínua em [a, b], o que o Teorema do Valor Intermediário garante?', verso: 'Que f assume todo valor entre f(a) e f(b) em algum ponto de [a, b].' },
+  ];
+
+  const seg = (ms) => (ms / 1000).toFixed(1).replace('.', ',');
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const contar = (o) => DIMS.filter((d) => o.dims[d.id] === 1).length;
+  const estadoDe = (o) => {
+    const n = contar(o);
+    if (n === 0) return 'Disponível';
+    if (n === 1) return 'Em prática';
+    return n < 5 ? 'Liberado' : 'Dominado';
+  };
+
+  /* XP do Painel: sobe na prova e nos cartões. Subir de nível não é simulado. */
+  let xp = 412;
+  function ganharXp(n) {
+    if (!n) return;
+    xp = Math.min(xp + n, REGRAS.XP_NIVEL - 1);
+    const pct = Math.round((xp / REGRAS.XP_NIVEL) * 100);
+    $('#xp-atual').textContent = xp;
+    $('#xp-falta').textContent = REGRAS.XP_NIVEL - xp;
+    const b = $('#xp-barra');
+    b.setAttribute('aria-valuenow', xp);
+    b.style.setProperty('--v', `${pct}%`);
+  }
+
+  /* As 5 dimensões em barras (conquistada ou não, como na D-022). */
+  function barras(o, nova) {
+    return DIMS.map((d) => {
+      const v = o.dims[d.id] === 1;
+      const marca = nova === d.id ? ' <span class="chip chip-xp">Nova</span>' : (!nova && d.id === o.foco ? ' <span class="chip chip-xp">Prova de hoje</span>' : '');
+      return `<li>
+        <div class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 flex-wrap items-center gap-2">${d.nome}${marca}</span>
+          <span class="flex-none font-semibold${v ? ' text-ok' : ' text-muted'}">${v ? 'Conquistada' : 'Ainda não'}</span>
+        </div>
+        <div class="bar mt-2" role="progressbar" aria-label="${d.nome}: ${v ? 'conquistada' : 'ainda não conquistada'}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v ? 100 : 0}" style="--v: ${v ? 100 : 0}%"><i></i></div>
+      </li>`;
+    }).join('');
+  }
+
+  /* ----- Fila de hoje ----- */
+  function desenharFila() {
+    $('#fila-lista').innerHTML = OFICIOS.map((o, i) => `<li class="card">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="break-words font-title text-lg font-bold">${o.nome}</h3>
+          <p class="mt-1 flex items-center gap-2 text-sm text-muted"><i class="dot" style="background: var(${o.cor})"></i>${o.mat} · ${estadoDe(o)}</p>
+        </div>
+        ${o.revisar ? '<span class="chip chip-bad">Precisa revisar</span>' : ''}
+      </div>
+      <ul class="mt-4 space-y-3">${barras(o)}</ul>
+      <button type="button" class="btn ${i === 0 ? 'btn-primary' : 'btn-ghost'} mt-5 w-full md:w-auto" data-resolver="${i}" aria-label="Resolver: ${o.nome}">Resolver</button>
+    </li>`).join('');
+  }
+  $('#fila-lista').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-resolver]');
+    if (b) abrirProva(Number(b.dataset.resolver));
+  });
+
+  function mostrarPraticar() {
+    const fila = itemAtual === 0;
+    $('#praticar-fila').hidden = !fila;
+    $('#praticar-cartoes').hidden = fila;
+    if (fila) desenharFila();
+    else desenharCartoes();
+  }
+
+  /* ----- Modal de prova ----- */
+  const prova = { i: 0, t0: 0, timer: 0, estado: '', viu: false };
+  const pararTimer = () => { clearInterval(prova.timer); prova.timer = 0; };
+
+  function corpo(html) {
+    const c = $('#prova-corpo');
+    c.innerHTML = html;
+    c.scrollTop = 0;
+    const f = $('[data-foco]', c);
+    if (f) f.focus();
+    return c;
+  }
+
+  function abrirProva(i) {
+    prova.i = i;
+    mostrarQuestao();
+    $('#prova').showModal();
+  }
+  $('#prova').addEventListener('close', () => {
+    pararTimer();
+    if (prova.estado !== 'resultado') aviso('Tentativa descartada: nada foi gravado.');
+    if (telaAtual === 'praticar') mostrarPraticar();
+  });
+
+  const campoTexto = (rotulo) => `<label for="p-texto" class="mt-5 block text-sm font-semibold">${rotulo}</label>
+    <textarea id="p-texto" class="campo mt-2" rows="5" aria-describedby="p-contagem"></textarea>
+    <p id="p-contagem" class="mt-2 text-sm text-muted">Mínimo de ${REGRAS.MIN_TEXTO} caracteres.</p>`;
+
+  /* Liga o campo de texto: o botão só habilita com o mínimo de caracteres (C-06 e C-07). */
+  function ligarCampo(c, aoEnviar) {
+    const area = $('#p-texto', c);
+    const enviar = $('#p-enviar', c);
+    area.addEventListener('input', () => {
+      const falta = REGRAS.MIN_TEXTO - area.value.trim().length;
+      enviar.disabled = falta > 0;
+      $('#p-contagem', c).textContent = falta > 0 ? `Faltam ${falta} caracteres.` : 'Pode enviar.';
+    });
+    enviar.addEventListener('click', () => aoEnviar(area.value.trim()));
+  }
+
+  function mostrarQuestao() {
+    const o = OFICIOS[prova.i];
+    prova.estado = 'questao';
+    prova.viu = false;
+    pararTimer();
+    $('#prova-aviso').textContent = '';
+    $('#prova-eyebrow').textContent = `Ofício ${prova.i + 1} de ${OFICIOS.length} · ${o.mat}`;
+    $('#t-prova').textContent = o.nome;
+    const cabeca = `<h3 tabindex="-1" data-foco class="font-title text-xl font-bold leading-snug">${o.enunciado}</h3>
+      <p class="mt-2 text-sm text-muted">Prova de <b>${NOME_DIM[o.foco]}</b>.</p>`;
+
+    if (o.tipo === 'texto') {
+      const c = corpo(`${cabeca}${campoTexto('Sua explicação')}
+        <div class="mt-6"><button type="button" id="p-enviar" class="btn btn-primary max-md:w-full" disabled>Enviar explicação</button></div>
+        <p class="proto mt-6 text-sm text-muted">Só no protótipo: no MVP o texto é guardado e conta como prova, sem avaliação automática (C-07).</p>`);
+      ligarCampo(c, (texto) => concluir({ oficio: o, acertou: true, texto }));
+      return;
+    }
+
+    const cronometrada = o.foco === 'fluencia';
+    const total = REGRAS.TIMED_PROOF_SECONDS;
+    const c = corpo(`${cabeca}
+      ${cronometrada ? `<div class="mt-4 rounded-item bg-surface-2 p-4">
+        <div class="flex items-center justify-between gap-3"><span class="eyebrow">Cronômetro · fluência</span><b id="p-tempo" class="font-title text-2xl tabular-nums">${mmss(total)}</b></div>
+        <div class="bar bar-tempo mt-3" id="p-barra-tempo" role="progressbar" aria-label="Tempo restante" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${total}" style="--v: 100%"><i></i></div>
+      </div>` : ''}
+      <fieldset class="mt-5"><legend class="sr-only">Alternativas</legend>
+        <div class="grid gap-3">${o.opcoes.map((t, k) => `<label class="opcao"><input type="radio" name="opcao" value="${k}"><span>${t}</span></label>`).join('')}</div>
+      </fieldset>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <button type="button" id="p-responder" class="btn btn-primary max-md:w-full" disabled>Responder</button>
+        ${cronometrada ? '' : '<button type="button" id="p-solucao" class="btn btn-ghost max-md:w-full">Ver solução</button>'}
+      </div>
+      <div id="p-solucao-texto" class="nota mt-4" aria-live="polite"></div>
+      <p class="proto mt-6 text-sm text-muted">Só no protótipo: responder em menos de 3 s ativa a regra C-06.</p>`);
+
+    const responder = $('#p-responder', c);
+    $$('input[name="opcao"]', c).forEach((i) => i.addEventListener('change', () => { responder.disabled = false; }));
+    const sol = $('#p-solucao', c);
+    if (sol) {
+      sol.addEventListener('click', () => {
+        prova.viu = true;
+        $('#p-solucao-texto', c).textContent = `Solução: ${o.solucao} Esta tentativa não vai contar para o domínio (C-05): o log leva a marca viewed_solution.`;
+      });
+    }
+    prova.t0 = performance.now();
+    responder.addEventListener('click', () => {
+      const ms = performance.now() - prova.t0;
+      const escolhida = Number($('input[name="opcao"]:checked', c).value);
+      pararTimer();
+      const acertou = escolhida === o.certa;
+      if (acertou && !prova.viu && ms < REGRAS.FAST_ANSWER_MS) mostrarRaciocinio(o, ms);
+      else concluir({ oficio: o, acertou, ms, viu: prova.viu });
+    });
+    if (cronometrada) iniciarTimer(c, o, total);
+  }
+
+  /* C-10: o tempo acaba e a prova trava. */
+  function iniciarTimer(c, o, total) {
+    const fim = Date.now() + total * 1000;
+    let avisou = false;
+    prova.timer = setInterval(() => {
+      const faltaMs = Math.max(0, fim - Date.now());
+      const resta = Math.ceil(faltaMs / 1000);
+      $('#p-tempo', c).textContent = mmss(resta);
+      const b = $('#p-barra-tempo', c);
+      b.setAttribute('aria-valuenow', resta);
+      b.style.setProperty('--v', `${(faltaMs / (total * 1000)) * 100}%`);
+      if (!avisou && total > 10 && resta <= 10) { avisou = true; $('#prova-aviso').textContent = 'Faltam 10 segundos.'; }
+      if (faltaMs === 0) { pararTimer(); concluir({ oficio: o, acertou: false, tempoEsgotado: true }); }
+    }, 250);
+  }
+
+  /* C-06: acerto abaixo de 3 s só conta depois de uma ou duas frases de raciocínio. */
+  function mostrarRaciocinio(o, ms) {
+    prova.estado = 'raciocinio';
+    const c = corpo(`<h3 tabindex="-1" data-foco class="font-title text-xl font-bold leading-snug">Acertou em ${seg(ms)} s. Como chegou lá?</h3>
+      <p class="mt-2 text-sm text-muted">Acerto em menos de ${seg(REGRAS.FAST_ANSWER_MS)} s sem raciocínio escrito não conta (C-06). Escreva uma ou duas frases.</p>
+      ${campoTexto('Seu raciocínio')}
+      <div class="mt-6 flex flex-wrap gap-3">
+        <button type="button" id="p-enviar" class="btn btn-primary max-md:w-full" disabled>Enviar raciocínio</button>
+        <button type="button" id="p-pular" class="btn btn-ghost max-md:w-full">Seguir sem escrever</button>
+      </div>`);
+    ligarCampo(c, (texto) => concluir({ oficio: o, acertou: true, ms, raciocinio: texto }));
+    $('#p-pular', c).addEventListener('click', () => concluir({ oficio: o, acertou: true, ms, semRaciocinio: true }));
+  }
+
+  /* Simula o que /api/review devolveria. A decisão real (prova conquistada ou não) é do Gregor e da API. */
+  function simularApi(l) {
+    const o = l.oficio;
+    const sem = { xpAcerto: 0, xpProva: 0, provaNova: false, resposta: 'Certa', prova: 'Não conta' };
+    if (l.tempoEsgotado) {
+      return { ...sem, resposta: 'Sem tempo', prova: 'Não houve', titulo: 'Tempo esgotado',
+        texto: `Passaram os ${REGRAS.TIMED_PROOF_SECONDS} segundos (C-10). Nenhum XP, e a prova de ${NOME_DIM[o.foco]} não foi conquistada.` };
+    }
+    if (!l.acertou) {
+      return { ...sem, resposta: 'Errada', prova: 'Não houve', titulo: 'Não foi dessa vez',
+        texto: 'Resposta errada: nenhum XP por tentativa errada. O Gregor registra o erro e traz o Ofício de volta para revisão.' };
+    }
+    if (l.viu) {
+      return { ...sem, titulo: 'Acertou, mas a tentativa não conta',
+        texto: 'Você abriu a solução antes de responder. O log foi gravado com viewed_solution e não conta para o domínio (C-05), nem dá XP.' };
+    }
+    if (l.semRaciocinio) {
+      return { ...sem, titulo: 'Acertou, mas a tentativa não conta',
+        texto: 'Acerto rápido sem raciocínio escrito não conta (C-06). Nenhum XP; tente de novo explicando o caminho.' };
+    }
+    const jaTinha = o.dims[o.foco] === 1;
+    const provaNova = !jaTinha;
+    return { resposta: l.texto ? 'Enviada' : 'Certa', prova: jaTinha ? 'Já era sua' : 'Conquistada', provaNova,
+      xpAcerto: REGRAS.XP_ACERTO, xpProva: provaNova ? REGRAS.XP_PROVA : 0,
+      titulo: provaNova ? `Prova conquistada: ${NOME_DIM[o.foco]}` : 'Acertou de novo',
+      texto: l.texto ? 'No MVP a explicação é guardada e conta como prova, sem avaliação automática (C-07).'
+        : (provaNova ? 'Mais uma dimensão acesa neste Ofício.' : `Você já tinha a prova de ${NOME_DIM[o.foco]}: só o XP do acerto.`) };
+  }
+
+  function concluir(l) {
+    const o = l.oficio;
+    const r = simularApi(l);
+    prova.estado = 'resultado';
+    pararTimer();
+    if (r.provaNova) o.dims[o.foco] = 1;
+    const ganho = r.xpAcerto + r.xpProva;
+    ganharXp(ganho);
+
+    const marcas = [];
+    if (l.viu) marcas.push('viewed_solution');
+    if (l.ms !== undefined) marcas.push(`tempo ${seg(l.ms)} s`);
+    if (l.raciocinio) marcas.push('raciocínio guardado');
+    if (l.texto) marcas.push('explicação guardada');
+    if (l.semRaciocinio) marcas.push('sem raciocínio');
+    if (l.tempoEsgotado) marcas.push('tempo esgotado');
+    const tem = (v) => `<div class="rounded-item bg-surface-2 p-4"><b style="font-size: 20px">${v[0]}</b><span class="text-sm text-muted">${v[1]}</span></div>`;
+    const ultimo = prova.i + 1 >= OFICIOS.length;
+
+    const c = corpo(`<h3 tabindex="-1" data-foco class="font-title text-2xl font-bold leading-snug">${r.titulo}</h3>
+      <p class="mt-2 text-muted">${r.texto}</p>
+      <div class="stat mt-5 grid grid-cols-3 gap-3">${tem([r.resposta, 'resposta'])}${tem([r.prova, 'prova'])}${tem([`+${ganho}`, 'XP'])}</div>
+      <p class="mt-2 text-xs text-muted">${r.xpAcerto ? `Acerto ${r.xpAcerto}${r.xpProva ? ` + prova ${r.xpProva}` : ''}.` : 'Sem XP nesta tentativa.'}</p>
+      <h4 class="eyebrow mt-6">Dimensões de ${o.nome} · ${estadoDe(o)}</h4>
+      <ul class="mt-3 space-y-3">${barras(o, r.provaNova ? o.foco : null)}</ul>
+      <p class="eyebrow mt-6">Log enviado a /api/review (simulado)</p>
+      <p class="mt-2 flex flex-wrap gap-2">${marcas.map((m) => `<span class="chip">${m}</span>`).join('') || '<span class="chip">sem marcas</span>'}</p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <button type="button" id="p-prox" class="btn btn-primary max-md:w-full">${ultimo ? 'Concluir' : 'Próximo Ofício'}</button>
+        <button type="button" id="p-fila" class="btn btn-ghost max-md:w-full">Ver a fila de hoje</button>
+      </div>`);
+    $('#p-prox', c).addEventListener('click', () => {
+      if (ultimo) { $('#prova').close(); return; }
+      prova.i += 1;
+      mostrarQuestao();
+    });
+    $('#p-fila', c).addEventListener('click', () => {
+      $('#prova').close();
+      location.hash = '#praticar';
+    });
+  }
+
+  /* ----- Cartões: virar e 4 notas (XP da D-038; sem intervalo, o FSRS ainda não está definido) ----- */
+  const cartao = { i: 0, virado: false, xp: 0 };
+  const NOTAS = [['errei', 'Errei'], ['dificil', 'Difícil'], ['bom', 'Bom'], ['facil', 'Fácil']];
+
+  function desenharCartoes() {
+    const el = $('#cartoes-corpo');
+    if (cartao.i >= CARTOES.length) {
+      el.innerHTML = `<div class="card">
+        <span class="eyebrow">Fila de exemplo concluída</span>
+        <h3 tabindex="-1" data-foco class="mt-2 font-title text-2xl font-bold">Cartões revisados</h3>
+        <p class="mt-2 text-muted">Você ganhou <b class="tabular-nums">${cartao.xp}</b> XP nestes ${CARTOES.length} cartões.</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button type="button" class="btn btn-primary max-md:w-full" data-c="reiniciar">Recomeçar</button>
+          <a href="#painel" class="btn btn-ghost max-md:w-full">Voltar ao Painel</a>
+        </div></div>`;
+      return;
+    }
+    const k = CARTOES[cartao.i];
+    el.innerHTML = `<div class="card">
+      <div class="flex items-center justify-between gap-3">
+        <span class="eyebrow">Cartão ${cartao.i + 1} de ${CARTOES.length} · ${cartao.virado ? 'Verso' : 'Frente'}</span>
+        <span class="chip"><i class="dot mr-2" style="background: var(${k.cor})"></i>${k.mat}</span>
+      </div>
+      <p class="mt-6 font-title text-2xl font-bold leading-snug">${k.frente}</p>
+      ${cartao.virado ? `<hr class="hairline my-6"><p id="cartao-verso" tabindex="-1" class="text-lg">${k.verso}</p>
+        <p class="eyebrow mb-3 mt-8">Como foi lembrar?</p>
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">${NOTAS.map(([id, nome]) => `<button type="button" class="btn btn-ghost flex-col gap-0 py-2" data-nota="${id}">
+          <span${id === 'errei' ? ' style="color: var(--bad)"' : ''}>${nome}</span><span class="text-xs font-semibold text-muted">${REGRAS.XP_CARTAO[id]} XP</span></button>`).join('')}</div>`
+        : '<div class="mt-8"><button type="button" class="btn btn-primary w-full md:w-auto" data-c="virar">Virar</button></div>'}
+    </div>`;
+    const alvo = cartao.virado ? $('#cartao-verso') : null;
+    if (alvo) alvo.focus();
+  }
+  $('#cartoes-corpo').addEventListener('click', (e) => {
+    const acao = e.target.closest('[data-c]');
+    const nota = e.target.closest('[data-nota]');
+    if (acao && acao.dataset.c === 'virar') cartao.virado = true;
+    else if (acao && acao.dataset.c === 'reiniciar') Object.assign(cartao, { i: 0, virado: false, xp: 0 });
+    else if (nota) {
+      const n = REGRAS.XP_CARTAO[nota.dataset.nota];
+      cartao.xp += n;
+      ganharXp(n);
+      aviso(n ? `+${n} XP` : 'Errei: nenhum XP.');
+      cartao.i += 1;
+      cartao.virado = false;
+    } else return;
+    desenharCartoes();
+    const f = $('[data-foco]', $('#cartoes-corpo'));
+    if (f) f.focus();
+  });
 
   desenharSessao();
   ir(location.hash.slice(1), false);
