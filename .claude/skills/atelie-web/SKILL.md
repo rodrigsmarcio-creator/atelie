@@ -116,7 +116,7 @@ no servidor; o componente não calcula domínio.
 - `POST /api/review` é a única porta de evidência; `POST /api/import` a única
   de conteúdo. Nenhuma outra rota escreve em `review_logs`, `skills` ou `items`.
 - Paginação em toda coleção que cresce.
-- Sem autenticação na v1 (D-017), mas sem CORS aberto: só mesma origem.
+- Login obrigatório a partir do deploy (D-035; biblioteca definida no ATL-22), sem CORS aberto: só mesma origem.
 - Segredo do Google nunca vai para o cliente nem para o Git.
 
 ## Antes de encerrar

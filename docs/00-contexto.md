@@ -41,7 +41,7 @@ Este arquivo é o recorte do que será construído.
   contratos definidos, não como janela genérica.
 - Não é um jogo. A gamificação (ofensiva, XP, nível, Ficha) representa
   progresso real. Pontos nunca substituem domínio, e domínio só vem de prova.
-- Não é um produto para terceiros. Um usuário, sem autenticação, sem
+- Não é um produto para terceiros. Um usuário (com login só dele, D-035), sem
   multi-tenant. Isso simplifica tudo e deve ser aproveitado.
 
 ## Os dois casos de uso centrais
@@ -134,5 +134,5 @@ benefícios por nível.
 ## Quem usa e onde roda
 
 Um usuário. Uso diário no PC (`pnpm dev`) e acesso pelo navegador do celular na
-mesma rede. Sem conta e sem senha na v1. Sem deploy automático na v1. O
+mesma rede. Deploy gratuito no MVP (D-035), com login obrigatório; hospedagem e banco em A-011. O
 repositório é público (D-034); banco, PDFs, segredos e conteúdo real ficam fora do Git.

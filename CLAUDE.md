@@ -7,7 +7,7 @@ como trabalhar.
 ## O que é o Ateliê
 
 Sistema pessoal de estudos do Márcio. Uso individual, acessado pelo navegador
-do PC e do celular. Três partes:
+do PC e do celular; deploy gratuito com login no MVP (D-035). Três partes:
 
 - **Gregor** (`packages/core`): motor determinístico que decide o que estudar
   agora, calcula domínio, ofensiva e XP. Regras, não IA.
