@@ -17,8 +17,12 @@ na validação Zod. A aplicação vai ter bugs; o banco é a última linha. Um C
 que você considerou óbvio demais para escrever é exatamente o que vai salvar o
 dado daqui a seis meses.
 
-Em SQLite, `PRAGMA foreign_keys = ON` precisa ser ligado em toda conexão. Não é
-padrão. Confirme que a configuração do better-sqlite3 faz isso.
+O banco é SQLite via libSQL (`@libsql/client` + `drizzle-orm/libsql`): arquivo
+`file:` no PC, no CI e no Docker, Turso em produção (D-036). Não use
+`better-sqlite3`. Em SQLite, `PRAGMA foreign_keys = ON` precisa ser ligado em
+toda conexão; não é padrão. Ligue de forma explícita ao abrir o cliente e tenha
+um teste que prove que uma FK inválida é recusada, tanto em `file:` quanto no
+Turso.
 
 ## `review_logs` é append-only
 
