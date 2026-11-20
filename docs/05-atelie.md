@@ -56,8 +56,9 @@ ornamento equivalente (um símbolo e um filete próprios) é desenhado no
 protótipo (A-009).
 
 Os valores de G e H partem de marcas de referência (borgonha e ouro; verde de
-streaming e dourado de relógio) e foram estimados de memória; o épico de
-identidade visual confirma e fecha os valores.
+streaming e dourado de relógio). Foram revistos e **fechados na ATL-53**, sem
+mudança: todos passam no contraste (tabela abaixo) e o Márcio aprovou o visual
+na página de comparação (D-039).
 
 Regras:
 
@@ -67,7 +68,35 @@ Regras:
   no CI (`text` e `muted` sobre `bg`, `surface` e `surface-2`; `on-accent` sobre
   `accent`). Tokens decorativos (`hot`, `halo`, `glow`) **nunca** são texto: na
   paleta G, o borgonha e o espresso não passam como texto sobre `bg`.
+- `line` é **decorativa** (1,3 a 1,5:1 sobre `bg` e `surface`): separa cartões,
+  mas não identifica controle. Borda de campo de texto, caixa de seleção ou
+  outro controle que só se reconhece pela borda usa `muted` (WCAG 1.4.11 pede
+  3:1; `muted` dá mais de 7:1 nas três).
 - `prefers-reduced-motion` desliga os brilhos (`halo`, `glow`) e animações.
+
+#### Contraste medido
+
+Gerado por `node scripts/contraste.ts`, que lê a tabela de tokens deste doc e
+falha se algum par ficar abaixo de 4,5:1. Os sete primeiros pares são os
+exigidos; os quatro últimos são tokens que aparecem como texto em telas. Medido
+em 2026-11-20 (ATL-53).
+
+| Par | E | G | H |
+|---|---|---|---|
+| `text` sobre `bg` | 16,19 | 15,56 | 16,11 |
+| `text` sobre `surface` | 17,61 | 14,96 | 18,41 |
+| `text` sobre `surface-2` | 16,13 | 13,61 | 16,74 |
+| `muted` sobre `bg` | 7,29 | 8,69 | 8,58 |
+| `muted` sobre `surface` | 7,93 | 8,36 | 9,81 |
+| `muted` sobre `surface-2` | 7,26 | 7,60 | 8,92 |
+| `on-accent` sobre `accent` | 8,62 | 6,63 | 9,89 |
+| `accent` sobre `surface-2` | 8,26 | 5,80 | 9,60 |
+| `xp` sobre `surface-2` | 10,68 | 5,80 | 9,34 |
+| `ok` sobre `surface-2` | 10,70 | 9,80 | 10,62 |
+| `bad` sobre `surface-2` | 7,33 | 6,72 | 7,28 |
+
+O par mais apertado é o ouro da G (`accent` e `xp` sobre `surface-2`, 5,80).
+Se a G mudar, conferir esse primeiro.
 
 ### Tipografia
 
