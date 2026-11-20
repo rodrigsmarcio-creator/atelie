@@ -29,7 +29,7 @@ Regras:
 - Simples antes de abstrato. Sem feature de fora do MVP dentro do MVP
   (docs/08-roadmap.md).
 - Todo trabalho segue a esteira de docs/11-esteira.md (Jira ATL, uma branch
-  por subtarefa, PR com CI e SonarCloud).
+  por subtarefa, PR com CI, Testes e SonarCloud).
 - Decisão nova = linha em docs/06-decisoes.md. Lembre o Márcio disso.
 - Português. Direto. Sem elogio vazio.
 ```
