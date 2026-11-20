@@ -89,7 +89,7 @@ dependentes). **Dominado** = as 5. Confiança = dimensões ÷ 5, menos uma
 penalidade temporária por erro recente.
 
 - Erro **baixa a confiança**, nunca as dimensões, e põe o Ofício na fila de
-  reforço (bloco 3).
+  reforço (bloco 3). Só exercício errado conta; cartão "Errei" não (D-038).
 - Prova conquistada **nunca é removida**. O decaimento é o marcador "Precisa
   revisar", vindo do FSRS.
 - Tentativas com `viewed_solution = true` nunca entram em domínio, em XP nem em
@@ -100,8 +100,9 @@ penalidade temporária por erro recente.
 
 4 blocos fixos, nesta ordem: revisão pré-matéria com mini exercícios (10–15
 min), matéria nova (40–50), reforço em pontos fracos (20–30), cartões (15–20).
-Modos Completa e Curta (metade). Bloco vazio é pulado, com motivo; o tempo não é
-redistribuído. O Gregor não escolhe horário (o Planejar cria **um** evento por
+Modos Completa (15/50/30/20, teto) e Curta (8/25/15/10). Bloco vazio é pulado,
+com motivo; o tempo não é redistribuído. Primeiro Ofício do bloco 2 que não cabe
+entra como estudo parcial (D-038). O Gregor não escolhe horário (o Planejar cria **um** evento por
 sessão).
 
 ## Ofensiva e XP

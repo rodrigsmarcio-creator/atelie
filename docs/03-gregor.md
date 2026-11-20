@@ -45,7 +45,7 @@ export interface SkillState {
   subjectId: ULID;
   prereqIds: ULID[];
   proofs: Proof[];              // provas conquistadas (derivado de review_logs)
-  errors: ISODate[];            // tentativas válidas erradas (para o reforço)
+  errors: ISODate[];            // exercícios válidos errados (para o reforço); cartão não entra
   estimatedMinutes: number;     // 10–40, vem do conteúdo
 }
 
@@ -123,7 +123,7 @@ mastery(skill, now) -> { dimensions: 0..5, confidence: 0..1, missing: ProofKind[
 dimensions = número de tipos de prova diferentes conquistados
 confidence = (dimensions / 5) * (1 - penalidadeDeErro)
 penalidadeDeErro = min(ERROR_PENALTY_MAX, errosRecentes * ERROR_PENALTY_EACH)
-errosRecentes    = tentativas válidas erradas nos últimos ERROR_WINDOW_DAYS dias
+errosRecentes    = exercícios válidos errados nos últimos ERROR_WINDOW_DAYS dias
 ```
 
 - **Domínio é cobertura:** quantas das 5 dimensões o Márcio já provou naquele
@@ -133,8 +133,12 @@ errosRecentes    = tentativas válidas erradas nos últimos ERROR_WINDOW_DAYS di
   Ofício com erro recente entra na fila de reforço (seção 5, bloco 3).
 - Tentativas com `viewed_solution = true` não são válidas e nunca entram em
   domínio nem em `errors` (C-05).
+- Cartão "Errei" não entra em `errors`: esquecer cartão é o fluxo normal do
+  FSRS, tratado pela revisão e pelo "Precisa revisar" (D-038).
 - `ERROR_WINDOW_DAYS = 14`, `ERROR_PENALTY_EACH = 0.10`, `ERROR_PENALTY_MAX =
-  0.30` (todas hipótese, valores iniciais; ajustar no ticket do Gregor).
+  0.30` (todas hipótese, D-038). Exemplo: Ofício com 3 dimensões tem confiança
+  0,60; com 1 erro recente, 0,54; com 2, 0,48; com 3 ou mais, 0,42 (teto).
+  Passada a janela, volta a 0,60.
 
 **Estados do Ofício** (para a Árvore e para o Painel):
 
@@ -237,16 +241,32 @@ A sessão tem **sempre 4 blocos, nesta ordem** (D-024):
 
 Total de 85 a 115 minutos.
 
-- **Modo completa:** cada bloco usa a sua faixa. **Modo curta:** metade do tempo
-  de cada bloco. Como a faixa vira um número exato (ponto médio, limite
-  superior) é definido no ticket do Gregor; os limites ficam em `params.ts`.
+Duração exata de cada bloco (hipótese, D-038). O número é um **teto**: o bloco
+enche até ele e termina antes se faltar o que estudar.
+
+| Bloco | Completa (limite superior da faixa) | Curta (metade, arredondada para cima) |
+|---|---|---|
+| 1 Revisão pré-matéria | 15 | 8 |
+| 2 Matéria nova | 50 | 25 |
+| 3 Reforço | 30 | 15 |
+| 4 Cartões | 20 | 10 |
+| Total | 115 | 58 |
+
+- Os dois conjuntos ficam em `params.ts` (`BLOCK_MINUTES_FULL` e
+  `BLOCK_MINUTES_SHORT`), com os valores da tabela escritos à mão, não
+  calculados.
 - **Bloco vazio é pulado**, com `skipped = true` e o motivo escrito (por exemplo
   "nada com revisão vencida hoje"). O tempo não é redistribuído para os outros
   blocos.
 - Itens de revisão custam `MIN_PER_MINI` minutos (hipótese, 2) e cartões
   `MIN_PER_CARD` (hipótese, 1,5). Entram até preencher o tempo do bloco.
-- Um Ofício do bloco 2 usa `estimatedMinutes`. Se sobrar tempo na faixa, entra o
-  próximo candidato.
+- Um Ofício do bloco 2 usa `estimatedMinutes`. Se sobrar tempo no bloco, entra o
+  próximo candidato que caiba.
+- **Estudo parcial:** se o primeiro candidato do bloco 2 não cabe (por exemplo,
+  Ofício de 40 min no bloco de 25 da Curta), ele entra mesmo assim com os
+  minutos do bloco, e o `reason` diz que é parcial. Na sessão seguinte ele
+  volta, porque a ordenação é determinística (D-038). Só o primeiro candidato
+  ganha essa exceção.
 - `rng` só embaralha a ordem dos **itens dentro** de um Ofício, nunca a ordem dos
   Ofícios. Vem com semente.
 - Toda entrada ganha `reason` em português, legível na tela. Exemplo:
@@ -259,8 +279,9 @@ Casos de borda obrigatórios:
 - Nenhum Ofício disponível nem em andamento: bloco 2 pulado com motivo.
 - Tudo Dominado e nada vencido: sessão com os 4 blocos pulados e um `reason`
   geral ("nada a estudar agora").
-- `mode` curta com bloco de faixa que, pela metade, não comporta nenhum item:
-  bloco pulado com motivo.
+- `mode` curta com bloco 1, 3 ou 4 que, pela metade, não comporta nenhum item:
+  bloco pulado com motivo. O bloco 2 nunca é pulado por falta de tempo: vale o
+  estudo parcial.
 
 O Planejar (Google Agenda) transforma a sessão em **um** evento com os blocos
 descritos no texto. O Gregor não escolhe horário no MVP.
@@ -296,18 +317,27 @@ Difícil, Bom ou Fácil. Não dão XP: tentativa errada, cartão "Errei", tentat
 com solução vista, leitura. Redação corrigida dá XP, mas fica para depois do
 MVP.
 
-Tabela inicial (**hipótese**, ajustada no ticket do Gregor; ver A-008):
+Tabela inicial (**hipótese**, D-038):
 
-| Evento | XP |
-|---|---|
-| Acerto válido em exercício | 10 |
-| Prova conquistada (bônus, soma ao acerto) | 40 |
-| Cartão Difícil | 3 |
-| Cartão Bom | 5 |
-| Cartão Fácil | 7 |
+| Evento | XP | `params.ts` |
+|---|---|---|
+| Acerto válido em exercício | 10 | `XP_CORRECT` |
+| Prova conquistada (bônus, soma ao acerto) | 40 | `XP_PROOF_BONUS` |
+| Cartão Difícil | 3 | `XP_CARD_HARD` |
+| Cartão Bom | 5 | `XP_CARD_GOOD` |
+| Cartão Fácil | 7 | `XP_CARD_EASY` |
 
-Curva de níveis: subir do nível `n` para `n + 1` custa `100 * n` XP
-(hipótese): nível 1 → 2 custa 100, 2 → 3 custa 200, e assim por diante.
+Curva de níveis: subir do nível `n` para `n + 1` custa `LEVEL_COST_STEP * n`
+XP, com `LEVEL_COST_STEP = 100` (hipótese, D-038): nível 1 → 2 custa 100,
+2 → 3 custa 200, e assim por diante. Chegar ao nível `N` custa, no total,
+`50 * N * (N - 1)` XP. Todo mundo começa no nível 1.
+
+Estimativa usada para aprovar os valores (conta de 2026-11-20, não medição):
+uma sessão Completa em ritmo, com uns 75% de acerto, dá cerca de 330 XP; a
+Curta, 165. Uma semana com 5 Completas e 2 Curtas dá cerca de 2.000 XP: nível 6
+na primeira semana, 13 no primeiro mês, 32 no semestre e 46 no ano. Rever com
+o XP real de `review_logs` depois de algumas semanas.
+
 Benefícios por nível ficam para depois. O XP total é derivado de
 `review_logs` e `proofs`; não há tabela de XP (`docs/04-dados.md`).
 
@@ -364,9 +394,10 @@ export const FEEDBACK_REQUIRED = true;
 
 Lista inicial: `UNLOCK_MIN_DIMENSIONS`, `RETENTION_TARGET`, `ERROR_WINDOW_DAYS`,
 `ERROR_PENALTY_EACH`, `ERROR_PENALTY_MAX`, `FAST_ANSWER_MS`,
-`TIMED_PROOF_SECONDS`, `EXPLAIN_MIN_CHARS`, durações dos 4 blocos (completa e
-curta), `MIN_PER_MINI`, `MIN_PER_CARD`, tabela de XP, curva de níveis,
-`FEEDBACK_REQUIRED`.
+`TIMED_PROOF_SECONDS`, `EXPLAIN_MIN_CHARS`, `BLOCK_MINUTES_FULL`,
+`BLOCK_MINUTES_SHORT`, `MIN_PER_MINI`, `MIN_PER_CARD`, `XP_CORRECT`,
+`XP_PROOF_BONUS`, `XP_CARD_HARD`, `XP_CARD_GOOD`, `XP_CARD_EASY`,
+`LEVEL_COST_STEP`, `FEEDBACK_REQUIRED`.
 
 `DaySession.params` recebe uma cópia desses valores. Mudou parâmetro, sessões
 antigas continuam auditáveis.

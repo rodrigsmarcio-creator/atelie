@@ -244,7 +244,7 @@ Lista honesta, para não esquecer de revisar:
 - "2 dimensões = Liberado, 5 = Dominado" é hipótese de produto.
 - As 5 dimensões são um desenho de produto inspirado em C-01, C-07, C-08 e
   C-18; a combinação específica não tem estudo.
-- XP e nível não têm base nenhuma (valores e curva são hipótese, A-008). Entram
+- XP e nível não têm base nenhuma (valores e curva são hipótese, D-038). Entram
   no MVP por decisão do Márcio (D-021), não por evidência.
 - A meta de retenção de 0,9 e o limite de 60 s do cronômetro são hipótese.
 
