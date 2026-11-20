@@ -49,11 +49,35 @@ Nomes definitivos dos tokens (Tailwind, via variáveis CSS trocadas por
 
 Iguais nas três: `ok` `#6FD9A0` (sucesso), `bad` `#FF7B6B` (risco, erro).
 
-Tokens de detalhe, que variam por paleta (ornamento próprio de cada uma): na H,
-`hairline` (`rgba(201,163,78,.55)`), `ring` (`#D9B45F`), `eyebrow`
-(`#D9B45F`), logo em gradiente dourado e **coroa** do nível. Para E e G, o
-ornamento equivalente (um símbolo e um filete próprios) é desenhado no
-protótipo (A-009).
+Tokens de detalhe (D-040): `ring` (anel do nível) e `eyebrow` (etiqueta em
+maiúsculas, que é texto) são o próprio `xp` de cada paleta; `hairline` (filete
+de 1 px) é o `xp` a 55% de opacidade. Não são colunas novas da tabela acima: o
+valor sai do `xp`. O `eyebrow` herda os pares de contraste do `xp` (mínimo 5,80,
+na G).
+
+| Paleta | `hairline` | `ring` e `eyebrow` |
+|---|---|---|
+| E | `rgba(251,185,49,.55)` | `#FBB931` |
+| G | `rgba(194,141,57,.55)` | `#C28D39` |
+| H | `rgba(217,180,95,.55)` | `#D9B45F` |
+
+A H também tem logo em gradiente dourado (`#A37E2C` a `#E8CF8A`).
+
+#### Ornamentos
+
+Cada paleta tem um **símbolo do nível**, na cor do `xp`, mais o filete
+(`hairline`, uma linha de CSS, sem arquivo). Os símbolos são SVG de
+`viewBox 0 0 24 16`, com `currentColor`, em `docs/assets/ornamentos/`:
+
+| Paleta | Símbolo | Arquivo |
+|---|---|---|
+| E | Estrela de quatro pontas com duas faíscas | `ornamento-e.svg` |
+| G | Coroa de louros | `ornamento-g.svg` |
+| H | Coroa | `ornamento-h.svg` |
+
+Usar a partir de 20 px de largura: em 16 px os louros da G perdem detalhe. A
+página `docs/assets/teste-tipografia.html` mostra os três nas próprias paletas.
+É referência visual: a tabela de tokens deste doc é a fonte da verdade.
 
 Os valores de G e H partem de marcas de referência (borgonha e ouro; verde de
 streaming e dourado de relógio). Foram revistos e **fechados na ATL-53**, sem
@@ -100,11 +124,11 @@ Se a G mudar, conferir esse primeiro.
 
 ### Tipografia
 
-Fonte **atrelada à paleta** (D-025): G usa Libre Baskerville; E e H usam
-Montserrat (sugestão a confirmar no protótipo). Roboto Flex fica como
-alternativa de texto corrido. A Gotham HTF tem licença comercial e não é usada;
-Montserrat é o substituto livre. Se a serifada da G vale só para títulos ou
-também para o texto, decide o protótipo (A-009).
+Fonte **atrelada à paleta** (D-025, fechada pela D-040): a G usa Libre Baskerville
+**só nos títulos e nos números grandes** e Montserrat no texto; E e H usam
+Montserrat em tudo. Texto pequeno (chips, opções de prova, tabelas) fica sempre
+em Montserrat. Roboto Flex fica como alternativa de texto corrido. A Gotham HTF
+tem licença comercial e não é usada; Montserrat é o substituto livre.
 
 Cantos e formas, pelo protótipo novo.
 
