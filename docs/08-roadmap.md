@@ -13,95 +13,29 @@ pelo menos duas semanas.
 A ordem é uma sugestão; o plano final dos épicos e histórias é aprovado pelo
 Márcio **antes** de criar qualquer ticket.
 
-### 0 · Esteira e fundação — Sonnet (Opus no que for decisão de estrutura)
+O MVP tem **9 épicos** (ATL-4 a ATL-12). O **detalhe vive no Jira**: histórias,
+critérios de aceite, "pronto quando", docs a ler e subtarefas. O deploy gratuito
+com login faz parte do MVP (D-035).
 
-- Repositório Git público (D-034), pnpm workspaces, TypeScript estrito, ESLint,
-  Prettier, Vitest. Scripts do `CLAUDE.md` existindo (mesmo que vazios).
-- CI no GitHub Actions copiado do Zappi; SonarCloud (análise automática
-  primeiro; depois pelo CI com cobertura); testes em Docker no PR; cobertura
-  por pasta.
-- Jira `ATL` configurado, regras de branch/commit/PR, conector da Atlassian.
-- Revisão final dos docs e das 4 skills contra o que foi construído.
+| Ordem | Épico | Jira | O que entrega | Modelo | Espera por |
+|---|---|---|---|---|---|
+| 1 | Esteira | ATL-5 | Repositório, monorepo, CI, testes em Docker, SonarCloud e o fluxo Jira ↔ Git | Sonnet (Opus na estrutura) | — |
+| 2 | Regras de Negócio | ATL-4 | Docs e decisão do deploy (ATL-13), regras do Gregor fechadas (ATL-14), kit visual das 3 paletas (ATL-15), protótipo aprovado (ATL-16) e revisão final (ATL-17) | Opus nas regras, Sonnet no visual, Haiku na revisão | O repositório existir (ATL-18) |
+| 3 | Infra e Deploy | ATL-6 | Hospedagem gratuita e login, banco, importação de JSON, seed, base do app web, rotas da API, deploy automático e backup | Opus no banco, no login e na hospedagem; Sonnet no resto | ATL-13 (decisão do deploy); base do app depois do kit visual (ATL-15) |
+| 4 | Gregor | ATL-7 | O motor em `packages/core`: domínio por 5 dimensões, desbloqueio, FSRS, sessão do dia em 4 blocos, ofensiva e XP | Opus | ATL-14 (A-006 e A-008) |
+| 5 | Painel | ATL-8 | Sessão do dia com botão Começar, ofensiva, nível e XP, revisões vencidas, mini evolução | Sonnet | Protótipo (ATL-16), base do app (ATL-26) e rotas (ATL-27) |
+| 6 | Praticar | ATL-9 | Fila de hoje, modal de prova e cartões; fecha o primeiro ciclo completo com o Painel | Sonnet (Opus em `/api/review`) | ATL-16, ATL-26 e ATL-27 |
+| 7 | Biblioteca | ATL-10 | Tela Importar (`.json` pelo validador, `.md` guardado) e Materiais | Sonnet | Rota `/api/import` (ATL-27) |
+| 8 | Ficha | ATL-11 | Resumo (nível, XP, ofensiva, domínio por matéria) e Árvore de Ofícios simples | Sonnet (Opus nos estados) | Primeiro ciclo (Painel + Praticar) |
+| 9 | Planejar | ATL-12 | Google Agenda: conectar, ver a semana e criar um evento por sessão do dia | Sonnet (Opus se o OAuth travar) | Deploy automático (ATL-29) |
 
-**Pronto quando:** um PR de teste passa no CI e no SonarCloud, e o ticket muda
-de status pelo Claude.
+Riscos que seguem valendo:
 
-### 1 · Identidade visual e temas — Sonnet; Opus nas decisões de tokens
-
-- Kit de tokens das três paletas (E, G, H), tipografia atrelada, ornamentos de
-  E e G, componentes base.
-- Protótipo HTML das telas-chave: Painel, prova, Ficha; no PC primeiro.
-- Teste automático de contraste das três paletas.
-- Aprovação do Márcio **antes** do front.
-
-**Pronto quando:** o Márcio aprova o protótipo e o teste de contraste passa.
-
-### 2 · Dados e importação — Opus no schema, Sonnet no resto
-
-- Schema v1 de `docs/04-dados.md` em Drizzle, migration `0000`, `down` testado.
-  `PRAGMA foreign_keys = ON` confirmado.
-- Importação: Zod do `docs/09-schema-importacao.md`, `import:validate`,
-  `import:run` idempotente, transação, tabela `imports`.
-- Seed de desenvolvimento e fixture compartilhado com `core`.
-- `memory:rebuild` funcionando.
-
-**Pronto quando:** `pnpm db:migrate && pnpm db:seed && pnpm import:run
-imports/<arquivo>.json` roda duas vezes sem duplicar.
-
-Risco: ficar "ajustando o schema" por semanas. Fecha o schema v1 e depois é
-migration.
-
-### 3 · Gregor — Opus
-
-- `packages/core`: `mastery` (5 dimensões, confiança, estados), `isUnlocked`,
-  adaptador FSRS, `needsReview`, `planSession` (4 blocos, Completa e Curta),
-  `streak`, `xpOf` e `level`, `evaluateProof`, `params.ts`.
-- Testes obrigatórios de `docs/03-gregor.md`, seção 11. Cobertura alta.
-- Resolver A-006 (prova Compreensão conceitual) e A-008 (valores iniciais).
-
-**Pronto quando:** os testes passam e cada decisão do Gregor sai com `reason` e
-`breakdown`.
-
-### 4 · Painel e Praticar (primeiro ciclo completo) — Sonnet; Opus na rota de prova
-
-- Rotas: `/api/session` (db → core → db), `/api/review` (transação: log,
-  memória, prova), `/api/skills`, `/api/items`.
-- Painel: sessão do dia com motivo, Completa/Curta, botão Começar, ofensiva,
-  nível e XP, revisões vencidas, mini evolução.
-- Praticar: fila de hoje (as 5 provas, modal de prova com as regras C-05 a
-  C-10) e Cartões (Errei/Difícil/Bom/Fácil).
-- Rail + sidebar dupla (some quando a aba tem um item só). Estados de
-  carregamento, vazio, erro em todas as telas. Troca de paleta.
-
-**Pronto quando:** abrir no celular ou no PC, clicar Começar, fazer uma prova,
-ver a prova acender, o XP subir, a ofensiva contar e a próxima revisão
-agendada. Usar por duas semanas.
-
-### 5 · Biblioteca — Sonnet
-
-- `materials` + `material_skills`; tela Materiais; tela Importar (`.json` pelo
-  validador, `.md` guardado até a Jane converter) com as instruções do fluxo.
-
-**Pronto quando:** um `.json` real da Jane entra pela tela, e um `.md` fica
-guardado e ligado a um Ofício.
-
-### 6 · Ficha — Sonnet; Opus no estado e na revisão do Ofício
-
-- Resumo: nível, XP, ofensiva, domínio por matéria.
-- Árvore SVG simples (leque, nós com os estados, cinco satélites de dimensão,
-  arestas, marcador "precisa revisar", painel de detalhe). Resolver A-001.
-
-**Pronto quando:** a Árvore mostra o estado real do banco.
-
-### 7 · Planejar e Google Agenda — Sonnet; Opus se o OAuth travar
-
-- Ticket de teste primeiro (A-007: validade do acesso, onde guardar o
-  segredo).
-- "Conectar Google Agenda" em configuração. Grade da semana com os eventos
-  do Google. O Márcio escolhe a sessão e o horário; o app cria **um** evento
-  com os blocos na descrição.
-
-**Pronto quando:** uma sessão do dia aparece como evento na agenda real.
+- Ficar "ajustando o schema" por semanas. Fecha o schema v1 e depois é
+  migration.
+- Dois épicos (Painel e Praticar) formam o primeiro ciclo completo: abrir o
+  app, clicar Começar, fazer uma prova, ver a prova acender, o XP subir, a
+  ofensiva contar e a próxima revisão agendada. Usar por duas semanas.
 
 ## Depois do MVP (candidatos)
 
@@ -112,7 +46,7 @@ guardado e ligado a um Ofício.
   por nível.
 - Chat embutido da Jane e correção de redação.
 - Recalibração de parâmetros a partir de `review_logs`.
-- Serviço do Windows, backup automático do `atelie.db`, deploy.
+- Serviço do Windows.
 
 ## O que mede sucesso
 

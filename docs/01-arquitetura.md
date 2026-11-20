@@ -154,12 +154,14 @@ Google, onde guardar o segredo (A-007).
 
 Dia a dia: `pnpm dev` no PC; o celular acessa pelo navegador na mesma rede
 (`http://<ip-do-pc>:3000`). Sem HTTPS na rede local; se for expor fora,
-Tailscale, nunca port-forward. Sem deploy na v1. Docker só nos testes do PR
+Tailscale, nunca port-forward. Deploy gratuito com login entra no MVP (D-035;
+hospedagem e banco em A-011). Docker só nos testes do PR
 (`docs/11-esteira.md`).
 
 ## Ordem de construção
 
-Segue `docs/08-roadmap.md` (épicos 0 a 7). Resumo da dependência:
+Segue `docs/08-roadmap.md` (9 épicos do Jira, ATL-4 a ATL-12; o deploy
+gratuito com login é o épico Infra e Deploy, D-035). Resumo da dependência:
 
 1. Esteira e fundação (repositório, CI, Sonar, Docker de teste).
 2. Identidade visual: tokens das 3 paletas e protótipo aprovado, antes do front.

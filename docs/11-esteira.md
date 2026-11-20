@@ -114,7 +114,7 @@ Copiado do Zappi e adaptado depois:
 
 ## Docker
 
-Só nos **testes do PR**. No dia a dia, `pnpm dev`. Sem deploy automático na v1.
+Só nos **testes do PR**. No dia a dia, `pnpm dev`. Deploy gratuito no MVP (D-035); o deploy automático é o ATL-29.
 
 O job `Testes` constrói o `Dockerfile.test` (Node 24 fixado por tag e digest,
 pnpm pelo `corepack`, usuário `node`) e roda `pnpm test` dentro dele. O
