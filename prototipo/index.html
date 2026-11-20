@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="borgonha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel · Ateliê (protótipo)</title>
+<meta name="color-scheme" content="dark">
+<!--
+  Protótipo navegável do Ateliê (ATL-16). HTML único, dados fictícios.
+  Serve de referência de estrutura e de visual para apps/web: copiar a
+  estrutura e os tokens, não o JavaScript.
+
+  - Fonte da verdade dos tokens: tabela de docs/05-atelie.md. Os valores abaixo
+    são cópia; se a tabela mudar, este arquivo precisa ser conferido.
+  - ?tema=tokyo|borgonha|verde escolhe a paleta (E, G, H). Padrão: borgonha.
+  - ?variante=a|b escolhe a versão do Painel que testa a A-003.
+  - Cantos e formas (proposta da ATL-55, a aprovar): cartão 20 px, item interno
+    14 px, botão e chip em pílula, borda de 1 px em `line`, sem sombra (só o
+    brilho `glow`), filete `hairline` separando seções.
+  - Cores de matéria (--mat-*) são provisórias e só identificam a matéria.
+-->
+<script>
+  /* Aplica a paleta e a variante antes da primeira pintura (evita piscar). */
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var t = q.get('tema');
+    if (t === 'tokyo' || t === 'borgonha' || t === 'verde') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  /* Os componentes só usam os nomes semânticos dos tokens. */
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg: 'var(--bg)',
+          surface: 'var(--surface)',
+          'surface-2': 'var(--surface-2)',
+          line: 'var(--line)',
+          text: 'var(--text)',
+          muted: 'var(--muted)',
+          accent: 'var(--accent)',
+          'on-accent': 'var(--on-accent)',
+          hot: 'var(--hot)',
+          'hot-2': 'var(--hot-2)',
+          xp: 'var(--xp)',
+          ok: 'var(--ok)',
+          bad: 'var(--bad)',
+        },
+        fontFamily: { title: 'var(--f-title)', text: 'var(--f-text)' },
+        borderRadius: { card: 'var(--r-card)', item: 'var(--r-item)' },
+      },
+    },
+  };
+</script>
+<style>
+  /* ===== Tokens (docs/05-atelie.md) ===== */
+  :root {
+    color-scheme: dark;
+    --ok: #6FD9A0;
+    --bad: #FF7B6B;
+    --scrim: rgba(0, 0, 0, .65);
+    --r-card: 20px;
+    --r-item: 14px;
+    --r-pill: 999px;
+    --mat-1: #6EA8FE;
+    --mat-2: #4FD1C5;
+    --mat-3: #E59BD1;
+  }
+
+  /* E · Tokyo Night com âmbar */
+  [data-theme="tokyo"] {
+    --bg: #140E2B; --surface: #060606; --surface-2: #15111F; --line: #2E2559;
+    --text: #F3ECFF; --muted: #A99BC9; --accent: #FF7EE3; --on-accent: #16081A;
+    --hot: #EA6113; --hot-2: #FBB931; --xp: #FBB931;
+    --halo: rgba(91, 42, 134, .6); --glow: rgba(248, 143, 34, .7);
+    --hairline: rgba(251, 185, 49, .55);
+    --f-title: "Montserrat", system-ui, sans-serif;
+    --f-text: "Montserrat", system-ui, sans-serif;
+    --orn-e: block; --orn-g: none; --orn-h: none;
+  }
+  /* G · Borgonha e ouro (padrão). Libre Baskerville só em títulos e números grandes. */
+  [data-theme="borgonha"] {
+    --bg: #0D0D0D; --surface: #17110F; --surface-2: #241A17; --line: #3A2C26;
+    --text: #EFE5D2; --muted: #B8AC98; --accent: #C28D39; --on-accent: #0D0D0D;
+    --hot: #710912; --hot-2: #C28D39; --xp: #C28D39;
+    --halo: rgba(113, 9, 18, .55); --glow: rgba(194, 141, 57, .6);
+    --hairline: rgba(194, 141, 57, .55);
+    --f-title: "Libre Baskerville", Georgia, serif;
+    --f-text: "Montserrat", system-ui, sans-serif;
+    --orn-e: none; --orn-g: block; --orn-h: none;
+  }
+  /* H · Verde e ouro */
+  [data-theme="verde"] {
+    --bg: #0D1B15; --surface: #060606; --surface-2: #141414; --line: #27302B;
+    --text: #F7F4EA; --muted: #A9B8B0; --accent: #1ED760; --on-accent: #06130C;
+    --hot: #A37E2C; --hot-2: #E8CF8A; --xp: #D9B45F;
+    --halo: rgba(0, 112, 74, .5); --glow: rgba(217, 180, 95, .6);
+    --hairline: rgba(217, 180, 95, .55);
+    --f-title: "Montserrat", system-ui, sans-serif;
+    --f-text: "Montserrat", system-ui, sans-serif;
+    --orn-e: none; --orn-g: none; --orn-h: block;
+  }
+  /* prefers-reduced-motion desliga os brilhos (halo, glow) e as animações. */
+  @media (prefers-reduced-motion: reduce) {
+    [data-theme] { --halo: transparent; --glow: transparent; }
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  /* ===== Base ===== */
+  [hidden] { display: none !important; }
+  body { background: var(--bg); color: var(--text); font-family: var(--f-text); font-size: 16px; line-height: 1.55; }
+  .halo { position: fixed; inset: -20% 10% auto -10%; height: 60%; z-index: -1; pointer-events: none;
+    background: radial-gradient(closest-side, var(--halo), transparent); }
+  :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  main:focus { outline: none; }
+  .skip { position: absolute; left: -999px; top: 8px; }
+  .skip:focus { left: 16px; z-index: 60; padding: 12px 20px; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); font-weight: 700; }
+
+  /* ===== Componentes (viram os de apps/web/components/ui) ===== */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 20px; min-width: 0; }
+  @media (min-width: 768px) { .card { padding: 24px; } }
+  .eyebrow { display: block; color: var(--xp); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+  .hairline { height: 1px; border: 0; background: var(--hairline); }
+  .ico { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .orn { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; color: var(--xp); height: auto; flex: none; }
+  .orn-e { display: var(--orn-e); } .orn-g { display: var(--orn-g); } .orn-h { display: var(--orn-h); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 22px;
+    border: 1px solid transparent; border-radius: var(--r-pill); font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; }
+  .btn-primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 0 28px var(--glow); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { border-color: var(--muted); color: var(--text); }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none;
+    border: 1px solid var(--muted); border-radius: 50%; color: var(--text); cursor: pointer; }
+  .icon-btn:hover { background: var(--surface-2); }
+  .chip { display: inline-flex; align-items: center; padding: 2px 10px; border: 1px solid var(--muted); border-radius: var(--r-pill);
+    font-size: 12px; font-weight: 600; color: var(--muted); vertical-align: middle; white-space: nowrap; }
+  .chip-xp { color: var(--xp); border-color: var(--hairline); }
+  .chip-bad { color: var(--bad); border-color: var(--bad); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .bar { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: var(--v); border-radius: inherit; background: var(--accent); transition: width .8s ease; }
+  .bar-xp > i { background: var(--xp); }
+  .stat b { display: block; font-family: var(--f-title); font-size: 32px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .anel circle { fill: none; stroke-width: 8; }
+  .anel .trilha { stroke: var(--line); }
+  .anel .valor { stroke-linecap: round; transition: stroke-dashoffset .9s ease; }
+
+  /* Controle segmentado (borda em `muted`, é controle) */
+  .seg { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--muted); border-radius: var(--r-pill); max-width: 100%; }
+  .seg label { position: relative; }
+  .seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .seg span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: var(--r-pill);
+    font-size: 14px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .seg input:checked + span { background: var(--accent); color: var(--on-accent); }
+  .seg input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  /* Navegação */
+  .tab[aria-current="page"] { box-shadow: inset 0 2px 0 var(--xp); }
+  .tab[aria-current="page"] .ico { color: var(--xp); }
+  @media (min-width: 768px) { .tab[aria-current="page"] { box-shadow: none; } }
+  .menu-item { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 0 14px; border-radius: var(--r-item);
+    color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
+  .menu-item:hover { color: var(--text); background: var(--surface-2); }
+  .menu-item[aria-current="true"] { color: var(--text); background: var(--surface-2); box-shadow: inset 3px 0 0 var(--xp); }
+
+  /* Sessão do dia */
+  .bloco { display: flex; align-items: flex-start; gap: 16px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-item); background: var(--surface-2); min-width: 0; }
+  .bloco-primeiro { border-color: var(--hairline); }
+  .bloco-pulado { background: transparent; border-style: dashed; }
+  .num { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--muted); border-radius: 50%;
+    font-size: 13px; font-weight: 700; color: var(--text); }
+  .proto { border: 1px dashed var(--muted); border-radius: var(--r-item); padding: 10px 14px; }
+
+  /* Diálogos (configuração e gaveta) */
+  dialog { background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: var(--r-card);
+    padding: 0; width: calc(100vw - 32px); max-width: 480px; }
+  dialog::backdrop { background: var(--scrim); }
+  dialog.gaveta { position: fixed; inset: 0 auto 0 0; margin: 0; height: 100dvh; max-height: 100dvh; width: min(300px, 85vw);
+    border-radius: 0 var(--r-card) var(--r-card) 0; }
+  .paleta { position: relative; display: block; }
+  .paleta input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .paleta-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg); color: var(--text);
+    border: 2px solid var(--line); border-radius: var(--r-item); font-family: var(--f-text); }
+  .paleta input:checked + .paleta-card { border-color: var(--accent); }
+  .paleta input:focus-visible + .paleta-card { outline: 2px solid var(--text); outline-offset: 2px; }
+  .paleta .em-uso { display: none; margin-left: auto; color: var(--xp); font-size: 12px; font-weight: 700; }
+  .paleta input:checked + .paleta-card .em-uso { display: inline; }
+  .amostras { display: flex; gap: 4px; }
+  .amostras i { width: 12px; height: 12px; border-radius: 50%; }
+
+  #toast { transition: opacity .25s ease; }
+</style>
+</head>
+<body class="font-text antialiased">
+<div class="halo" aria-hidden="true"></div>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+<!-- Ícones e ornamentos (os ornamentos vêm de docs/assets/ornamentos/) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-painel" viewBox="0 0 24 24"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/></symbol>
+  <symbol id="i-planejar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-biblioteca" viewBox="0 0 24 24"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16.5 5.5l3.5 1-3 13-3.5-1z"/></symbol>
+  <symbol id="i-praticar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+  <symbol id="i-ficha" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/></symbol>
+  <symbol id="i-config" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-chama" viewBox="0 0 24 24"><path d="M12 3c.6 3.2 5 5.2 5 10a5 5 0 0 1-10 0c0-2 .8-3.2 2-4.2 0 1.8.8 2.8 1.8 3C10.4 8.6 10.6 5.4 12 3z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
+  <symbol id="o-e" viewBox="0 0 24 16">
+    <path d="M12 .8C12.7 5.6 13.9 6.9 18.4 8 13.9 9.1 12.7 10.4 12 15.2 11.3 10.4 10.1 9.1 5.6 8 10.1 6.9 11.3 5.6 12 .8Z" fill="currentColor" stroke="none"/>
+    <path d="M3 8h1.4M19.6 8H21"/>
+    <circle cx="2.5" cy="3" r="1" fill="currentColor" stroke="none"/>
+    <circle cx="21.5" cy="13" r="1" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="o-g" viewBox="0 0 24 16">
+    <path stroke-width="1.1" d="M12 14.6C6 14.2 2.8 10 3 5.4M12 14.6C18 14.2 21.2 10 21 5.4"/>
+    <g fill="currentColor" stroke="none">
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(8.45 13.82) rotate(-190.08)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(8.45 13.82) rotate(-126.08)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(5.36 11.77) rotate(-166.19)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(5.36 11.77) rotate(-102.19)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(3.52 8.85) rotate(-142.15)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(3.52 8.85) rotate(-78.15)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(3 5.4) rotate(-87.51)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(15.55 13.82) rotate(370.08)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(15.55 13.82) rotate(306.08)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(18.64 11.77) rotate(346.19)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(18.64 11.77) rotate(282.19)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(20.48 8.85) rotate(322.15)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(20.48 8.85) rotate(258.15)"/>
+      <path d="M0 0Q2.2 -1.55 4.4 0Q2.2 1.55 0 0Z" transform="translate(21 5.4) rotate(267.51)"/>
+    </g>
+  </symbol>
+  <symbol id="o-h" viewBox="0 0 24 16">
+    <path d="M3 5.5 7.2 13M7.6 4 9.7 13M12 3v10M16.4 4l-2.1 9M21 5.5 16.8 13"/>
+    <circle cx="3" cy="4" r="1.5" fill="currentColor" stroke="none"/>
+    <circle cx="7.6" cy="2.6" r="1.5" fill="currentColor" stroke="none"/>
+    <circle cx="12" cy="1.8" r="1.5" fill="currentColor" stroke="none"/>
+    <circle cx="16.4" cy="2.6" r="1.5" fill="currentColor" stroke="none"/>
+    <circle cx="21" cy="4" r="1.5" fill="currentColor" stroke="none"/>
+    <ellipse cx="12" cy="14.2" rx="6.5" ry="1.6" fill="currentColor" stroke="none"/>
+  </symbol>
+</svg>
+
+<noscript><p class="p-6">Este protótipo precisa de JavaScript.</p></noscript>
+
+<div class="md:flex md:min-h-screen">
+
+  <!-- Rail: as 5 abas. Barra inferior no celular. -->
+  <nav id="rail" aria-label="Seções"
+       class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:sticky md:top-0 md:flex md:h-screen md:w-[88px] md:flex-none md:flex-col md:items-center md:border-r md:border-t-0 md:pb-4">
+    <div class="hidden py-6 md:block" data-orn="w-9" aria-hidden="true"></div>
+    <ul class="flex md:flex-col md:items-center md:gap-1">
+      <li class="flex-1 md:flex-none">
+        <a href="#painel" data-tab="painel" class="tab flex min-h-[60px] flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-muted hover:text-text aria-[current=page]:text-text md:min-h-[72px] md:w-[72px] md:rounded-item md:text-xs md:aria-[current=page]:bg-surface-2">
+          <svg class="ico h-6 w-6" aria-hidden="true"><use href="#i-painel"/></svg>Painel</a>
+      </li>
+      <li class="flex-1 md:flex-none">
+        <a href="#planejar" data-tab="planejar" class="tab flex min-h-[60px] flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-muted hover:text-text aria-[current=page]:text-text md:min-h-[72px] md:w-[72px] md:rounded-item md:text-xs md:aria-[current=page]:bg-surface-2">
+          <svg class="ico h-6 w-6" aria-hidden="true"><use href="#i-planejar"/></svg>Planejar</a>
+      </li>
+      <li class="flex-1 md:flex-none">
+        <a href="#biblioteca" data-tab="biblioteca" class="tab flex min-h-[60px] flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-muted hover:text-text aria-[current=page]:text-text md:min-h-[72px] md:w-[72px] md:rounded-item md:text-xs md:aria-[current=page]:bg-surface-2">
+          <svg class="ico h-6 w-6" aria-hidden="true"><use href="#i-biblioteca"/></svg>Biblioteca</a>
+      </li>
+      <li class="flex-1 md:flex-none">
+        <a href="#praticar" data-tab="praticar" class="tab flex min-h-[60px] flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-muted hover:text-text aria-[current=page]:text-text md:min-h-[72px] md:w-[72px] md:rounded-item md:text-xs md:aria-[current=page]:bg-surface-2">
+          <svg class="ico h-6 w-6" aria-hidden="true"><use href="#i-praticar"/></svg>Praticar</a>
+      </li>
+      <li class="flex-1 md:flex-none">
+        <a href="#ficha" data-tab="ficha" class="tab flex min-h-[60px] flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-muted hover:text-text aria-[current=page]:text-text md:min-h-[72px] md:w-[72px] md:rounded-item md:text-xs md:aria-[current=page]:bg-surface-2">
+          <svg class="ico h-6 w-6" aria-hidden="true"><use href="#i-ficha"/></svg>Ficha</a>
+      </li>
+    </ul>
+    <button type="button" class="icon-btn mt-auto hidden md:inline-flex" data-abrir="config" aria-label="Configuração: paleta e Google Agenda">
+      <svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-config"/></svg>
+    </button>
+  </nav>
+
+  <!-- Menu contextual (some quando a aba tem um item só) -->
+  <aside id="menu" aria-label="Menu da seção" class="max-md:hidden md:sticky md:top-0 md:h-screen md:w-[216px] md:flex-none md:overflow-y-auto md:border-r md:border-line md:px-3 md:py-6" hidden></aside>
+
+  <div class="min-w-0 flex-1 pb-24 md:pb-10">
+    <!-- Barra do topo (celular) -->
+    <header class="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg px-4 py-2 md:hidden">
+      <span data-orn="w-8" aria-hidden="true"></span>
+      <span class="font-title text-lg font-bold">Ateliê</span>
+      <span class="ml-auto"></span>
+      <button type="button" id="btn-menu" class="icon-btn" data-abrir="gaveta" aria-label="Abrir o menu da seção" hidden>
+        <svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
+      <button type="button" class="icon-btn" data-abrir="config" aria-label="Configuração: paleta e Google Agenda">
+        <svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-config"/></svg>
+      </button>
+    </header>
+
+    <main id="conteudo" tabindex="-1" class="mx-auto w-full max-w-[1120px] px-4 py-6 md:px-8 md:py-10">
+
+      <!-- ===== PAINEL ===== -->
+      <section id="tela-painel" aria-labelledby="t-painel">
+        <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div class="min-w-0">
+            <span class="eyebrow" id="data-hoje">Hoje</span>
+            <h1 id="t-painel" class="mt-1 font-title text-3xl font-bold md:text-4xl">Painel</h1>
+          </div>
+          <div class="proto">
+            <p class="eyebrow mb-2">Só no protótipo · A-003</p>
+            <div class="seg" role="radiogroup" aria-label="Versão do Painel">
+              <label><input type="radio" name="variante" value="a" checked><span>Um botão só</span></label>
+              <label><input type="radio" name="variante" value="b"><span>Três cartões</span></label>
+            </div>
+          </div>
+        </header>
+
+        <div class="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-12">
+
+          <!-- Sessão do dia -->
+          <section class="card md:col-span-2 lg:col-span-8" aria-labelledby="t-sessao">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div class="min-w-0">
+                <span class="eyebrow">Sessão do dia · Gregor</span>
+                <h2 id="t-sessao" class="mt-2 font-title text-2xl font-bold md:text-3xl">Hoje: <span id="sessao-total">85</span> minutos</h2>
+                <p id="sessao-resumo" class="mt-1 text-sm text-muted" aria-live="polite"></p>
+              </div>
+              <div class="seg" role="radiogroup" aria-label="Modo da sessão">
+                <label><input type="radio" name="modo" value="0" checked><span>Completa</span></label>
+                <label><input type="radio" name="modo" value="1"><span>Curta</span></label>
+              </div>
+            </div>
+            <hr class="hairline my-5">
+            <div id="sessao-corpo"></div>
+          </section>
+
+          <!-- Ofensiva e nível -->
+          <div class="grid content-start gap-4 md:col-span-2 md:grid-cols-2 md:gap-6 lg:col-span-4 lg:grid-cols-1">
+            <section class="card relative overflow-hidden" aria-labelledby="t-ofensiva"
+                     style="background-image: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--hot) 40%, transparent), transparent 62%)">
+              <span class="eyebrow">Ofensiva</span>
+              <h2 id="t-ofensiva" class="sr-only">Ofensiva</h2>
+              <div class="mt-3 flex items-center gap-5">
+                <div class="relative h-24 w-24 flex-none">
+                  <svg viewBox="0 0 100 100" class="anel h-24 w-24 -rotate-90" aria-hidden="true">
+                    <circle class="trilha" cx="50" cy="50" r="42"/>
+                    <circle class="valor" cx="50" cy="50" r="42" pathLength="100" stroke="var(--hot-2)" stroke-dasharray="100" data-pct="57"/>
+                  </svg>
+                  <span class="absolute inset-0 grid place-items-center font-title text-3xl font-bold tabular-nums">12</span>
+                </div>
+                <div class="min-w-0">
+                  <p class="flex items-center gap-2 font-semibold"><svg class="ico h-5 w-5" style="color: var(--hot-2)" aria-hidden="true"><use href="#i-chama"/></svg>12 dias seguidos</p>
+                  <p class="mt-1 text-sm text-muted">Recorde: 21 dias.</p>
+                  <p class="mt-2 text-sm">Falta uma tentativa hoje. Qualquer uma mantém a ofensiva.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="t-nivel">
+              <span class="eyebrow">Nível e XP</span>
+              <h2 id="t-nivel" class="sr-only">Nível e XP</h2>
+              <div class="mt-3 flex items-center gap-4">
+                <div class="grid h-16 w-16 flex-none place-items-center rounded-full border border-line bg-surface-2" style="box-shadow: 0 0 24px var(--glow)">
+                  <span data-orn="w-10" aria-hidden="true"></span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-title text-3xl font-bold leading-tight">Nível 7</p>
+                  <p class="text-sm text-muted"><span class="tabular-nums">412</span> de <span class="tabular-nums">700</span> XP</p>
+                </div>
+              </div>
+              <div class="bar bar-xp mt-4" role="progressbar" aria-label="XP do nível 7" aria-valuemin="0" aria-valuemax="700" aria-valuenow="412" style="--v: 0%" data-pct="59"><i></i></div>
+              <p class="mt-2 text-sm text-muted">Faltam 288 XP para o nível 8.</p>
+            </section>
+          </div>
+
+          <!-- Revisões vencidas -->
+          <section class="card lg:col-span-6" aria-labelledby="t-revisoes">
+            <span class="eyebrow">Revisões</span>
+            <h2 id="t-revisoes" class="mt-2 font-title text-2xl font-bold">Vencidas</h2>
+            <div class="stat mt-4 grid grid-cols-2 gap-3">
+              <div class="rounded-item bg-surface-2 p-4"><b>9</b><span class="text-sm text-muted">itens de Ofícios</span></div>
+              <div class="rounded-item bg-surface-2 p-4"><b>18</b><span class="text-sm text-muted">cartões</span></div>
+            </div>
+            <h3 class="eyebrow mt-6">Precisam revisar</h3>
+            <ul class="mt-3 space-y-2">
+              <li class="flex items-center justify-between gap-3 rounded-item bg-surface-2 px-4 py-3">
+                <div class="min-w-0">
+                  <p class="break-words text-sm font-semibold">Regra da cadeia</p>
+                  <p class="flex items-center gap-2 text-xs text-muted"><i class="dot" style="background: var(--mat-1)"></i>Cálculo · vencido há 4 dias</p>
+                </div>
+                <span class="chip chip-bad">Precisa revisar</span>
+              </li>
+              <li class="flex items-center justify-between gap-3 rounded-item bg-surface-2 px-4 py-3">
+                <div class="min-w-0">
+                  <p class="break-words text-sm font-semibold">Derivadas implícitas</p>
+                  <p class="flex items-center gap-2 text-xs text-muted"><i class="dot" style="background: var(--mat-1)"></i>Cálculo · vencido há 3 dias</p>
+                </div>
+                <span class="chip chip-bad">Precisa revisar</span>
+              </li>
+              <li class="flex items-center justify-between gap-3 rounded-item bg-surface-2 px-4 py-3">
+                <div class="min-w-0">
+                  <p class="break-words text-sm font-semibold">Handshake do TCP</p>
+                  <p class="flex items-center gap-2 text-xs text-muted"><i class="dot" style="background: var(--mat-2)"></i>Redes · vencido há 2 dias</p>
+                </div>
+                <span class="chip chip-bad">Precisa revisar</span>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Mini evolução -->
+          <section class="card lg:col-span-6" aria-labelledby="t-evolucao">
+            <span class="eyebrow">Evolução</span>
+            <h2 id="t-evolucao" class="mt-2 font-title text-2xl font-bold">Domínio</h2>
+            <div class="mt-4 flex items-center gap-5">
+              <div class="relative h-24 w-24 flex-none">
+                <svg viewBox="0 0 100 100" class="anel h-24 w-24 -rotate-90" aria-hidden="true">
+                  <circle class="trilha" cx="50" cy="50" r="42"/>
+                  <circle class="valor" cx="50" cy="50" r="42" pathLength="100" stroke="var(--accent)" stroke-dasharray="100" data-pct="38"/>
+                </svg>
+                <span class="absolute inset-0 grid place-items-center font-title text-2xl font-bold tabular-nums">38%</span>
+              </div>
+              <p class="min-w-0 text-sm text-muted">Domínio geral, somando as 3 matérias. Um Ofício Dominado vale 5 de 5 dimensões.</p>
+            </div>
+            <ul class="mt-6 space-y-4">
+              <li>
+                <div class="flex items-center justify-between gap-3 text-sm">
+                  <span class="flex min-w-0 items-center gap-2"><i class="dot" style="background: var(--mat-1)"></i>Cálculo</span>
+                  <span class="font-semibold tabular-nums">52%</span>
+                </div>
+                <div class="bar mt-2" role="progressbar" aria-label="Domínio em Cálculo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="52" style="--v: 0%" data-pct="52"><i></i></div>
+              </li>
+              <li>
+                <div class="flex items-center justify-between gap-3 text-sm">
+                  <span class="flex min-w-0 items-center gap-2"><i class="dot" style="background: var(--mat-2)"></i>Redes de Computadores</span>
+                  <span class="font-semibold tabular-nums">34%</span>
+                </div>
+                <div class="bar mt-2" role="progressbar" aria-label="Domínio em Redes de Computadores" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" style="--v: 0%" data-pct="34"><i></i></div>
+              </li>
+              <li>
+                <div class="flex items-center justify-between gap-3 text-sm">
+                  <span class="flex min-w-0 items-center gap-2"><i class="dot" style="background: var(--mat-3)"></i>Filosofia</span>
+                  <span class="font-semibold tabular-nums">21%</span>
+                </div>
+                <div class="bar mt-2" role="progressbar" aria-label="Domínio em Filosofia" aria-valuemin="0" aria-valuemax="100" aria-valuenow="21" style="--v: 0%" data-pct="21"><i></i></div>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===== Outras abas (ainda sem tela) ===== -->
+      <section id="tela-vazia" aria-labelledby="t-vazia" hidden></section>
+    </main>
+  </div>
+</div>
+
+<!-- Aviso rápido -->
+<div id="toast" role="status" aria-live="polite"
+     class="pointer-events-none fixed bottom-[84px] left-1/2 z-40 max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-item border border-line bg-surface-2 px-4 py-3 text-sm opacity-0 md:bottom-6"></div>
+
+<!-- Gaveta do menu (celular) -->
+<dialog id="gaveta" class="gaveta" aria-label="Menu da seção">
+  <div class="flex h-full flex-col p-4">
+    <div class="mb-2 flex items-center justify-between">
+      <span class="eyebrow" id="gaveta-titulo">Menu</span>
+      <button type="button" class="icon-btn" data-fechar aria-label="Fechar o menu"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="gaveta-corpo"></div>
+  </div>
+</dialog>
+
+<!-- Configuração -->
+<dialog id="config" aria-labelledby="t-config">
+  <div class="p-6">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <span class="eyebrow">Configuração</span>
+        <h2 id="t-config" class="mt-1 font-title text-2xl font-bold">Aparência</h2>
+      </div>
+      <button type="button" class="icon-btn" data-fechar aria-label="Fechar a configuração"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <fieldset class="mt-6 min-w-0">
+      <legend class="text-sm font-semibold">Paleta</legend>
+      <div class="mt-3 grid gap-3">
+        <label class="paleta" data-theme="tokyo">
+          <input type="radio" name="tema" value="tokyo">
+          <span class="paleta-card"><span data-orn="w-8" aria-hidden="true"></span>
+            <span class="min-w-0"><b class="block text-sm font-bold">E · Tokyo</b><span class="text-xs" style="color: var(--muted)">Tokyo Night com âmbar</span></span>
+            <span class="amostras" aria-hidden="true"><i style="background: var(--accent)"></i><i style="background: var(--xp)"></i><i style="background: var(--hot)"></i></span>
+            <span class="em-uso">Em uso</span></span>
+        </label>
+        <label class="paleta" data-theme="borgonha">
+          <input type="radio" name="tema" value="borgonha">
+          <span class="paleta-card"><span data-orn="w-8" aria-hidden="true"></span>
+            <span class="min-w-0"><b class="block text-sm font-bold">G · Borgonha</b><span class="text-xs" style="color: var(--muted)">Borgonha e ouro (padrão)</span></span>
+            <span class="amostras" aria-hidden="true"><i style="background: var(--accent)"></i><i style="background: var(--xp)"></i><i style="background: var(--hot)"></i></span>
+            <span class="em-uso">Em uso</span></span>
+        </label>
+        <label class="paleta" data-theme="verde">
+          <input type="radio" name="tema" value="verde">
+          <span class="paleta-card"><span data-orn="w-8" aria-hidden="true"></span>
+            <span class="min-w-0"><b class="block text-sm font-bold">H · Verde</b><span class="text-xs" style="color: var(--muted)">Verde escuro com detalhes dourados</span></span>
+            <span class="amostras" aria-hidden="true"><i style="background: var(--accent)"></i><i style="background: var(--xp)"></i><i style="background: var(--hot)"></i></span>
+            <span class="em-uso">Em uso</span></span>
+        </label>
+      </div>
+    </fieldset>
+    <p class="mt-4 text-sm text-muted">No app, a escolha fica em <code>settings.tema</code> e vale em todos os aparelhos. Aqui vale só nesta aba e fica no endereço (<code>?tema=</code>).</p>
+    <hr class="hairline my-6">
+    <p class="text-sm font-semibold">Google Agenda</p>
+    <p class="mt-1 text-sm text-muted">A conexão é feita no app, e não aparece neste protótipo.</p>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const root = document.documentElement;
+  const params = new URLSearchParams(location.search);
+
+  /* ----- Ornamentos: os três SVG ficam no DOM, o token da paleta mostra um ----- */
+  const ornamento = (largura) => ['e', 'g', 'h']
+    .map((p) => `<svg class="orn orn-${p} ${largura}" viewBox="0 0 24 16" aria-hidden="true"><use href="#o-${p}"/></svg>`)
+    .join('');
+  $$('[data-orn]').forEach((el) => { el.innerHTML = ornamento(el.dataset.orn); });
+
+  /* ----- Aviso rápido ----- */
+  let tToast = 0;
+  function aviso(texto) {
+    const t = $('#toast');
+    t.textContent = texto;
+    t.style.opacity = '1';
+    clearTimeout(tToast);
+    tToast = setTimeout(() => { t.style.opacity = '0'; }, 4000);
+  }
+
+  /* ----- Estado na URL (?tema=, ?variante=) ----- */
+  function gravarParametro(chave, valor) {
+    params.set(chave, valor);
+    history.replaceState(null, '', `${location.pathname}?${params}${location.hash}`);
+  }
+
+  /* ----- Paleta ----- */
+  const NOMES_TEMA = { tokyo: 'E · Tokyo', borgonha: 'G · Borgonha', verde: 'H · Verde' };
+  function marcarTema() {
+    const atual = root.dataset.theme;
+    $$('input[name="tema"]').forEach((i) => { i.checked = i.value === atual; });
+  }
+  $$('input[name="tema"]').forEach((i) => i.addEventListener('change', () => {
+    root.dataset.theme = i.value;
+    gravarParametro('tema', i.value);
+    aviso(`Paleta ${NOMES_TEMA[i.value]} aplicada.`);
+  }));
+  marcarTema();
+
+  /* ----- Diálogos ----- */
+  $$('[data-abrir]').forEach((b) => b.addEventListener('click', () => $(`#${b.dataset.abrir}`).showModal()));
+  $$('[data-fechar]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
+  $$('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+
+  /* ----- Abas e menu contextual ----- */
+  const TELAS = {
+    painel: { nome: 'Painel', itens: ['Painel'] },
+    planejar: { nome: 'Planejar', itens: ['Semana'], nota: 'Fora do protótipo: tem épico próprio (Google Agenda).' },
+    biblioteca: { nome: 'Biblioteca', itens: ['Materiais', 'Importar'], nota: 'Fora do protótipo: tem épico próprio.' },
+    praticar: { nome: 'Praticar', itens: ['Fila de hoje', 'Cartões'], nota: 'Entra no protótipo na subtarefa ATL-56.' },
+    ficha: { nome: 'Ficha', itens: ['Resumo', 'Árvore'], nota: 'Entra no protótipo na subtarefa ATL-57.' },
+  };
+  let telaAtual = 'painel';
+  let itemAtual = 0;
+
+  function desenharMenu() {
+    const t = TELAS[telaAtual];
+    const tem = t.itens.length > 1;
+    $('#menu').hidden = !tem;
+    $('#btn-menu').hidden = !tem;
+    const lista = t.itens
+      .map((n, i) => `<li><button type="button" class="menu-item" data-item="${i}"${i === itemAtual ? ' aria-current="true"' : ''}>${n}</button></li>`)
+      .join('');
+    const html = `<p class="eyebrow mb-3 px-3">${t.nome}</p><ul class="space-y-1">${lista}</ul>`;
+    $('#menu').innerHTML = html;
+    $('#gaveta-corpo').innerHTML = html;
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-item]');
+    if (!b) return;
+    itemAtual = Number(b.dataset.item);
+    desenharMenu();
+    $('#gaveta').close();
+  });
+
+  function ir(nome, focar) {
+    telaAtual = TELAS[nome] ? nome : 'painel';
+    itemAtual = 0;
+    const t = TELAS[telaAtual];
+    const painel = telaAtual === 'painel';
+    $$('[data-tab]').forEach((a) => {
+      if (a.dataset.tab === telaAtual) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+    $('#tela-painel').hidden = !painel;
+    const vazia = $('#tela-vazia');
+    vazia.hidden = painel;
+    if (!painel) {
+      vazia.innerHTML = `<header class="mb-6"><span class="eyebrow">Protótipo</span><h1 id="t-vazia" class="mt-1 font-title text-3xl font-bold md:text-4xl">${t.nome}</h1></header>
+        <div class="card"><p>${t.nota}</p><p class="mt-2 text-sm text-muted">O menu da seção mostra os itens da aba e some quando ela tem um item só, como no Painel.</p></div>`;
+    }
+    desenharMenu();
+    document.title = `${t.nome} · Ateliê (protótipo)`;
+    if (focar) $('#conteudo').focus();
+  }
+  window.addEventListener('hashchange', () => ir(location.hash.slice(1), true));
+
+  /* ----- Painel: sessão do dia (dados fictícios; minutos de D-038) ----- */
+  const BLOCOS = [
+    { id: 1, nome: 'Revisão pré-matéria', min: [15, 8], motivo: '3 Ofícios com revisão vencida; os de Cálculo vêm primeiro, por causa da matéria nova.' },
+    { id: 2, nome: 'Matéria nova', min: [50, 25], motivo: 'Limites laterais é o próximo Ofício liberado da trilha de Cálculo.' },
+    { id: 3, nome: 'Reforço', min: [30, 15], motivo: 'Nenhum erro nos últimos 14 dias: não há o que reforçar.', pulado: true },
+    { id: 4, nome: 'Cartões', min: [20, 10], motivo: '18 cartões vencidos, do mais atrasado ao mais novo.' },
+  ];
+  let modo = 0;
+  let variante = params.get('variante') === 'b' ? 'b' : 'a';
+
+  const ativos = () => BLOCOS.filter((b) => !b.pulado);
+  const pulado = (b) => `<li class="bloco bloco-pulado">
+      <span class="num" aria-hidden="true">${b.id}</span>
+      <div class="min-w-0 flex-1"><p class="font-semibold">${b.nome} <span class="chip">Pulado</span></p><p class="mt-1 text-sm text-muted">${b.motivo}</p></div>
+      <span class="text-sm text-muted">0 min</span></li>`;
+
+  function versaoA() {
+    const a = ativos();
+    const linhas = BLOCOS.map((b) => {
+      if (b.pulado) return pulado(b);
+      const primeiro = b === a[0];
+      return `<li class="bloco${primeiro ? ' bloco-primeiro' : ''}">
+        <span class="num" aria-hidden="true">${b.id}</span>
+        <div class="min-w-0 flex-1"><p class="font-semibold">${b.nome}${primeiro ? ' <span class="chip chip-xp">Começa por aqui</span>' : ''}</p><p class="mt-1 text-sm text-muted">${b.motivo}</p></div>
+        <span class="text-sm font-semibold tabular-nums">${b.min[modo]} min</span></li>`;
+    }).join('');
+    return `<ol class="space-y-3">${linhas}</ol>
+      <div class="mt-6 flex flex-wrap items-center gap-4">
+        <button type="button" class="btn btn-primary w-full md:w-auto" data-comecar="${a[0].nome}"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-play"/></svg>Começar</button>
+        <p class="min-w-0 text-sm text-muted">Executa o bloco 1: ${a[0].nome}, ${a[0].min[modo]} min. Os outros ficam na fila.</p>
+      </div>`;
+  }
+
+  function versaoB() {
+    const cartoes = ativos().map((b, i) => `<li class="bloco flex-col">
+        <span class="eyebrow">Bloco ${b.id}</span>
+        <h3 class="font-title text-lg font-bold leading-snug">${b.nome}</h3>
+        <p class="font-title text-3xl font-bold tabular-nums">${b.min[modo]} <span class="text-base font-normal text-muted" style="font-family: var(--f-text)">min</span></p>
+        <p class="flex-1 text-sm text-muted">${b.motivo}</p>
+        <button type="button" class="btn ${i === 0 ? 'btn-primary' : 'btn-ghost'} w-full" data-comecar="${b.nome}" aria-label="Começar o bloco ${b.id}: ${b.nome}">Começar</button></li>`).join('');
+    const pulados = BLOCOS.filter((b) => b.pulado).map(pulado).join('');
+    return `<ul class="grid gap-3 md:grid-cols-3">${cartoes}</ul><ul class="mt-3 space-y-3">${pulados}</ul>`;
+  }
+
+  function desenharSessao() {
+    const a = ativos();
+    const total = a.reduce((s, b) => s + b.min[modo], 0);
+    $('#sessao-total').textContent = total;
+    $('#sessao-resumo').textContent = `Modo ${modo === 0 ? 'Completa' : 'Curta'}: ${a.length} blocos, ${BLOCOS.length - a.length} pulado.`;
+    $('#sessao-corpo').innerHTML = variante === 'a' ? versaoA() : versaoB();
+  }
+  $$('input[name="modo"]').forEach((i) => i.addEventListener('change', () => { modo = Number(i.value); desenharSessao(); }));
+  $$('input[name="variante"]').forEach((i) => {
+    i.checked = i.value === variante;
+    i.addEventListener('change', () => { variante = i.value; gravarParametro('variante', variante); desenharSessao(); });
+  });
+  $('#sessao-corpo').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-comecar]');
+    if (b) aviso(`Aqui abre o bloco "${b.dataset.comecar}". O modal de prova entra na subtarefa ATL-56.`);
+  });
+
+  /* ----- Painel: data, anéis e barras (animam ao carregar) ----- */
+  const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' });
+  $('#data-hoje').textContent = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    $$('.anel .valor').forEach((c) => { c.style.strokeDashoffset = 100 - Number(c.dataset.pct); });
+    $$('.bar[data-pct]').forEach((b) => { b.style.setProperty('--v', `${b.dataset.pct}%`); });
+  }));
+  $$('.anel .valor').forEach((c) => { c.style.strokeDashoffset = 100; });
+
+  desenharSessao();
+  ir(location.hash.slice(1), false);
+})();
+</script>
+</body>
+</html>
