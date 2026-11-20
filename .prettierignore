@@ -1,6 +1,7 @@
 # Prettier cuida só do código. Docs e conteúdo da Jane ficam como estão.
 *.md
 docs/
+prototipo/
 imports/
 .claude/
 _arquivos-originais/
