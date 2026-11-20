@@ -92,7 +92,9 @@ com `viewed_solution = true`.
 ## C-06 · Responder rápido demais pede explicação
 
 **Regra:** acerto em menos de `FAST_ANSWER_MS` sem raciocínio escrito não
-conta até o usuário escrever uma ou duas frases.
+conta até o usuário escrever uma ou duas frases. Vale para a prova Autonomia
+(D-043). Na Fluência a rapidez é o esperado, e a Compreensão conceitual, a
+Resolução de problemas e a Explicação têm critérios próprios (C-19).
 
 **Evidência (hipótese):** proteção contra chute e contra reconhecimento
 superficial. Não há estudo que eu conheça com esse limiar. O valor de 3.000 ms
@@ -100,25 +102,31 @@ superficial. Não há estudo que eu conheça com esse limiar. O valor de 3.000 m
 
 ## C-07 · Explicar com as próprias palavras
 
-**Regra:** a prova Explicação exige texto do usuário. No MVP o texto é
-armazenado e conta como prova sem avaliação automática; depois do MVP a Jane
-avalia com rubrica.
+**Regra:** a prova Explicação exige texto do usuário **avaliado pela Jane com
+rubrica** (D-043): 5 critérios de 0 a 2, soma mínima 8 de 10, Correção e
+Justificativa obrigatórias em 2. Enquanto a avaliação não chega, o texto fica
+"aguardando avaliação" e não conta. (Versão anterior, trocada pela D-043: o
+texto bastava, com 40 caracteres, sem avaliação.)
 
 **Evidência (moderada):** auto-explicação (Chi et al., 1994) e aprender
-ensinando (Fiorella & Mayer, 2016) melhoram compreensão além da memorização.
-Contar como prova sem avaliar é uma **hipótese** de produto, aceita porque o
-custo de fraudar a si mesmo num sistema pessoal é baixo.
+ensinando (Fiorella & Mayer, 2016) melhoram compreensão além da memorização,
+desde que a explicação trate de relações e justificativas reais. Número de
+caracteres não mede isso. A rubrica e o limite 8/10 são **hipótese** de
+produto (C-19).
 
 ## C-08 · Resolução de problemas testa transferência
 
-**Regra:** a prova Resolução de problemas só pode ser conquistada com uma
-questão diferente da que conquistou a Autonomia no mesmo Ofício.
+**Regra:** a prova Resolução de problemas usa um conjunto de 5 problemas
+**inéditos** (2 rotineiros, 2 não rotineiros e 1 de transferência), sem ajuda.
+Exige 4 acertos, com a transferência obrigatória (D-043). Item já respondido
+antes não entra no conjunto; quem reprova gasta esses itens e recebe outros.
 
 **Evidência (moderada):** Butler (2010): testes repetidos melhoram
 transferência para questões novas sobre o mesmo conceito, mais do que reler.
-Acertar a mesma questão duas vezes mede memória da questão, não do conceito.
+Acertar a mesma questão duas vezes mede memória da questão, não do conceito. A
+composição 2+2+1 e o 4 de 5 são **hipótese** de desenho (C-19).
 
-**No código:** `review_logs.item_id` distinto do item da prova Autonomia.
+**No código:** só entram `review_logs.item_id` nunca vistos antes no Ofício.
 
 ## C-09 · Outro dia, não o mesmo dia (substituída)
 
@@ -132,13 +140,14 @@ C-02 no nível do Ofício) agora é papel do FSRS e da revisão do Ofício
 
 ## C-10 · Tempo cronometrado
 
-**Regra:** a prova Fluência procedimental tem limite de
-`TIMED_PROOF_SECONDS = 60`.
+**Regra:** o relógio só vale em item que a Jane marcou com tempo esperado
+(`expected_seconds`); acerto acima de `FLUENCY_TIME_FACTOR` vezes esse tempo não
+conta para a prova Fluência procedimental (D-043). O limite fixo de 60 s foi
+retirado: uma conta simples e uma equação longa não cabem no mesmo limite, e
+velocidade não é o critério principal (C-19).
 
-**Evidência (hipótese):** fluência sob pressão é um indicador de automatização
-em algumas áreas (cálculo, por exemplo), mas o limite de 60 s é arbitrário e
-inadequado para questões de Filosofia. Candidato a virar parâmetro por
-matéria.
+**Evidência (hipótese):** fluência inclui eficiência, mas eficiência compatível
+com a complexidade da tarefa, e não pressa. O fator 2 é arbitrário.
 
 ## C-11 · Distratores devem ser equívocos reais
 
@@ -176,8 +185,9 @@ faixa 30–70% é **hipótese**; a ideia da zona intermediária é evidência.
 ## C-14 · Pré-requisitos reais, mastery antes de avançar
 
 **Regra:** um Ofício só abre quando cada pré-requisito tem ≥ 2 dimensões
-diferentes provadas (`UNLOCK_MIN_DIMENSIONS`, D-022). Pré-requisito é
-dependência real, não ordem de apostila.
+diferentes provadas (`UNLOCK_MIN_DIMENSIONS`, D-022), e uma delas é a
+Compreensão conceitual (D-043). Pré-requisito é dependência real, não ordem de
+apostila.
 
 **Evidência (moderada):** aprendizagem para domínio (Bloom, 1968): avançar só
 após demonstrar domínio do bloco anterior reduz lacunas acumuladas. O número 2
@@ -224,14 +234,45 @@ desde o MVP (C-03, D-023).
 
 **Regra:** o domínio de um Ofício é a cobertura de cinco dimensões: compreensão
 conceitual, fluência procedimental, resolução de problemas, autonomia e
-explicação (D-022). Liberar exige duas dimensões diferentes; Dominado exige as
-cinco.
+explicação (D-022). Liberar exige duas dimensões diferentes, uma delas a
+Compreensão conceitual; Dominado exige todas as dimensões que se aplicam ao
+Ofício, que são as cinco, salvo as que a Jane marcou como "não se aplica"
+(fluência em Filosofia, por exemplo; D-043).
 
 **Evidência (hipótese quanto ao conjunto):** a taxonomia de Bloom (Bloom et al.,
 1956) e a revisão de Anderson & Krathwohl (2001) inspiram a ideia de que
 compreender, aplicar e explicar são capacidades diferentes. As cinco dimensões
 do Ateliê **não** são os níveis oficiais de Bloom: são um desenho do produto. É
 moderada a evidência de que variar o tipo de tarefa mede transferência (C-08).
+
+## C-19 · Prova pede mais que um acerto
+
+**Regra (D-043):** exceto a Autonomia, nenhuma dimensão se conquista com um
+acerto isolado. A prova é calculada sobre o **histórico** do Ofício
+(`review_logs`), e não sobre uma tentativa.
+
+- **Compreensão conceitual:** acertos válidos em 3 de 4 evidências
+  (reconhecimento, interpretação, representação, discriminação), com a
+  discriminação obrigatória, em 2 dias diferentes; o último registro de cada
+  evidência usada é acerto.
+- **Fluência procedimental:** 9 acertos em 10 exercícios de procedimento, sem
+  ajuda, em 2 dias diferentes (no mínimo 4 por dia); relógio só onde o item
+  tem tempo esperado (C-10).
+- **Resolução de problemas:** C-08.
+- **Explicação:** C-07.
+
+**Evidência (moderada quanto à ideia, hipótese quanto aos números):** *Adding It
+Up* (National Research Council, 2001) trata o aprendizado de matemática como
+vertentes entrelaçadas: compreensão conceitual (integrar representações e
+relações), fluência procedimental (precisão, eficiência, flexibilidade e escolha
+do procedimento certo), competência estratégica (formular, representar e
+resolver problemas) e raciocínio adaptativo (explicar e justificar). Um acerto
+isolado não mostra nenhuma delas. Limites desta base: o relatório fala de
+matemática escolar até o 8º ano, e levar a ideia a Redes e Filosofia é extensão
+do Ateliê; nenhum dos limiares acima (9 de 10, 3 de 4, 2+2+1, 8 de 10, 2 dias,
+fator 2) vem do relatório; as dimensões do Ateliê não são as vertentes dele
+(Autonomia não tem correspondente). O resumo foi feito a partir da pesquisa do
+Márcio; conferir o texto antes de citar página.
 
 ---
 
@@ -246,7 +287,10 @@ Lista honesta, para não esquecer de revisar:
   C-18; a combinação específica não tem estudo.
 - XP e nível não têm base nenhuma (valores e curva são hipótese, D-038). Entram
   no MVP por decisão do Márcio (D-021), não por evidência.
-- A meta de retenção de 0,9 e o limite de 60 s do cronômetro são hipótese.
+- A meta de retenção de 0,9 e o fator 2 sobre o tempo esperado são hipótese.
+- Os limiares das provas da D-043 (3 de 4, 9 de 10, 2 dias, 2+2+1, 4 de 5,
+  rubrica 8/10) são hipótese. Meta de calibração: um Ofício típico chega a
+  Dominado em 2 a 3 semanas; rever com o uso real (ver D-043).
 
 Quando o uso real acumular alguns meses de `review_logs`, dá para testar parte
 disso: por exemplo, se Ofícios com 5 dimensões de fato mantêm recuperabilidade

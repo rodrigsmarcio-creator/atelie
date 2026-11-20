@@ -95,16 +95,17 @@ no Ofício. Vem só de provas.
 uma pequena penalidade por erro recente. O erro baixa a confiança, nunca o
 domínio.
 
-**Estados do Ofício** — **Bloqueado** (algum pré-requisito com menos de 2
-dimensões),
-**Disponível** (0 dimensões), **Em prática** (1), **Liberado** (2 a 4; abre os
-dependentes), **Dominado** (5).
+**Estados do Ofício** — **Bloqueado** (algum pré-requisito ainda não Liberado),
+**Disponível** (0 dimensões), **Em prática** (1, ou 2 ou mais sem a Compreensão
+conceitual), **Liberado** (2 ou mais, uma delas a Compreensão conceitual; abre
+os dependentes), **Dominado** (todas as dimensões que se aplicam).
 
 **Precisa revisar** — marcador de um Ofício com prova cuja recuperabilidade
 média caiu abaixo da meta de retenção (`RETENTION_TARGET`). Não apaga prova.
 
 **Desbloqueio** — um Ofício abre quando cada pré-requisito tem pelo menos 2
-dimensões diferentes provadas (está Liberado ou Dominado).
+dimensões diferentes provadas, uma delas a Compreensão conceitual (está Liberado
+ou Dominado).
 
 ## Planejamento
 

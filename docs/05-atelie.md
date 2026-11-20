@@ -178,13 +178,16 @@ blocos na descrição. O Gregor não escolhe horário.
 
 ### Praticar
 
-**Fila de hoje**: Ofícios com as 5 dimensões como barras; botão **Resolver**
-abre o modal de prova. **Cartões**: virar e quatro notas (Errei, Difícil, Bom,
-Fácil). O modal de prova implementa as regras de C-05, C-06, C-07 e C-10 de
-`docs/02-ciencia.md`: ver a solução invalida, resposta rápida pede raciocínio,
-Explicação exige texto, cronômetro nas provas de fluência. O modal **não**
-decide se a prova foi conquistada: envia o log a `/api/review` e mostra o que a
-API devolver.
+**Fila de hoje**: Ofícios com as 5 dimensões como barras de **progresso**
+(ex.: "7 de 10", "2 de 3 evidências"); botão **Resolver** abre o modal de prova.
+**Cartões**: o Márcio responde (alternativas ou texto) antes de ver o verso e
+depois dá a nota (Errei, Difícil, Bom, Fácil), com teto vindo do resultado; o XP
+vem das tentativas (D-043). O modal de prova implementa as regras de C-05, C-06,
+C-07, C-08 e C-10 de `docs/02-ciencia.md` e os critérios da D-043: ver a solução
+invalida, resposta rápida pede raciocínio (só na Autonomia), Explicação fica
+"aguardando avaliação" da Jane, relógio só em item com tempo esperado. O modal
+**não** decide se a prova foi conquistada: envia o log a `/api/review` e mostra o
+que a API devolver.
 
 ### Ficha
 

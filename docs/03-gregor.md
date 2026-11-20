@@ -118,16 +118,20 @@ pura).
 Base: C-01, C-15, C-18.
 
 ```
-mastery(skill, now) -> { dimensions: 0..5, confidence: 0..1, missing: ProofKind[] }
+mastery(skill, now) -> { dimensions: 0..5, applicable: 3..5, confidence: 0..1, missing: ProofKind[] }
 
 dimensions = número de tipos de prova diferentes conquistados
-confidence = (dimensions / 5) * (1 - penalidadeDeErro)
+applicable = 5 - dimensões que a Jane marcou "não se aplica" no Ofício (D-043)
+confidence = (dimensions / applicable) * (1 - penalidadeDeErro)
 penalidadeDeErro = min(ERROR_PENALTY_MAX, errosRecentes * ERROR_PENALTY_EACH)
 errosRecentes    = exercícios válidos errados nos últimos ERROR_WINDOW_DAYS dias
 ```
 
-- **Domínio é cobertura:** quantas das 5 dimensões o Márcio já provou naquele
-  Ofício. Cada dimensão só conta uma vez (`proofs` tem PK `(skill_id, kind)`).
+- **Domínio é cobertura:** quantas das dimensões que se aplicam o Márcio já
+  provou naquele Ofício. Cada dimensão só conta uma vez (`proofs` tem PK
+  `(skill_id, kind)`). Só a Fluência procedimental, a Resolução de problemas e
+  a Explicação podem ser marcadas "não se aplica"; Compreensão conceitual e
+  Autonomia sempre se aplicam (D-043).
 - **Erro baixa a confiança, não o domínio.** O erro reduz `confidence` pela
   penalidade, que some quando a janela passa. `dimensions` nunca diminui. O
   Ofício com erro recente entra na fila de reforço (seção 5, bloco 3).
@@ -144,11 +148,11 @@ errosRecentes    = exercícios válidos errados nos últimos ERROR_WINDOW_DAYS d
 
 | Estado | Regra |
 |---|---|
-| Bloqueado | algum pré-requisito tem menos de 2 dimensões (ainda não é Liberado nem Dominado) |
+| Bloqueado | algum pré-requisito ainda não é Liberado nem Dominado |
 | Disponível | pré-requisitos cumpridos, 0 dimensões |
-| Em prática | 1 dimensão |
-| Liberado | 2 a 4 dimensões diferentes. Abre os Ofícios que dependem dele |
-| Dominado | as 5 dimensões |
+| Em prática | 1 dimensão, ou 2 ou mais sem a Compreensão conceitual |
+| Liberado | 2 ou mais dimensões diferentes, uma delas a Compreensão conceitual, e ainda falta alguma que se aplica. Abre os Ofícios que dependem dele |
+| Dominado | todas as dimensões que se aplicam (as 5, salvo "não se aplica") |
 
 E um marcador à parte, que vale para qualquer estado com prova: **Precisa
 revisar** (seção 3). Ele não muda o estado nem apaga dimensões.
@@ -162,11 +166,15 @@ Base: C-14.
 
 ```
 isUnlocked(skill) = skill.prereqIds.every(id =>
-  mastery(prereq).dimensions >= UNLOCK_MIN_DIMENSIONS)
+  mastery(prereq).dimensions >= UNLOCK_MIN_DIMENSIONS
+  && prereq tem a prova Compreensão conceitual)
 ```
 
 - `UNLOCK_MIN_DIMENSIONS = 2` (hipótese). Duas dimensões **diferentes** já
   provam que não foi um acerto isolado; essa é a defesa contra o início a frio.
+- Uma das duas tem de ser a Compreensão conceitual (D-043). Sem isso, a
+  Autonomia, que é fácil, mais outra dimensão fácil abririam os dependentes sem
+  que o conceito tenha sido provado.
 - O grafo precisa ser acíclico. `graph/validate.ts` recusa ciclo na
   importação; `core` assume DAG.
 - `unlocksCount(skill)` = quantos Ofícios dependem diretamente dele. Entra na
@@ -312,10 +320,19 @@ xpOf(attempt) -> number
 level(totalXp) -> { level, xpInLevel, xpToNext }
 ```
 
-Dão XP: acerto **válido** em exercício, prova conquistada, cartão com nota
-Difícil, Bom ou Fácil. Não dão XP: tentativa errada, cartão "Errei", tentativa
-com solução vista, leitura. Redação corrigida dá XP, mas fica para depois do
-MVP.
+Dão XP: acerto **válido** em exercício, prova conquistada, cartão respondido
+(o XP vem das **tentativas** ou do texto escrito, nunca da nota que o Márcio se
+dá; D-043). Não dão XP: tentativa errada, cartão com as tentativas esgotadas,
+tentativa com solução vista, leitura. Redação corrigida dá XP, mas fica para
+depois do MVP.
+
+**Cartão (D-043).** O Márcio responde antes de ver o verso: por **alternativas**
+(o sistema corrige; alternativa errada trava e ele tenta outra) ou por **texto**
+(dissertativa). Depois dá a nota (Errei, Difícil, Bom, Fácil) que alimenta o
+FSRS, mas com um **teto** vindo do resultado: acertou na 1ª tentativa, qualquer
+nota; na 2ª ou na 3ª, no máximo Difícil; esgotou as tentativas, só Errei. Na
+dissertativa não há como corrigir: o XP é fixo, se escreveu o mínimo de
+caracteres, e a nota só agenda a revisão.
 
 Tabela inicial (**hipótese**, D-038):
 
@@ -323,9 +340,14 @@ Tabela inicial (**hipótese**, D-038):
 |---|---|---|
 | Acerto válido em exercício | 10 | `XP_CORRECT` |
 | Prova conquistada (bônus, soma ao acerto) | 40 | `XP_PROOF_BONUS` |
-| Cartão Difícil | 3 | `XP_CARD_HARD` |
-| Cartão Bom | 5 | `XP_CARD_GOOD` |
-| Cartão Fácil | 7 | `XP_CARD_EASY` |
+| Cartão de alternativas, acerto na 1ª tentativa | 7 | `XP_CARD_TRY_1` |
+| Cartão de alternativas, acerto na 2ª tentativa | 5 | `XP_CARD_TRY_2` |
+| Cartão de alternativas, acerto na 3ª tentativa | 3 | `XP_CARD_TRY_3` |
+| Cartão dissertativo, com o mínimo escrito | 3 | `XP_CARD_WRITTEN` |
+
+(Na D-038 o XP do cartão era 3, 5 e 7 pela nota Difícil, Bom e Fácil; a D-043
+trocou a base pela tentativa. Os valores são os mesmos, então o XP total
+estimado não muda.)
 
 Curva de níveis: subir do nível `n` para `n + 1` custa `LEVEL_COST_STEP * n`
 XP, com `LEVEL_COST_STEP = 100` (hipótese, D-038): nível 1 → 2 custa 100,
@@ -352,34 +374,51 @@ recordReview(log: ReviewLog) ->
   3. se acerto e preenche critério de prova (seção 9): grava proof no skill
 ```
 
-O `core` expõe `evaluateProof(skill, item, log, now) -> ProofKind | null`, que
-decide se a tentativa conquista uma prova e qual. `item` traz `kind` e `focus`
-do item respondido, porque a prova depende do tipo e do foco (seção 9).
+O `core` expõe `evaluateProofs(skill, history, now) -> ProofKind[]`, que olha
+o **histórico** do Ofício (`review_logs` do Ofício, mais as avaliações da Jane) e
+devolve as provas que passaram a estar conquistadas (D-043). A prova deixou de
+ser decidida por uma tentativa: quase todas pedem várias, em dias diferentes. O
+resultado continua derivado do log, então `pnpm memory:rebuild` e o recálculo
+das provas dão o mesmo resultado.
 
 ## 9. Critérios de prova
 
+Todos os números desta seção são **hipótese** (D-043, C-19), ficam em
+`params.ts` e serão revistos com o uso real. Em todas, tentativa com
+`viewed_solution = true` não vale (C-05).
+
 | Prova (dimensão) | Critério | Base |
 |---|---|---|
-| Autonomia | acerto, `viewed_solution = false`, `answerMs >= FAST_ANSWER_MS` ou raciocínio escrito | C-01, C-05, C-06 |
-| Resolução de problemas | acerto em `itemId` diferente do da prova Autonomia | C-08 |
-| Fluência procedimental | acerto com `answerMs <= TIMED_PROOF_SECONDS * 1000` em modo cronometrado | C-10 (hipótese) |
-| Explicação | acerto + texto com `>= EXPLAIN_MIN_CHARS` (`40`, hipótese); depois do MVP: avaliado pela Jane | C-07 |
-| Compreensão conceitual | acerto, `viewed_solution = false`, em item com `focus = 'conceitual'` (marcado pela Jane na importação) | C-18 (hipótese) |
+| Autonomia | um acerto válido em exercício, com `answerMs >= FAST_ANSWER_MS` ou raciocínio escrito (mínimo `REASONING_MIN_CHARS = 15`). É a dimensão de entrada: a única que um acerto isolado conquista | C-01, C-05, C-06 |
+| Compreensão conceitual | acertos válidos em itens conceituais de pelo menos `CONCEPT_MIN_EVIDENCES = 3` das 4 evidências (`reconhecimento`, `interpretacao`, `representacao`, `discriminacao`), com a **discriminação obrigatória**, em pelo menos `CONCEPT_MIN_DAYS = 2` dias de calendário diferentes; o último registro de cada evidência usada tem de ser acerto. A `interpretacao` é de múltipla escolha ("qual reformulação mantém o significado?"), para não repetir a Explicação | C-18, C-19 |
+| Fluência procedimental | `FLUENCY_MIN_CORRECT = 9` acertos nos últimos `FLUENCY_WINDOW = 10` exercícios de procedimento, sem ajuda, em pelo menos `FLUENCY_MIN_DAYS = 2` dias diferentes e no mínimo `FLUENCY_MIN_PER_DAY = 4` por dia. Item com `expected_seconds` só conta como acerto até `FLUENCY_TIME_FACTOR = 2` vezes esse tempo; item sem tempo esperado não tem relógio | C-10, C-19 |
+| Resolução de problemas | um conjunto de 5 problemas **inéditos** no Ofício (2 rotineiros, 2 não rotineiros, 1 de transferência), sem ajuda; `PROBLEM_MIN_CORRECT = 4` acertos, com a **transferência obrigatória**. Quem reprova gasta os 5 itens e recebe outros | C-08, C-19 |
+| Explicação | item com rubrica e pergunta complementar, avaliado pela Jane (fora do app, depois importado): 5 critérios de 0 a 2 (Correção, Justificativa, Coerência, Aplicação, Limitações); soma `EXPLAIN_MIN_TOTAL = 8` de 10, Correção e Justificativa em 2, Coerência e Aplicação pelo menos 1, Limitações pelo menos 0. Sem avaliação, fica "aguardando avaliação" e não conta | C-07, C-19 |
 
-Uma tentativa conquista no máximo uma prova. Ordem de verificação: se o item
-tem `focus = 'conceitual'` e a Compreensão conceitual ainda falta, ela vem
-primeiro; senão, vale a primeira pendente na lista acima. Sem essa exceção, a
-Autonomia, que quase todo acerto preenche, viria sempre antes e a Compreensão
-conceitual nunca seria conquistada.
+Pontos de desenho:
+
+- **A ordem de verificação deixou de existir.** Cada prova olha o próprio
+  histórico; uma tentativa pode contar para mais de uma (um acerto conceitual
+  também pode ser a Autonomia). A regra antiga "uma tentativa conquista no
+  máximo uma prova" foi retirada junto com a exceção do `focus`.
+- **O Gregor monta o conjunto da Resolução:** escolhe 5 itens inéditos com a
+  composição pedida e só avalia quando os 5 foram respondidos. Quantos itens o
+  Ofício precisa ter está em `docs/09-schema-importacao.md` (ticket de schema).
+- **Explicação sem IA no Gregor:** o core recebe as notas da rubrica já
+  prontas (`graded: true` e os 5 valores). O app exporta as explicações
+  pendentes, a Jane avalia fora dele e o JSON de notas entra pela importação.
+- **"Não se aplica":** a Jane marca no Ofício as dimensões que não fazem
+  sentido (Fluência em Filosofia, por exemplo). Dominado exige todas as que se
+  aplicam; a Compreensão conceitual e a Autonomia sempre se aplicam.
+- **Marcação dos itens:** os campos novos (`dimension`, `evidence`, `category`,
+  `expected_seconds`, `followup`, `rubric`, `not_applicable`) e o tamanho mínimo
+  do banco por Ofício ficam no ticket de schema e conteúdo. O validador avisa
+  quando um Ofício não tem itens para fechar alguma dimensão, sem recusar.
 
 Só exercício (`multipla_escolha` ou `aberta`) conquista prova. Cartão nunca
 conquista, porque a nota do cartão é autoavaliação (D-037). Cartão continua
-dando XP (seção 7) e sendo agendado pelo FSRS (seção 3).
-
-Todo Ofício precisa de ao menos um item conceitual para poder chegar a Dominado;
-o validador da importação avisa quando falta, sem recusar
-(`docs/09-schema-importacao.md`). O tipo de prova que o modal oferece depende
-da dimensão que falta e do item.
+dando XP (seção 7) e sendo agendado pelo FSRS (seção 3). O tipo de prova que o
+modal oferece depende da dimensão que falta e do item.
 
 ## 10. `params.ts`
 
@@ -394,9 +433,13 @@ export const FEEDBACK_REQUIRED = true;
 
 Lista inicial: `UNLOCK_MIN_DIMENSIONS`, `RETENTION_TARGET`, `ERROR_WINDOW_DAYS`,
 `ERROR_PENALTY_EACH`, `ERROR_PENALTY_MAX`, `FAST_ANSWER_MS`,
-`TIMED_PROOF_SECONDS`, `EXPLAIN_MIN_CHARS`, `BLOCK_MINUTES_FULL`,
+`REASONING_MIN_CHARS`, `CONCEPT_MIN_EVIDENCES`, `CONCEPT_MIN_DAYS`,
+`FLUENCY_WINDOW`, `FLUENCY_MIN_CORRECT`, `FLUENCY_MIN_DAYS`,
+`FLUENCY_MIN_PER_DAY`, `FLUENCY_TIME_FACTOR`, `PROBLEM_MIN_CORRECT`,
+`EXPLAIN_MIN_TOTAL`, `BLOCK_MINUTES_FULL`,
 `BLOCK_MINUTES_SHORT`, `MIN_PER_MINI`, `MIN_PER_CARD`, `XP_CORRECT`,
-`XP_PROOF_BONUS`, `XP_CARD_HARD`, `XP_CARD_GOOD`, `XP_CARD_EASY`,
+`XP_PROOF_BONUS`, `XP_CARD_TRY_1`, `XP_CARD_TRY_2`, `XP_CARD_TRY_3`,
+`XP_CARD_WRITTEN`, `CARD_WRITTEN_MIN_CHARS`,
 `LEVEL_COST_STEP`, `FEEDBACK_REQUIRED`.
 
 `DaySession.params` recebe uma cópia desses valores. Mudou parâmetro, sessões
@@ -434,7 +477,6 @@ determinismo.
 
 | Quando | Mudança no core |
 |---|---|
-| MVP | domínio por 5 dimensões, desbloqueio, FSRS, sessão do dia, ofensiva, XP |
+| MVP | domínio por 5 dimensões com provas sobre o histórico, Explicação avaliada pela Jane (importada, `graded`), desbloqueio, FSRS, sessão do dia, ofensiva, XP |
 | Depois do MVP | prazo de prova na ordenação; plano da semana (`planWeek`); fórmula de prioridade com pesos; intercalação (C-12) e zona de dificuldade (C-13); proteção de ofensiva; benefícios por nível; sessão em etapas com relógio |
-| Depois do MVP | prova Explicação avaliada pela Jane (o core recebe `graded: boolean`) |
 | Futuro | recalibração de parâmetros a partir de `review_logs` |
