@@ -15,7 +15,7 @@ Márcio **antes** de criar qualquer ticket.
 
 ### 0 · Esteira e fundação — Sonnet (Opus no que for decisão de estrutura)
 
-- Repositório Git privado, pnpm workspaces, TypeScript estrito, ESLint,
+- Repositório Git público (D-034), pnpm workspaces, TypeScript estrito, ESLint,
   Prettier, Vitest. Scripts do `CLAUDE.md` existindo (mesmo que vazios).
 - CI no GitHub Actions copiado do Zappi; SonarCloud (análise automática
   primeiro; depois pelo CI com cobertura); testes em Docker no PR; cobertura

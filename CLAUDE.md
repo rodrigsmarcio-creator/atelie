@@ -43,8 +43,8 @@ avise e pare.
   Concluído sem o Márcio mandar. O Claude move os status pelo conector da
   Atlassian: A fazer → Em andamento → Em análise; Concluído só depois do merge
   confirmado.
-- PR só com CI e SonarCloud verdes. Explique o PR em português simples para o
-  Márcio aprovar.
+- PR só com CI, Testes e SonarCloud verdes. Explique o PR em português simples
+  para o Márcio aprovar.
 
 ## Como trabalhar
 
@@ -112,7 +112,7 @@ origem (hipótese ou evidência). Detalhes em `docs/03-gregor.md`.
 - Migrations versionadas e reversíveis. `review_logs` é append-only.
 - Operações de vários passos em transação.
 - Segredos (Google, chaves) e dados reais (banco, PDFs, conteúdo) ficam fora
-  do Git, mesmo com o repositório privado.
+  do Git, porque o repositório é público (D-034).
 
 ## Comandos
 
