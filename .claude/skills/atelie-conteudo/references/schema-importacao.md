@@ -68,6 +68,7 @@ dependência real, não ordem de apostila; na dúvida, não crie a aresta;
 | answer | ME: int 0–3 · cartão/aberta: string | |
 | explanation | string ≥ 20 | **obrigatório**. Diz por que a certa é certa e por que a tentadora é errada |
 | difficulty | int 1–3 | opcional |
+| focus | `"conceitual"` | opcional. Marca o item que testa o conceito (o porquê, não só o como); acerto nele conquista a prova Compreensão conceitual. Só vale em exercício (ME ou aberta); em cartão é aceito, mas não conquista prova (D-037) |
 | tags | string[] | opcional |
 | origin | `"manual" \| "ia"` | |
 | reviewed_by_user | boolean | |
@@ -88,9 +89,12 @@ são equívocos reais; sem certeza do fato, não gere o item e diga no chat.
 8. Ofício com menos de 3 itens ou mais de 20 (aviso, não erro, entre 3–7 e
    16–20; erro fora disso).
 9. `origin: "manual"` em arquivo com `generated_by` da Jane.
+10. `focus` com valor diferente de `"conceitual"`.
 
 Avisos (não recusam): Ofício sem `description`; `lane` repetido no mesmo
-`depth` e matéria (vai sobrepor na Árvore); item com `prompt` igual a outro.
+`depth` e matéria (vai sobrepor na Árvore); item com `prompt` igual a outro;
+Ofício sem nenhum exercício com `focus: "conceitual"` (ele não chega a
+Dominado, D-037).
 
 ## Idempotência
 
@@ -98,7 +102,7 @@ A importação faz **upsert por ID**:
 
 - `skills` e `items` existentes com o mesmo ID são atualizados nos campos de
   conteúdo (`name`, `prompt`, `options`, `answer`, `explanation`, `description`,
-  `icon`, `depth`, `lane`, `estimated_minutes`). `reviewed_by_user` **não** é
+  `icon`, `depth`, `lane`, `estimated_minutes`, `focus`). `reviewed_by_user` **não** é
   sobrescrito se já for `true`.
 - `prereqs` são substituídos pelo conjunto do arquivo (para o Ofício presente
   no arquivo).
@@ -164,6 +168,19 @@ para a tabela `imports`.
       "origin": "ia",
       "reviewed_by_user": false,
       "source": { "material_id": "01JCXAM0000000000000MAT001", "page": 201 }
+    },
+    {
+      "id": "01JCXAM0000000000000IT0003",
+      "skill_id": "01JCXAM0000000000000SK0002",
+      "kind": "multipla_escolha",
+      "focus": "conceitual",
+      "prompt": "Por que a regra da cadeia multiplica pela derivada da função de dentro?",
+      "options": ["Porque a derivada de um produto é o produto das derivadas", "Porque taxas de variação encadeadas se multiplicam: dy/dx = dy/du · du/dx", "Porque a função de dentro é sempre linear", "Por convenção, para simplificar a conta"],
+      "answer": 1,
+      "explanation": "Se y muda dy/du vezes mais rápido que u, e u muda du/dx vezes mais rápido que x, então y muda o produto das duas taxas em relação a x. A alternativa A confunde com a regra do produto, que não é o produto das derivadas.",
+      "difficulty": 2,
+      "origin": "ia",
+      "reviewed_by_user": false
     },
     {
       "id": "01JCXAM0000000000000IT0002",

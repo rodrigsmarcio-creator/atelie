@@ -67,8 +67,10 @@ o acerto, o que corrompe o cálculo de domínio.
 Varie o tipo. Um Ofício só com cartão de definição produz quem recita e
 não aplica. Garanta ao menos 2 questões diferentes por Ofício: a prova de
 Resolução de problemas exige uma questão distinta da que conquistou a
-Autonomia. Inclua também itens que testem o conceito (por quê, não só como) e
-ao menos um que peça explicação com as próprias palavras.
+Autonomia. Inclua também itens que testem o conceito (por quê, não só como),
+marcados com `focus: "conceitual"`: ao menos um exercício (não cartão) por
+Ofício, senão ele nunca chega a Dominado (D-037). E ao menos um item que peça
+explicação com as próprias palavras.
 
 ## Honestidade sobre a fonte
 
