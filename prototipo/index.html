@@ -18,7 +18,12 @@
     14 px, botão e chip em pílula, borda de 1 px em `line`, sem sombra (só o
     brilho `glow`), filete `hairline` separando seções.
   - Cores de matéria (--mat-*) são provisórias e só identificam a matéria.
+  - Tailwind v4 (build de navegador, pelo jsDelivr) com `integrity`: o
+    cdn.tailwindcss.com não manda cabeçalho CORS, então não aceita a checagem de
+    integridade que o SonarCloud exige (regra S5725). Ao trocar a versão, gerar o
+    hash de novo: curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A
 -->
+
 <script>
   /* Aplica a paleta e a variante antes da primeira pintura (evita piscar). */
   (function () {
@@ -30,33 +35,31 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
-<script src="https://cdn.tailwindcss.com/3.4.17"></script>
-<script>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.0/dist/index.global.js"
+        integrity="sha384-nWTzRTCY/9V4Bo352ehygr1c4cnst4XN6lMR3fipakEQrhVpc0hEM5Dii3Amz0sT"
+        crossorigin="anonymous"></script>
+<style type="text/tailwindcss">
   /* Os componentes só usam os nomes semânticos dos tokens. */
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          bg: 'var(--bg)',
-          surface: 'var(--surface)',
-          'surface-2': 'var(--surface-2)',
-          line: 'var(--line)',
-          text: 'var(--text)',
-          muted: 'var(--muted)',
-          accent: 'var(--accent)',
-          'on-accent': 'var(--on-accent)',
-          hot: 'var(--hot)',
-          'hot-2': 'var(--hot-2)',
-          xp: 'var(--xp)',
-          ok: 'var(--ok)',
-          bad: 'var(--bad)',
-        },
-        fontFamily: { title: 'var(--f-title)', text: 'var(--f-text)' },
-        borderRadius: { card: 'var(--r-card)', item: 'var(--r-item)' },
-      },
-    },
-  };
-</script>
+  @theme inline {
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-line: var(--line);
+    --color-text: var(--text);
+    --color-muted: var(--muted);
+    --color-accent: var(--accent);
+    --color-on-accent: var(--on-accent);
+    --color-hot: var(--hot);
+    --color-hot-2: var(--hot-2);
+    --color-xp: var(--xp);
+    --color-ok: var(--ok);
+    --color-bad: var(--bad);
+    --font-title: var(--f-title);
+    --font-text: var(--f-text);
+    --radius-card: var(--r-card);
+    --radius-item: var(--r-item);
+  }
+</style>
 <style>
   /* ===== Tokens (docs/05-atelie.md) ===== */
   :root {
@@ -280,9 +283,11 @@
           <svg class="ico h-6 w-6" aria-hidden="true"><use href="#i-ficha"/></svg>Ficha</a>
       </li>
     </ul>
-    <button type="button" class="icon-btn mt-auto hidden md:inline-flex" data-abrir="config" aria-label="Configuração: paleta e Google Agenda">
-      <svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-config"/></svg>
-    </button>
+    <div class="mt-auto hidden md:block">
+      <button type="button" class="icon-btn" data-abrir="config" aria-label="Configuração: paleta e Google Agenda">
+        <svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-config"/></svg>
+      </button>
+    </div>
   </nav>
 
   <!-- Menu contextual (some quando a aba tem um item só) -->
