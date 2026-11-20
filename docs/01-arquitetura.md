@@ -14,7 +14,7 @@ construção. Toda escolha aqui tem uma linha correspondente em
                │ chama                        │ chama
 ┌──────────────▼───────────┐     ┌────────────▼───────────────┐
 │  packages/core (Gregor)  │     │  packages/db (Drizzle)     │
-│  puro · sem I/O          │     │  SQLite · migrations · seed │
+│  puro · sem I/O          │     │  libSQL · migrations · seed │
 │  domínio · sessão · FSRS │◄────┤  monta o estado e entrega  │
 │  ofensiva · XP           │     │  ao core; grava o resultado │
 └──────────────────────────┘     └────────────────────────────┘
@@ -40,7 +40,9 @@ importa `web`. Se uma tarefa precisar inverter isso, a tarefa está errada.
 |---|---|---|---|
 | Linguagem | TypeScript estrito em tudo | Um só tipo do banco à tela; `core` compartilha tipos com `web` | Python no motor (duas linguagens, dois toolings) |
 | Monorepo | pnpm workspaces | `core` isolado e testável; skills já assumem `packages/*` | App único com pastas (menos tooling, mas `core` acaba importando I/O "só desta vez") |
-| Banco | SQLite via `better-sqlite3` | Um usuário, um arquivo, backup = copiar; sem serviço rodando | Postgres (peso morto para uso pessoal) |
+| Banco | SQLite (libSQL) via `@libsql/client`: arquivo `file:` no PC, no CI e no Docker; Turso grátis em produção (D-036) | Mesmo SQLite do PC à nuvem, trocando só `DATABASE_URL`; um usuário cabe com folga nos 5 GB | `better-sqlite3` (só arquivo local, não serve na Vercel); Postgres/Neon (plano B) |
+| Hospedagem | Vercel Hobby, deploy a cada merge na `main` (D-036) | Grátis, não dorme, feita para Next.js | Render free (dorme); PC de casa; Netlify, Firebase, Cloud Run |
+| Login | Better Auth + Google, só o e-mail liberado em variável de ambiente (D-036) | Um usuário; o Auth.js v5 segue em beta e passou ao time do Better Auth | Auth.js v5 beta; sem login (D-017) |
 | ORM | Drizzle + drizzle-kit | Schema em TS, migrations SQL legíveis, constraints no banco | Prisma (migrations opacas em SQLite) |
 | Validação | Zod | Mesmo schema valida import, API e formulários | — |
 | Web | Next.js (App Router) + React | Server e client num processo; route handlers servem de API; um `pnpm dev` | Vite + Hono separados (mais limpo, mais processos para manter) |
@@ -143,19 +145,24 @@ Google, onde guardar o segredo (A-007).
 
 ## Dados em disco
 
-- `data/atelie.db` (SQLite). Backup: copiar o arquivo com o app parado, ou
-  `VACUUM INTO` com ele rodando.
-- `data/acervo/` para arquivos (`.md`, PDFs) e anexos, referenciados por
-  caminho relativo na tabela `materials`. Nunca dentro do banco.
+- Produção: banco no Turso (D-036). O disco da Vercel não guarda nada entre
+  acessos, então nenhum arquivo do app vive lá. Backup: `turso db export`
+  gera um arquivo SQLite local (a restauração grátis do Turso cobre só 1 dia;
+  rotina no ATL-30).
+- PC, CI e Docker: `data/atelie.db` (arquivo `file:` do libSQL). Backup:
+  copiar o arquivo com o app parado, ou `VACUUM INTO` com ele rodando.
+- Acervo no MVP: o texto do `.md` fica no banco; PDF fica para depois
+  (D-028, D-036). `data/acervo/` só existe no PC.
 - `imports/` versionado no Git: é o histórico do conteúdo gerado. Conteúdo real
   de estudo e segredos ficam fora do Git.
 
 ## Execução
 
-Dia a dia: `pnpm dev` no PC; o celular acessa pelo navegador na mesma rede
-(`http://<ip-do-pc>:3000`). Sem HTTPS na rede local; se for expor fora,
-Tailscale, nunca port-forward. Deploy gratuito com login entra no MVP (D-035;
-hospedagem e banco em A-011). Docker só nos testes do PR
+Uso: o app roda na Vercel (`*.vercel.app`, nome no ATL-29) com o banco no
+Turso e login obrigatório; PC e celular acessam pela internet (D-035, D-036).
+Os segredos (Turso, Google, e-mail liberado) ficam nas variáveis de ambiente
+da Vercel, nunca no Git. Desenvolvimento: `pnpm dev` no PC com o banco em
+arquivo local; nunca expor o PC com port-forward. Docker só nos testes do PR
 (`docs/11-esteira.md`).
 
 ## Ordem de construção

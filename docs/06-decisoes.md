@@ -13,7 +13,7 @@ As decisões D-001 a D-019 mantêm o texto original, com os nomes antigos:
 | D-002 | 2026-11-15 | Construir uma fatia vertical antes do motor completo (Hoje → Sessão → Prova → registro) | "Motor primeiro" é o que travou a versão anterior; precisa de algo usável para calibrar | Curador completo (FSRS, semana) antes da primeira tela |
 | D-003 | 2026-11-15 | Claude gera conteúdo; o Curador decide agenda por regras. IA nunca decide o plano | Determinismo, custo, depuração, reprodutibilidade | Planejamento por LLM |
 | D-004 | 2026-11-15 | Mestre fora do app na v1: Claude Code + skill `atelie-conteudo` gera JSON, o app importa | Plano Pro não é API; chat embutido exige chave e custo por uso | Chat embutido desde o início |
-| D-005 | 2026-11-15 | SQLite (better-sqlite3) + Drizzle | Um usuário, um arquivo, backup trivial; skills já assumem Drizzle | Postgres |
+| D-005 | 2026-11-15 | SQLite (better-sqlite3) + Drizzle | Um usuário, um arquivo, backup trivial; skills já assumem Drizzle | Postgres — **Revista por D-036** (o banco vai para o Turso, compatível com SQLite, com `@libsql/client` no lugar do `better-sqlite3`; o Drizzle continua) |
 | D-006 | 2026-11-16 | Gamificação da v1 = streak e Árvore. Nível, XP, missões ficam para a fase 4 ou nunca | Conceito: pontos não substituem domínio; streak é o que o usuário diz ajudar a começar | Nível/XP/missões na v1 — **Revertida em parte por D-021** (XP e nível entram no MVP; missões e conquistas seguem fora) |
 | D-007 | 2026-11-16 | Monorepo pnpm com `packages/core`, `packages/db`, `apps/web` (Next.js) | `core` isolado e testável; um processo só no PC de casa | Vite + Hono separados; app único com pastas |
 | D-008 | 2026-11-16 | FSRS via `ts-fsrs` atrás de adaptador; v0 com intervalos fixos até haver histórico | Algoritmo publicado; calibração exige logs reais | SM-2 à mão; FSRS desde o dia 1 — **Revertida em parte por D-023** (FSRS desde o MVP; o adaptador continua) |
@@ -25,7 +25,7 @@ As decisões D-001 a D-019 mantêm o texto original, com os nomes antigos:
 | D-014 | 2026-11-16 | PDF abre em tela inteira com Mestre recolhível | Pedido do usuário; meio a meio não cabe no celular | Leitura meio a meio |
 | D-015 | 2026-11-16 | Árvore = mapa de pré-requisitos (estética de RPG); linha do tempo é visão separada em Evolução | São duas perguntas diferentes ("o que depende de quê" e "o que aprendi quando") | Uma visão só |
 | D-016 | 2026-11-16 | Sidebar contém só itens da seção; matérias ficam como filtro na Árvore e no Acervo | Pedido do usuário; evitava duplicar navegação | Lista de matérias na sidebar |
-| D-017 | 2026-11-16 | Sem autenticação na v1; rede local; fora de casa só via Tailscale | Um usuário; port-forward é risco sem ganho | Login; HTTPS local — **Revista por D-035** (o deploy entra no MVP com login obrigatório; rede local e Tailscale deixam de ser o único acesso) |
+| D-017 | 2026-11-16 | Sem autenticação na v1; rede local; fora de casa só via Tailscale | Um usuário; port-forward é risco sem ganho | Login; HTTPS local — **Revista por D-035** (o deploy entra no MVP com login obrigatório; rede local e Tailscale deixam de ser o único acesso) e **por D-036** (login com Better Auth + Google, só o e-mail do Márcio) |
 | D-018 | 2026-11-16 | Toda sugestão do Curador grava `reason` e `breakdown`; planos antigos nunca são apagados | Única forma de calibrar pesos sem adivinhar | Guardar só o plano atual |
 | D-019 | 2026-11-16 | Pesos `W_*` e limiares são hipótese até haver meses de `review_logs`; revisão manual, não automática, na v1 | Honestidade sobre a base; ver `02-ciencia.md` | Ajuste automático desde o início |
 | D-020 | 2026-11-18 | Renomear: Curador → **Gregor**, Mestre → **Jane**, aba Hoje → **Painel**, streak → **Ofensiva**; a aba da Árvore passa a se chamar **Ficha** (resumo + Árvore). Skill `atelie-motor` vira `atelie-gregor`; `docs/03-motor.md` vira `docs/03-gregor.md` | O Márcio não gostava de "Curador"; nomes próprios pedidos por ele | Manter os nomes antigos |
@@ -44,6 +44,7 @@ As decisões D-001 a D-019 mantêm o texto original, com os nomes antigos:
 | D-033 | 2026-11-19 | Testes em Docker (ATL-63): `Dockerfile.test` na raiz com `node:24-slim` fixado por **tag e digest**, pnpm pelo `corepack` (versão do `packageManager`), instalação com `--frozen-lockfile --ignore-scripts` e `CMD ["pnpm", "test"]` (sem `--coverage`, que a D-031 já liga), como usuário `node`. O código entra na imagem **caminho por caminho** (`COPY` de `apps/web/app`, `packages/*/src`, os `tsconfig` e o `vitest.config.ts`), nunca com `COPY . .`, porque o SonarCloud reprovou o PR por isso (regra `docker:S6470`, segurança D); pasta nova que o teste precise entra no `Dockerfile.test` à mão. O job `Testes` do `ci.yml` constrói a imagem, roda o container **sem `--rm`**, tira o `coverage/lcov.info` com `docker cp` e o publica como artefato com `if: always()` (o Vitest só gera o `lcov.info` quando os testes passam, então ele sobe mesmo quando o job falha só pelo limite de cobertura). O `.dockerignore` deixa fora `node_modules`, `.git`, `.claude`, `coverage`, `.next`, `dist`, `_arquivos-originais`, `*.pdf` e `.env*`, em qualquer pasta (o `.claude` pode ter `settings.local.json`, que o Git já ignora). Node 24 está em manutenção LTS desde 2026-10-20 (fim em 2028-04); seguimos nele para casar com o CI e o `engines`. Sem cache de camadas por enquanto | Teste igual na máquina e no CI; o usuário `node` evita problema de permissão e o `docker cp` dispensa montar pasta; o digest impede a imagem de mudar sem aviso, como as ações fixadas por SHA (D-032); o `.dockerignore` evita levar PDF e `.env` para a imagem | Nome de job `test` (o ticket dizia isso, mas a D-032 e o ATL-64 exigem `Testes`); `pnpm test -- --coverage`; rodar como root; montar pasta para a cobertura; fixar só pela tag; cache de camadas agora |
 | D-034 | 2026-11-19 | Proteção da `main` (ATL-64) e repositório **público**. Ruleset `main protegida` na branch padrão: só entra por PR, checks obrigatórios `CI` e `Testes` (nomes dos jobs, D-032), **sem exigir aprovação**, sem force-push, sem apagar a `main`, sem exigir a branch atualizada e **sem exceção para o administrador**. O SonarCloud segue fora dos checks obrigatórios (análise automática, sem check fixo). O repositório `atelie` passa a ser **público**: banco, PDFs, segredos e conteúdo real continuam fora do Git. O Gmail do Márcio fica visível em 4 commits antigos (aceito, sem reescrever o histórico). Reverte o "repositório privado" da D-026 e da D-029 | O plano grátis do GitHub não protege a `main` de repositório privado (erro 403); a esteira é rígida e a proteção é o que impede push direto e merge com check vermelho; o autor não aprova o próprio PR, então a regra é checks, não aprovação; não havia segredo nem arquivo sensível no histórico (conferido antes de abrir) | Assinar o GitHub Pro (US$ 4 por mês); ficar sem regra, só com hook local; reescrever 15 commits para esconder o e-mail; exigir o SonarCloud agora; deixar o administrador furar a regra |
 | D-035 | 2026-11-20 | O **deploy entra no MVP**: o app roda na internet com **custo zero** e **login obrigatório** (um usuário, o Márcio). Revê a D-017. Hospedagem, banco, driver e biblioteca de login **não** estão decididos aqui: ficam para o ATL-22 (A-011, que registrará a D-036); até lá vale o SQLite local da D-005. Se não houver opção gratuita que sirva, a decisão volta para o Márcio, sem escolher plano pago por conta própria. Dados reais continuam fora do Git (D-034) | Acessar do celular fora de casa sem Tailscale e dar ao Google Agenda uma URL de retorno (épico Planejar, ATL-12); o ticket ATL-13 chamava esta decisão de D-029, número que já era da exceção do primeiro commit | Deixar o deploy para depois do MVP; manter só a rede local com Tailscale; hospedagem paga; renumerar a D-029 antiga |
+| D-036 | 2026-11-20 | Hospedagem, banco e login (ATL-22). **App na Vercel Hobby**: URL planejada `*.vercel.app` (nome confirmado no ATL-29), deploy automático a cada merge na `main`. **Banco no Turso** (plano grátis, libSQL compatível com SQLite) com o driver `@libsql/client` e o Drizzle (`drizzle-orm/libsql`): o mesmo código usa arquivo `file:` no PC, no CI e no Docker de teste e a URL do Turso em produção, trocando só a variável `DATABASE_URL`. **Login com Better Auth + Google**, liberado só para o e-mail guardado em variável de ambiente (nunca no Git), protegendo as telas e `/api/*`; as tabelas do Better Auth (ou o modo sem banco) se decidem no ATL-28. Login não é a conexão do Google Agenda, que segue separada (D-021). Acervo no MVP: o texto do `.md` fica no banco (o Turso grátis tem 5 GB) e PDF fica para depois (D-028); `data/acervo/` só existe no PC. Custo R$ 0: ao estourar um limite, Vercel e Turso bloqueiam até o mês seguinte em vez de cobrar. Cuidados: o Turso arquiva banco grátis após 10 dias sem uso (volta com `turso group unarchive`); a restauração grátis cobre só 1 dia, então o ATL-30 cria backup próprio (`turso db export`); o ATL-23 confirma chaves estrangeiras, `drizzle-kit migrate` no Turso e instalação com `--ignore-scripts`; se falhar, o plano B é o Neon (Postgres). Limites e fontes no anexo abaixo. Revê a D-005 e a D-017; resolve a A-011 | Fica no ar com o PC desligado, não dorme, publica pelo merge e mantém o SQLite da D-005 do PC à nuvem; o Auth.js v5 segue em `beta` e passou ao time do Better Auth, que recomenda o Better Auth para projeto novo | Render free (dorme após 15 min, ~1 min para acordar); PC de casa com Tailscale Funnel (dois PCs = dois bancos, fora do ar com os PCs desligados); Netlify free (300 créditos, ~20 deploys por mês); GitHub Pages (só estático); Firebase e Cloud Run (exigem conta de cobrança); Neon (Postgres; fica como plano B); Supabase (pausa após 1 semana, sem backup); MongoDB Atlas (não relacional); Auth.js v5 beta |
 
 ## Decisões em aberto
 
@@ -59,4 +60,60 @@ As decisões D-001 a D-019 mantêm o texto original, com os nomes antigos:
 | A-008 | Valores iniciais de XP, curva de nível, penalidade de erro e faixas de duração dos blocos (hipótese) | Ajuste no uso | Épico do Gregor |
 | A-009 | Fonte da paleta G (Libre Baskerville) serve só para títulos ou também para o texto? E os ornamentos de E e G (a H tem a coroa) | Protótipo | Épico de identidade visual |
 | A-010 | O "relógio por bloco" (sessão em etapas guiada) entra depois do MVP? Quando? | Uso real | Depois do MVP |
-| A-011 | Hospedagem e banco gratuitos: onde o app roda na internet e qual banco usar (o `better-sqlite3` da D-005 funciona fora do PC?) | ATL-22: limites dos planos grátis conferidos na fonte oficial | Antes do schema (ATL-23) |
+| A-011 | ~~Hospedagem e banco gratuitos: onde o app roda na internet e qual banco usar (o `better-sqlite3` da D-005 funciona fora do PC?)~~ **Resolvida por D-036** | — | — |
+
+## Anexo da D-036: comparação de hospedagem e banco
+
+Limites conferidos nas páginas oficiais em **2026-11-20**. Planos grátis mudam;
+reconferir antes de depender de um número.
+
+### Onde o app roda
+
+| Opção | Roda servidor (login, API)? | Custo | Dorme? | Deploy por merge | Resultado |
+|---|---|---|---|---|---|
+| Vercel Hobby | Sim | US$ 0; 1 milhão de chamadas, 4 h de CPU e 100 GB de tráfego por mês, 100 deploys por dia; ao estourar, bloqueia por 30 dias sem cobrar | Não; função parada há 2 semanas leva ~1 s a mais no primeiro acesso | Incluído | **Escolhida** |
+| Netlify Free | Sim (Next.js desde o 13.5) | US$ 0; 300 créditos por mês, deploy de produção custa 15; a página não diz o que acontece ao acabar | Não informado | Sim | Descartada: apertada para a esteira |
+| Render Free | Sim | US$ 0; 750 h por mês; sem disco persistente | Sim, após 15 min; ~1 min para acordar | Não confirmado | Descartada |
+| PC de casa + Tailscale Funnel | Sim | US$ 0; plano pessoal só para uso não comercial; URL `*.ts.net` | Só com os PCs desligados | Script próprio | Descartada: dois PCs, dois bancos |
+| GitHub Pages | Não (só estático) | US$ 0 | — | Sim | Descartada |
+| Firebase | Só no plano Blaze (App Hosting exige Blaze) | Pago acima da cota | — | Sim | Descartada: conta de cobrança |
+| Google Cloud Run | Sim | Exige conta de cobrança; acima da cota cobra, sem teto | Não informado | — | Descartada: conta de cobrança |
+
+### Onde o banco fica
+
+| Opção | Tipo | Grátis | Pausa por falta de uso | Restauração | Resultado |
+|---|---|---|---|---|---|
+| Turso | SQLite (libSQL) | 5 GB, 500 milhões de leituras e 10 milhões de escritas por mês, sem cartão | Arquiva após 10 dias | 1 dia | **Escolhida** |
+| Neon | Postgres | 1 GB, sem cartão, sem cobrança de excedente | Não pausa; desliga após 5 min e volta em décimos de segundo | 6 horas | Plano B |
+| Supabase | Postgres + login + arquivos | 500 MB, 2 projetos | Pausa após 1 semana | Sem backup | Descartada |
+| MongoDB Atlas | NoSQL | 512 MB | Pausa após 30 dias | Sem backup | Descartada: não relacional |
+
+### Login
+
+Auth.js v5: a instalação ainda usa a etiqueta `beta` e o projeto passou a ser
+mantido pelo time do Better Auth (set/2025), que recomenda o Better Auth para
+projeto novo. Escolhido: **Better Auth** com Google.
+
+### Fontes
+
+[Vercel Hobby](https://vercel.com/docs/plans/hobby) ·
+[Vercel limites](https://vercel.com/docs/limits) ·
+[Vercel funções](https://vercel.com/docs/functions/runtimes) ·
+[Turso preços](https://turso.tech/pricing) ·
+[Turso restauração](https://docs.turso.tech/features/point-in-time-recovery) ·
+[Turso arquivamento](https://docs.turso.tech/cli/group/unarchive) ·
+[Render free](https://render.com/docs/free) ·
+[Netlify preços](https://www.netlify.com/pricing/) ·
+[Netlify Next.js](https://docs.netlify.com/frameworks/next-js/overview/) ·
+[Tailscale Funnel](https://tailscale.com/kb/1223/funnel) ·
+[Tailscale preços](https://tailscale.com/pricing) ·
+[GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages) ·
+[Firebase preços](https://firebase.google.com/pricing) ·
+[Firebase App Hosting](https://firebase.google.com/docs/app-hosting) ·
+[Google Cloud Free Tier](https://docs.cloud.google.com/free/docs/free-cloud-features) ·
+[Neon planos](https://neon.com/docs/introduction/plans) ·
+[Supabase preços](https://supabase.com/pricing) ·
+[MongoDB Atlas limites](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/) ·
+[Drizzle + Turso](https://orm.drizzle.team/docs/connect-turso) ·
+[Auth.js instalação](https://authjs.dev/getting-started/installation?framework=next.js) ·
+[Auth.js no Better Auth](https://better-auth.com/blog/authjs-joins-better-auth)
