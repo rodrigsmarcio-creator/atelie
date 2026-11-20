@@ -115,8 +115,9 @@ sessão).
 ## Provas
 
 Os critérios das cinco provas estão em `docs/03-gregor.md`, seção 9. Uma
-tentativa conquista no máximo uma prova. O critério da Compreensão conceitual
-ainda é uma decisão em aberto (A-006): não invente, pergunte.
+tentativa conquista no máximo uma prova. Compreensão conceitual = acerto válido
+em item com `focus = 'conceitual'`, verificada antes das outras quando o item é
+conceitual. Cartão nunca conquista prova (D-037).
 
 ## Testes
 

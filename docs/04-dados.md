@@ -86,6 +86,7 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 | answer | text NOT NULL | índice (ME) ou texto (cartão/aberta) |
 | explanation | text NOT NULL | `CHECK (length(explanation) >= 20)` — C-04 |
 | difficulty | integer | 1–3, opcional |
+| focus | text | `CHECK (focus IS NULL OR focus = 'conceitual')`. Marcado pela Jane; item conceitual conquista a prova Compreensão conceitual (D-037) |
 | origin | text NOT NULL | `CHECK IN ('manual','ia','import')` |
 | reviewed_by_user | integer NOT NULL DEFAULT 0 | |
 | source_material_id | text FK → materials | |
@@ -95,9 +96,9 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 
 Índice: `items(skill_id)`.
 
-Pendente (A-006): um campo para marcar o item como conceitual, se a prova
-Compreensão conceitual for conquistada por esse caminho. Decidido no ticket do
-schema; não criar antes.
+`focus` fecha a A-006 (D-037). Hoje só aceita `'conceitual'`; outro valor
+entra só com decisão nova. Cartão com `focus` é aceito, mas não conquista prova
+(`docs/03-gregor.md`, seção 9).
 
 ### `review_logs` — o registro bruto. Append-only.
 

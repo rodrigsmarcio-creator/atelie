@@ -50,11 +50,13 @@ export interface SkillState {
 }
 
 export type ItemKind = 'multipla_escolha' | 'cartao' | 'aberta';
+export type ItemFocus = 'conceitual'; // marcado pela Jane (D-037)
 
 export interface MemoryItem {   // um item de prática com revisão agendada
   itemId: ULID;
   skillId: ULID;
   kind: ItemKind;
+  focus: ItemFocus | null;      // null = item sem foco marcado
   dueAt: ISODate | null;        // null = nunca visto
   card: MemoryCard;             // estado FSRS (tipo opaco do adaptador)
 }
@@ -320,8 +322,9 @@ recordReview(log: ReviewLog) ->
   3. se acerto e preenche critério de prova (seção 9): grava proof no skill
 ```
 
-O `core` expõe `evaluateProof(skill, log, now) -> ProofKind | null`, que
-decide se a tentativa conquista uma prova e qual.
+O `core` expõe `evaluateProof(skill, item, log, now) -> ProofKind | null`, que
+decide se a tentativa conquista uma prova e qual. `item` traz `kind` e `focus`
+do item respondido, porque a prova depende do tipo e do foco (seção 9).
 
 ## 9. Critérios de prova
 
@@ -331,11 +334,22 @@ decide se a tentativa conquista uma prova e qual.
 | Resolução de problemas | acerto em `itemId` diferente do da prova Autonomia | C-08 |
 | Fluência procedimental | acerto com `answerMs <= TIMED_PROOF_SECONDS * 1000` em modo cronometrado | C-10 (hipótese) |
 | Explicação | acerto + texto com `>= EXPLAIN_MIN_CHARS` (`40`, hipótese); depois do MVP: avaliado pela Jane | C-07 |
-| Compreensão conceitual | **a definir (A-006).** Proposta: acerto em item marcado como conceitual pela Jane | C-18 (hipótese) |
+| Compreensão conceitual | acerto, `viewed_solution = false`, em item com `focus = 'conceitual'` (marcado pela Jane na importação) | C-18 (hipótese) |
 
-Uma tentativa conquista no máximo uma prova. Ordem de verificação: a primeira
-pendente na lista acima. O tipo de prova que o modal oferece depende da
-dimensão que falta e do item.
+Uma tentativa conquista no máximo uma prova. Ordem de verificação: se o item
+tem `focus = 'conceitual'` e a Compreensão conceitual ainda falta, ela vem
+primeiro; senão, vale a primeira pendente na lista acima. Sem essa exceção, a
+Autonomia, que quase todo acerto preenche, viria sempre antes e a Compreensão
+conceitual nunca seria conquistada.
+
+Só exercício (`multipla_escolha` ou `aberta`) conquista prova. Cartão nunca
+conquista, porque a nota do cartão é autoavaliação (D-037). Cartão continua
+dando XP (seção 7) e sendo agendado pelo FSRS (seção 3).
+
+Todo Ofício precisa de ao menos um item conceitual para poder chegar a Dominado;
+o validador da importação avisa quando falta, sem recusar
+(`docs/09-schema-importacao.md`). O tipo de prova que o modal oferece depende
+da dimensão que falta e do item.
 
 ## 10. `params.ts`
 
