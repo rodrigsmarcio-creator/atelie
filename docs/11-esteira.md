@@ -22,6 +22,13 @@ Ordem do projeto: alinhar ideias → montar a esteira → criar o roadmap no Jir
   conector). Concluído **só depois do merge confirmado**.
 - O plano dos épicos e histórias é aprovado pelo Márcio **antes** de criar
   qualquer ticket.
+- **Ao iniciar um ticket**, o Claude, antes de qualquer outra coisa: (1) põe o
+  Márcio como **responsável** do ticket; (2) move o ticket para **Em andamento**;
+  (3) move para **Em andamento** também a **história** e o **épico** acima dele,
+  se ainda estiverem em A fazer. Exemplo: ao começar uma subtarefa do épico
+  Ficha, a subtarefa, a história dela e o épico Ficha ficam Em andamento, e a
+  subtarefa fica com o Márcio. Épico e história concluídos só depois que todos
+  os filhos estiverem Concluídos.
 
 ## Git
 

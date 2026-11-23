@@ -39,6 +39,9 @@ avise e pare.
   ticket. O ticket traz critérios de aceite, os docs a ler e o modelo sugerido.
 - Uma branch por subtarefa: `ATL-<n>-descricao-curta`. Commit em português
   começando por `ATL-<n>`. PR com título `ATL-<n> Título`.
+- Ao começar um ticket: pôr o Márcio como responsável e mover o ticket, a
+  história e o épico acima dele para Em andamento (detalhes em
+  `docs/11-esteira.md`).
 - Nunca commitar na `main`. Nunca fazer push, merge nem marcar um ticket como
   Concluído sem o Márcio mandar. O Claude move os status pelo conector da
   Atlassian: A fazer → Em andamento → Em análise; Concluído só depois do merge
