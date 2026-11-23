@@ -26,6 +26,9 @@
     abaixo de 3 s só na Autonomia). ?cronometro=<segundos> encurta o limite de
     tempo da fluência para testar. O Começar do Painel abre a prova só na
     versão A; a B fica como está.
+  - Ficha (ATL-57): 20 Ofícios fictícios e fixos em 3 matérias. O estado vem de
+    estadoDe() mais o Bloqueado do glossário. Domínio = dimensões provadas ÷ as
+    que se aplicam, arredondado para baixo (hipótese), igual ao do Painel.
   - Tailwind v4 (build de navegador, pelo jsDelivr) com `integrity`: o
     cdn.tailwindcss.com não manda cabeçalho CORS, então não aceita a checagem de
     integridade que o SonarCloud exige (regra S5725). Ao trocar a versão, gerar o
@@ -521,6 +524,83 @@
         </div>
       </section>
 
+      <!-- ===== FICHA ===== -->
+      <section id="tela-ficha" aria-labelledby="t-ficha" hidden>
+        <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div class="min-w-0">
+            <span class="eyebrow">Ficha</span>
+            <h1 id="t-ficha" class="mt-1 font-title text-3xl font-bold md:text-4xl">Ficha</h1>
+          </div>
+          <div class="proto md:max-w-[380px]">
+            <p class="eyebrow mb-1">Só no protótipo · dados fixos</p>
+            <p class="text-sm text-muted">Os 20 Ofícios são fictícios e não acompanham o que você faz em Praticar. Nível, XP e ofensiva batem com o Painel.</p>
+          </div>
+        </header>
+
+        <div id="ficha-resumo">
+          <div class="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-12">
+
+            <section class="card lg:col-span-6" aria-labelledby="t-f-nivel">
+              <span class="eyebrow">Nível e XP</span>
+              <h2 id="t-f-nivel" class="sr-only">Nível e XP</h2>
+              <div class="mt-3 flex items-center gap-4">
+                <div class="grid h-16 w-16 flex-none place-items-center rounded-full border border-line bg-surface-2" style="box-shadow: 0 0 24px var(--glow)">
+                  <span data-orn="w-10" aria-hidden="true"></span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-title text-3xl font-bold leading-tight">Nível 7</p>
+                  <p class="text-sm text-muted"><span id="f-xp" class="tabular-nums"></span> de <span class="tabular-nums">700</span> XP</p>
+                </div>
+              </div>
+              <div id="f-xp-barra" class="bar bar-xp mt-4" role="progressbar" aria-label="XP do nível 7" aria-valuemin="0" aria-valuemax="700" style="--v: 0%"><i></i></div>
+              <p class="mt-2 text-sm text-muted">Faltam <span id="f-xp-falta" class="tabular-nums"></span> XP para o nível 8.</p>
+            </section>
+
+            <section class="card relative overflow-hidden lg:col-span-6" aria-labelledby="t-f-ofensiva"
+                     style="background-image: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--hot) 40%, transparent), transparent 62%)">
+              <span class="eyebrow">Ofensiva</span>
+              <h2 id="t-f-ofensiva" class="sr-only">Ofensiva</h2>
+              <div class="mt-3 flex items-center gap-5">
+                <div class="relative h-24 w-24 flex-none">
+                  <svg viewBox="0 0 100 100" class="anel h-24 w-24 -rotate-90" aria-hidden="true">
+                    <circle class="trilha" cx="50" cy="50" r="42"/>
+                    <circle id="f-anel-ofensiva" class="valor" cx="50" cy="50" r="42" pathLength="100" stroke="var(--hot-2)" stroke-dasharray="100" style="stroke-dashoffset: 100"/>
+                  </svg>
+                  <span class="absolute inset-0 grid place-items-center font-title text-3xl font-bold tabular-nums">12</span>
+                </div>
+                <div class="min-w-0">
+                  <p class="flex items-center gap-2 font-semibold"><svg class="ico h-5 w-5" style="color: var(--hot-2)" aria-hidden="true"><use href="#i-chama"/></svg>12 dias seguidos</p>
+                  <p class="mt-1 text-sm text-muted">Recorde: 21 dias. O anel mostra os 12 dias contra o recorde.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card lg:col-span-12" aria-labelledby="t-f-dominio">
+              <span class="eyebrow">Evolução</span>
+              <h2 id="t-f-dominio" class="mt-2 font-title text-2xl font-bold">Domínio por matéria</h2>
+              <div class="mt-4 flex items-center gap-5">
+                <div class="relative h-24 w-24 flex-none">
+                  <svg viewBox="0 0 100 100" class="anel h-24 w-24 -rotate-90" aria-hidden="true">
+                    <circle class="trilha" cx="50" cy="50" r="42"/>
+                    <circle id="f-anel-dominio" class="valor" cx="50" cy="50" r="42" pathLength="100" stroke="var(--accent)" stroke-dasharray="100" style="stroke-dashoffset: 100"/>
+                  </svg>
+                  <span id="f-dominio-geral" class="absolute inset-0 grid place-items-center font-title text-2xl font-bold tabular-nums"></span>
+                </div>
+                <p class="min-w-0 text-sm text-muted md:max-w-[640px]">Domínio geral: dimensões provadas ÷ dimensões que se aplicam, somando os Ofícios das 3 matérias, arredondado para baixo (hipótese). Um Ofício Dominado tem todas as dimensões que se aplicam a ele.</p>
+              </div>
+              <ul id="f-dominio-lista" class="mt-6 grid gap-6 md:grid-cols-3"></ul>
+            </section>
+          </div>
+        </div>
+
+        <div id="ficha-arvore" hidden>
+          <div class="card">
+            <h2 class="font-title text-2xl font-bold">Árvore</h2>
+            <p class="mt-2 text-sm text-muted">A Árvore de Ofícios entra no próximo passo do ATL-57.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ===== Outras abas (ainda sem tela) ===== -->
       <section id="tela-vazia" aria-labelledby="t-vazia" hidden></section>
     </main>
@@ -655,7 +735,7 @@
     planejar: { nome: 'Planejar', itens: ['Semana'], nota: 'Fora do protótipo: tem épico próprio (Google Agenda).' },
     biblioteca: { nome: 'Biblioteca', itens: ['Materiais', 'Importar'], nota: 'Fora do protótipo: tem épico próprio.' },
     praticar: { nome: 'Praticar', itens: ['Fila de hoje', 'Cartões'] },
-    ficha: { nome: 'Ficha', itens: ['Resumo', 'Árvore'], nota: 'Entra no protótipo na subtarefa ATL-57.' },
+    ficha: { nome: 'Ficha', itens: ['Resumo', 'Árvore'] },
   };
   let telaAtual = 'painel';
   let itemAtual = 0;
@@ -678,6 +758,7 @@
     itemAtual = Number(b.dataset.item);
     desenharMenu();
     if (telaAtual === 'praticar') mostrarPraticar();
+    if (telaAtual === 'ficha') mostrarFicha();
     $('#gaveta').close();
   });
 
@@ -693,8 +774,10 @@
     $('#tela-painel').hidden = !painel;
     const praticar = telaAtual === 'praticar';
     $('#tela-praticar').hidden = !praticar;
+    const ficha = telaAtual === 'ficha';
+    $('#tela-ficha').hidden = !ficha;
     const vazia = $('#tela-vazia');
-    const semTela = !painel && !praticar;
+    const semTela = !painel && !praticar && !ficha;
     vazia.hidden = !semTela;
     if (semTela) {
       vazia.innerHTML = `<header class="mb-6"><span class="eyebrow">Protótipo</span><h1 id="t-vazia" class="mt-1 font-title text-3xl font-bold md:text-4xl">${t.nome}</h1></header>
@@ -702,6 +785,7 @@
     }
     desenharMenu();
     if (praticar) mostrarPraticar();
+    if (ficha) mostrarFicha();
     document.title =`${t.nome} · Ateliê (protótipo)`;
     if (focar) $('#conteudo').focus();
   }
@@ -806,8 +890,9 @@
 
   /* Ofícios da fila. `provas` guarda o que já foi conquistado (não se perde); `reg` é o histórico que as provas olham. */
   const OFICIOS = [
+    /* "Precisa revisar" exige prova conquistada (glossário): a cadeia já tem Compreensão conceitual e Fluência (ATL-57). */
     { id: 'cadeia', nome: 'Regra da cadeia', mat: 'Cálculo', cor: '--mat-1', revisar: true, naoSeAplica: [],
-      provas: new Set(), reg: { conceitual: [], fluencia: [], problemas: [] }, explicacao: { status: 'nenhum' } },
+      provas: new Set(['conceitual', 'fluencia']), reg: { conceitual: [], fluencia: [], problemas: [] }, explicacao: { status: 'nenhum' } },
     { id: 'implicitas', nome: 'Derivadas implícitas', mat: 'Cálculo', cor: '--mat-1', revisar: true, naoSeAplica: [],
       provas: new Set(['autonomia', 'conceitual']),
       reg: { conceitual: [], fluencia: Array.from({ length: 6 }, () => ({ ok: true, dia: 0 })), problemas: [] }, explicacao: { status: 'nenhum' } },
@@ -1418,6 +1503,87 @@
     cartao = { ...novoCartao(), i: cartao.i + 1, xp: cartao.xp };
     desenharCartoes();
   });
+
+  /* ----- Ficha (ATL-57). Dados fictícios e fixos: 20 Ofícios em 3 matérias ----- */
+  const MATERIAS_FICHA = [
+    { id: 'calc', nome: 'Cálculo', cor: '--mat-1' },
+    { id: 'redes', nome: 'Redes de Computadores', cor: '--mat-2' },
+    { id: 'fil', nome: 'Filosofia', cor: '--mat-3' },
+  ];
+  const TODAS = DIMS.map((d) => d.id);
+  /* d = profundidade na Árvore; lane = posição lateral (-1 a 1) dentro do setor da matéria.
+     Os quatro Ofícios da fila de Praticar (cadeia, implicitas, handshake, limites) começam com o mesmo estado de lá. */
+  const OFICIOS_FICHA = [
+    { id: 'lim', mat: 'calc', nome: 'Limites', req: [], d: 1, lane: 0, provas: TODAS },
+    { id: 'limites', mat: 'calc', nome: 'Limites laterais', req: ['lim'], d: 2, lane: 0.55, provas: ['autonomia'] },
+    { id: 'cont', mat: 'calc', nome: 'Continuidade', req: ['lim'], d: 2, lane: -0.45, provas: TODAS },
+    { id: 'der', mat: 'calc', nome: 'Derivadas', req: ['cont'], d: 3, lane: -0.45, provas: ['conceitual', 'fluencia', 'autonomia', 'problemas'] },
+    { id: 'cadeia', mat: 'calc', nome: 'Regra da cadeia', req: ['der'], d: 4, lane: -0.55, provas: ['conceitual', 'fluencia'], revisar: true },
+    { id: 'int', mat: 'calc', nome: 'Integrais', req: ['der'], d: 4, lane: 0.35, provas: ['autonomia', 'conceitual'], aguardaJane: true },
+    { id: 'implicitas', mat: 'calc', nome: 'Derivadas implícitas', req: ['cadeia'], d: 5, lane: -0.1, provas: ['autonomia', 'conceitual'], revisar: true },
+    { id: 'otim', mat: 'calc', nome: 'Otimização', req: ['cadeia'], d: 5, lane: -0.8, provas: [] },
+    { id: 'osi', mat: 'redes', nome: 'Modelo OSI', req: [], d: 1, lane: 0, provas: ['conceitual', 'autonomia'], naoSeAplica: ['fluencia'] },
+    { id: 'enl', mat: 'redes', nome: 'Camada de enlace', req: ['osi'], d: 2, lane: -0.45, provas: ['conceitual', 'autonomia', 'fluencia'] },
+    { id: 'ip', mat: 'redes', nome: 'IP e roteamento', req: ['enl'], d: 3, lane: -0.45, provas: ['conceitual', 'fluencia'] },
+    { id: 'sub', mat: 'redes', nome: 'Sub-redes', req: ['ip'], d: 4, lane: 0.5, provas: [] },
+    { id: 'tcp', mat: 'redes', nome: 'TCP e UDP', req: ['ip'], d: 4, lane: -0.3, provas: ['conceitual', 'autonomia'] },
+    { id: 'handshake', mat: 'redes', nome: 'Handshake do TCP', req: ['tcp'], d: 5, lane: -0.6, provas: ['autonomia', 'conceitual'], naoSeAplica: ['fluencia'], revisar: true },
+    { id: 'dns', mat: 'redes', nome: 'DNS e HTTP', req: ['tcp', 'sub'], d: 5, lane: 0.1, provas: [], naoSeAplica: ['fluencia'] },
+    { id: 'l1', mat: 'fil', nome: 'Livro I · O que é justiça', rotulo: 'Livro I', req: [], d: 1, lane: 0, provas: ['conceitual', 'autonomia', 'explicacao'] },
+    { id: 'l2', mat: 'fil', nome: 'Livro II · A cidade nasce', rotulo: 'Livro II', req: ['l1'], d: 2, lane: -0.4, provas: ['autonomia', 'explicacao'] },
+    { id: 'just', mat: 'fil', nome: 'Justiça na alma', req: ['l1'], d: 2, lane: 0.6, provas: [], naoSeAplica: ['fluencia'] },
+    { id: 'l3', mat: 'fil', nome: 'Livro III · Educação', rotulo: 'Livro III', req: ['l2'], d: 3, lane: -0.4, provas: [] },
+    { id: 'cav', mat: 'fil', nome: 'Alegoria da caverna', req: ['l3'], d: 4, lane: 0, provas: [], naoSeAplica: ['fluencia'] },
+  ].map((o) => ({ ...o, provas: new Set(o.provas), naoSeAplica: o.naoSeAplica || [] }));
+
+  /* Bloqueado = algum pré-requisito ainda não Liberado (glossário); o resto vem de estadoDe(). */
+  const FOLGADOS = ['Liberado', 'Dominado'];
+  function estadoFicha(o) {
+    const aberto = o.req.every((id) => FOLGADOS.includes(estadoDe(OFICIOS_FICHA.find((x) => x.id === id))));
+    return aberto ? estadoDe(o) : 'Bloqueado';
+  }
+  /* Domínio = dimensões provadas ÷ dimensões que se aplicam, arredondado para baixo (hipótese; o Painel mostra os mesmos valores). */
+  function dominioDe(lista) {
+    const total = lista.reduce((s, o) => s + aplicaveis(o).length, 0);
+    const provadas = lista.reduce((s, o) => s + aplicaveis(o).filter((d) => o.provas.has(d.id)).length, 0);
+    return { total, provadas, pct: Math.floor((provadas / total) * 100) };
+  }
+  const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+
+  function desenharResumo() {
+    const pctXp = Math.round((xp / REGRAS.XP_NIVEL) * 100);
+    $('#f-xp').textContent = xp;
+    $('#f-xp-falta').textContent = REGRAS.XP_NIVEL - xp;
+    $('#f-xp-barra').setAttribute('aria-valuenow', xp);
+    const geral = dominioDe(OFICIOS_FICHA);
+    $('#f-dominio-geral').textContent = `${geral.pct}%`;
+    $('#f-dominio-lista').innerHTML = MATERIAS_FICHA.map((m) => {
+      const lista = OFICIOS_FICHA.filter((o) => o.mat === m.id);
+      const dom = dominioDe(lista);
+      const dominados = lista.filter((o) => estadoFicha(o) === 'Dominado').length;
+      return `<li>
+        <div class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 items-center gap-2"><i class="dot" style="background: var(${m.cor})"></i>${m.nome}</span>
+          <span class="font-semibold tabular-nums">${dom.pct}%</span>
+        </div>
+        <div class="bar mt-2" role="progressbar" aria-label="Domínio em ${m.nome}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${dom.pct}" style="--v: 0%" data-alvo="${dom.pct}"><i></i></div>
+        <p class="mt-1 text-xs text-muted">${dom.provadas} de ${dom.total} dimensões provadas · ${plural(lista.length, 'Ofício', 'Ofícios')} (${plural(dominados, 'Dominado', 'Dominados')})</p>
+      </li>`;
+    }).join('');
+    /* Os valores entram no quadro seguinte para a animação correr (reduced-motion desliga). */
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $('#f-xp-barra').style.setProperty('--v', `${pctXp}%`);
+      $('#f-anel-ofensiva').style.strokeDashoffset = 100 - Math.round((12 / 21) * 100);
+      $('#f-anel-dominio').style.strokeDashoffset = 100 - geral.pct;
+      $$('#f-dominio-lista .bar').forEach((b) => { b.style.setProperty('--v', `${b.dataset.alvo}%`); });
+    }));
+  }
+  function mostrarFicha() {
+    const resumo = itemAtual === 0;
+    $('#ficha-resumo').hidden = !resumo;
+    $('#ficha-arvore').hidden = resumo;
+    if (resumo) desenharResumo();
+  }
 
   desenharSessao();
   ir(location.hash.slice(1), false);
