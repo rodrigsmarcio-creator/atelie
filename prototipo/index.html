@@ -234,7 +234,16 @@
   body:has(dialog.prova[open]) { overflow: hidden; }
 
   /* Ficha: Árvore (ATL-57). Cada Ofício leva a cor da matéria em --c; o estado também aparece na forma e no texto. */
+  .arv { cursor: grab; user-select: none; touch-action: pan-y pinch-zoom; }
   .arv text { font-family: var(--f-text); }
+  .arv-painel { background: var(--surface-2); border-color: var(--hairline); }
+  .arv-no { cursor: pointer; outline: none; }
+  .arv-hit { fill: transparent; }
+  .arv-anel-sel, .arv-foco { display: none; fill: none; stroke: var(--text); }
+  .arv-anel-sel { stroke-width: 2.5; }
+  .arv-foco { stroke-width: 3; stroke-dasharray: 6 4; }
+  .arv-no[aria-pressed="true"] .arv-anel-sel { display: inline; }
+  .arv-no:focus-visible .arv-foco { display: inline; }
   .arv-cunha { fill: var(--c); }
   .arv-guia { fill: none; stroke: var(--muted); stroke-opacity: .35; stroke-dasharray: 3 9; }
   .arv-sep { stroke: var(--muted); stroke-opacity: .25; }
@@ -259,7 +268,7 @@
   .arv-espera { fill: none; stroke: var(--xp); stroke-width: 1; stroke-dasharray: 1.5 1.5; }
   .arv-letra { fill: var(--muted); font-size: 9px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
   .arv-sat.on + .arv-letra { fill: var(--bg); }
-  .arv-rotulo { fill: var(--text); font-size: 15px; font-weight: 600; text-anchor: middle; stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
+  .arv-rotulo { fill: var(--text); font-size: 17px; font-weight: 600; text-anchor: middle; stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
   .arv-selo { fill: var(--bad); stroke: var(--bg); stroke-width: 2; }
   .arv-mat-ponto { fill: var(--c); }
   .arv-mat-nome { fill: var(--text); font-size: 15px; font-weight: 700; letter-spacing: .12em; text-anchor: middle; }
@@ -290,6 +299,10 @@
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-chama" viewBox="0 0 24 24"><path d="M12 3c.6 3.2 5 5.2 5 10a5 5 0 0 1-10 0c0-2 .8-3.2 2-4.2 0 1.8.8 2.8 1.8 3C10.4 8.6 10.6 5.4 12 3z"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-menos" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-ajustar" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-seta" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="o-e" viewBox="0 0 24 16">
@@ -646,9 +659,26 @@
               <label><input type="radio" name="arv-materia" value="fil"><span>Filosofia</span></label>
             </div>
           </div>
-          <div class="card">
-            <svg id="arvore" class="arv block h-auto w-full" role="group" aria-label="Árvore de Ofícios"></svg>
+          <div class="relative">
+            <div class="card">
+              <div class="mb-3 lg:max-w-[calc(100%-340px)]">
+                <p id="arv-dica" class="text-sm text-muted">Escolha um Ofício para ver o detalhe. Arraste para mover; Ctrl + roda do mouse ou os botões aproximam. Com o teclado: setas trocam de Ofício, Enter seleciona, + e − aproximam, 0 mostra tudo.</p>
+                <div class="mt-3 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Controles da Árvore">
+                  <button type="button" class="icon-btn" data-arv="mais" aria-label="Aproximar"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-mais"/></svg></button>
+                  <button type="button" class="icon-btn" data-arv="menos" aria-label="Afastar"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-menos"/></svg></button>
+                  <button type="button" class="icon-btn" data-arv="ajustar" aria-label="Mostrar a Árvore inteira"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-ajustar"/></svg></button>
+                  <button type="button" class="icon-btn" data-arv="cima" aria-label="Mover para cima"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-seta"/></svg></button>
+                  <button type="button" class="icon-btn" data-arv="baixo" aria-label="Mover para baixo"><svg class="ico h-5 w-5 rotate-180" aria-hidden="true"><use href="#i-seta"/></svg></button>
+                  <button type="button" class="icon-btn" data-arv="esquerda" aria-label="Mover para a esquerda"><svg class="ico h-5 w-5 -rotate-90" aria-hidden="true"><use href="#i-seta"/></svg></button>
+                  <button type="button" class="icon-btn" data-arv="direita" aria-label="Mover para a direita"><svg class="ico h-5 w-5 rotate-90" aria-hidden="true"><use href="#i-seta"/></svg></button>
+                  <span id="arv-zoom" class="ml-1 text-sm tabular-nums text-muted">100%</span>
+                </div>
+              </div>
+              <svg id="arvore" class="arv block aspect-[4/5] w-full md:aspect-[16/10]" role="group" aria-label="Árvore de Ofícios" aria-describedby="arv-dica"></svg>
+            </div>
+            <aside id="arv-detalhe" class="arv-painel card mt-4 lg:absolute lg:right-4 lg:top-4 lg:z-10 lg:mt-0 lg:max-h-[calc(100%-2rem)] lg:w-[320px] lg:overflow-y-auto" aria-label="Detalhe do Ofício" hidden></aside>
           </div>
+          <p id="arv-status" class="sr-only" role="status" aria-live="polite"></p>
           <section class="card mt-6" aria-labelledby="t-arv-legenda">
             <h3 id="t-arv-legenda" class="font-title text-lg font-bold">Como ler a Árvore</h3>
             <div id="arv-legenda" class="mt-4 grid gap-6 md:grid-cols-3"></div>
@@ -1638,7 +1668,11 @@
   const ARV = { R0: 180, STEP: 140, ORBIT: 42, SAT: 8, FAN: [175, 5] };
   const LETRA = { conceitual: 'C', fluencia: 'F', problemas: 'R', autonomia: 'A', explicacao: 'E' };
   const SLUG = { Bloqueado: 'bloqueado', Disponível: 'disponivel', 'Em prática': 'pratica', Liberado: 'liberado', Dominado: 'dominado' };
+  const ZMAX = 6;
   let filtroArvore = 'todas';
+  /* Vista: base = a Árvore desenhada; fit = a caixa que a mostra inteira no formato do elemento; vista = o que aparece agora. */
+  let base = { x: 0, y: 0, w: 1, h: 1 }, fit = { ...base }, vista = { ...base }, razao = 0.6, posArv = {};
+  let selecionado = null, focoId = null;
   const corDe = (id) => MATERIAS_FICHA.find((m) => m.id === id).cor;
   const f1 = (n) => n.toFixed(1);
   function polar(graus, r) {
@@ -1732,14 +1766,17 @@
     return `<g aria-hidden="true"><circle class="arv-hub-trilha" r="60"/>${segs}<circle class="arv-hub" r="46"/><circle class="arv-xp-trilha" r="38"/>
       <circle class="arv-xp" r="38" transform="rotate(-90)" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${(circ * (1 - xp / REGRAS.XP_NIVEL)).toFixed(2)}"/>${centro}</g>`;
   }
+  function estadoDim(o, d) {
+    const na = o.naoSeAplica.includes(d.id), on = o.provas.has(d.id);
+    const espera = d.id === 'explicacao' && Boolean(o.aguardaJane) && !on;
+    return { na, on, espera, texto: na ? 'não se aplica' : on ? 'provada' : espera ? 'aguardando a Jane' : 'pendente' };
+  }
   /* Cinco satélites, um por dimensão, a partir do topo no sentido horário. */
   function satelites(o) {
     return DIMS.map((d, i) => {
       const a = ((-90 + 72 * i) * Math.PI) / 180;
       const x = f1(Math.cos(a) * ARV.ORBIT), y = f1(Math.sin(a) * ARV.ORBIT);
-      const na = o.naoSeAplica.includes(d.id), on = o.provas.has(d.id);
-      const espera = d.id === 'explicacao' && o.aguardaJane && !on;
-      const estado = na ? 'não se aplica' : on ? 'provada' : espera ? 'aguardando a Jane' : 'pendente';
+      const { na, on, espera, texto: estado } = estadoDim(o, d);
       const cls = na ? 'na' : on ? 'on' : espera ? 'espera' : '';
       return `<line class="arv-sat-linha${on ? ' on' : ''}" x1="0" y1="0" x2="${x}" y2="${y}"/>
         <g transform="translate(${x} ${y})"><title>${d.nome}: ${estado}</title><circle class="arv-sat ${cls}" r="${ARV.SAT}"/>${espera ? `<circle class="arv-espera" r="${ARV.SAT - 3}"/>` : ''}<text class="arv-letra">${na ? '–' : LETRA[d.id]}</text></g>`;
@@ -1756,9 +1793,9 @@
       ? '<use href="#i-lock" x="-10" y="-10" width="20" height="20" class="ico" style="color: var(--muted)"/>'
       : `<text class="arv-num">${prov}/${apl.length}</text>`;
     const rotulo = linhasRotulo(o.rotulo || o.nome).map((l, i) => `<tspan x="0" dy="${i ? 16 : 0}">${l}</tspan>`).join('');
-    return `<g class="est-${SLUG[est]}" transform="translate(${f1(p.x)} ${f1(p.y)})" style="--c: var(${corDe(o.mat)})" role="img" aria-label="${resumo}">
-      <title>${resumo}</title>${satelites(o)}${est === 'Dominado' ? '<circle class="arv-aro" r="31"/>' : ''}<circle class="arv-disco" r="25"/>${miolo}${selo}
-      <text class="arv-rotulo" y="68">${rotulo}</text></g>`;
+    return `<g class="arv-no est-${SLUG[est]}" id="arv-no-${o.id}" data-id="${o.id}" tabindex="${o.id === focoId ? 0 : -1}" transform="translate(${f1(p.x)} ${f1(p.y)})" style="--c: var(${corDe(o.mat)})" role="button" aria-pressed="${o.id === selecionado}" aria-label="${resumo}">
+      <title>${resumo}</title><circle class="arv-hit" r="52"/>${satelites(o)}${est === 'Dominado' ? '<circle class="arv-aro" r="31"/>' : ''}<circle class="arv-disco" r="25"/>${miolo}${selo}
+      <circle class="arv-anel-sel" r="57"/><circle class="arv-foco" r="63"/><text class="arv-rotulo" y="68">${rotulo}</text></g>`;
   }
   function desenharArvore() {
     const ids = filtroArvore === 'todas' ? MATERIAS_FICHA.map((m) => m.id) : [filtroArvore];
@@ -1776,10 +1813,277 @@
       });
     }
     const x0 = Math.min(...xs), y0 = Math.min(...ys);
-    const svg = $('#arvore');
-    svg.setAttribute('viewBox', `${f1(x0)} ${f1(y0)} ${f1(Math.max(...xs) - x0)} ${f1(Math.max(...ys) - y0)}`);
-    svg.innerHTML = fundoArvore(ids, sets, maxD, lista) + arestas(lista, pos) + hubArvore(ids, sets) + lista.map((o) => noArvore(o, pos[o.id])).join('');
+    base = { x: x0, y: y0, w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 };
+    posArv = pos;
+    if (!lista.some((o) => o.id === selecionado)) selecionado = null;
+    if (!lista.some((o) => o.id === focoId)) focoId = selecionado || lista[0].id;
+    $('#arvore').innerHTML = fundoArvore(ids, sets, maxD, lista) + arestas(lista, pos) + hubArvore(ids, sets) + lista.map((o) => noArvore(o, pos[o.id])).join('');
+    vistaInicial();
+    desenharDetalhe();
   }
+
+  /* ----- Árvore: pan e zoom pelo viewBox ----- */
+  const emTelaGrande = () => window.matchMedia('(min-width: 1024px)').matches;
+  function calcularFit() {
+    const r = $('#arvore').getBoundingClientRect();
+    if (!r.width) return;
+    razao = r.height / r.width;
+    const w = Math.max(base.w, base.h / razao);
+    fit = { w, h: w * razao, x: base.x + base.w / 2 - w / 2, y: base.y + base.h / 2 - (w * razao) / 2 };
+  }
+  function limitar() {
+    vista.w = Math.min(fit.w, Math.max(fit.w / ZMAX, vista.w));
+    vista.h = vista.w * razao;
+    vista.x = Math.min(fit.x + fit.w - vista.w, Math.max(fit.x, vista.x));
+    vista.y = Math.min(fit.y + fit.h - vista.h, Math.max(fit.y, vista.y));
+  }
+  function aplicarVista() {
+    const svg = $('#arvore');
+    svg.setAttribute('viewBox', `${f1(vista.x)} ${f1(vista.y)} ${f1(vista.w)} ${f1(vista.h)}`);
+    /* Com zoom, arrastar move a Árvore; sem zoom, o dedo continua rolando a página. */
+    svg.style.touchAction = vista.w < fit.w - 1 ? 'none' : '';
+    $('#arv-zoom').textContent = `${Math.round((fit.w / vista.w) * 100)}%`;
+  }
+  /* PC: a Árvore inteira. Celular: ampliada, começando pelo centro (o texto não cabe inteiro numa tela estreita). */
+  function vistaInicial() {
+    calcularFit();
+    vista = { ...fit };
+    if ($('#arvore').getBoundingClientRect().width < 640) {
+      vista.w = fit.w / 3.5;
+      vista.h = vista.w * razao;
+      vista.x = -vista.w / 2;
+      vista.y = 110 - vista.h;
+    }
+    limitar();
+    aplicarVista();
+  }
+  function ajustarTudo() { vista = { ...fit }; limitar(); aplicarVista(); }
+  function zoomar(fator, cx = vista.x + vista.w / 2, cy = vista.y + vista.h / 2) {
+    const k = Math.min(fit.w, Math.max(fit.w / ZMAX, vista.w / fator)) / vista.w;
+    vista.x = cx - (cx - vista.x) * k;
+    vista.y = cy - (cy - vista.y) * k;
+    vista.w *= k;
+    limitar();
+    aplicarVista();
+  }
+  function mover(dx, dy) {
+    vista.x += dx;
+    vista.y += dy;
+    limitar();
+    aplicarVista();
+  }
+  function paraSvg(x, y) {
+    const r = $('#arvore').getBoundingClientRect();
+    return { x: vista.x + ((x - r.left) * vista.w) / r.width, y: vista.y + ((y - r.top) * vista.h) / r.height };
+  }
+  /* No PC o painel de detalhe cobre os 340 px da direita da Árvore. */
+  const larguraPainel = () => (selecionado !== null && emTelaGrande() ? (340 * vista.w) / $('#arvore').getBoundingClientRect().width : 0);
+  /* Vendo a Árvore inteira, a seleção aproxima do Ofício (fica à esquerda do painel). */
+  function focarOficio(id) {
+    const p = posArv[id];
+    vista.w = fit.w / ($('#arvore').getBoundingClientRect().width < 640 ? 3.5 : 2.2);
+    vista.h = vista.w * razao;
+    vista.x = p.x - (vista.w - larguraPainel()) / 2;
+    vista.y = p.y - vista.h / 2;
+    limitar();
+    aplicarVista();
+  }
+  /* Se o Ofício ficou fora da tela (ou atrás do painel), centraliza nele. */
+  function garantirVisivel(id) {
+    const p = posArv[id];
+    if (!p) return;
+    const painel = larguraPainel();
+    const m = 95;
+    if (p.x - m < vista.x || p.x + m > vista.x + vista.w - painel || p.y - m < vista.y || p.y + m > vista.y + vista.h) {
+      vista.x = p.x - (vista.w - painel) / 2;
+      vista.y = p.y - vista.h / 2;
+      limitar();
+      aplicarVista();
+    }
+  }
+
+  const ponteiros = new Map();
+  const arv = $('#arvore');
+  arv.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    arv.setPointerCapture(e.pointerId);
+    ponteiros.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moveu: false });
+    if (ponteiros.size > 1) ponteiros.forEach((p) => { p.moveu = true; });
+  });
+  arv.addEventListener('pointermove', (e) => {
+    const p = ponteiros.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    if (ponteiros.size === 2) {
+      const [a, b] = [...ponteiros.values()];
+      const antes = Math.hypot(a.x - b.x, a.y - b.y);
+      p.x = e.clientX;
+      p.y = e.clientY;
+      const depois = Math.hypot(a.x - b.x, a.y - b.y);
+      const c = paraSvg((a.x + b.x) / 2, (a.y + b.y) / 2);
+      if (antes > 0) zoomar(depois / antes, c.x, c.y);
+      return;
+    }
+    if (!p.moveu && Math.hypot(e.clientX - p.x0, e.clientY - p.y0) > 5) p.moveu = true;
+    p.x = e.clientX;
+    p.y = e.clientY;
+    if (p.moveu) {
+      const u = vista.w / arv.getBoundingClientRect().width;
+      mover(-dx * u, -dy * u);
+    }
+  });
+  arv.addEventListener('pointerup', (e) => {
+    const p = ponteiros.get(e.pointerId);
+    ponteiros.delete(e.pointerId);
+    if (!p || p.moveu) return;
+    /* Com o ponteiro capturado, o alvo do evento é o SVG: acha o Ofício pelo ponto. */
+    const alvo = document.elementFromPoint(e.clientX, e.clientY)?.closest('.arv-no');
+    if (!alvo) return;
+    selecionar(alvo.dataset.id);
+    alvo.focus({ preventScroll: true });
+  });
+  arv.addEventListener('pointercancel', (e) => ponteiros.delete(e.pointerId));
+  /* Ativação sem ponteiro (leitor de tela): detail 0. */
+  arv.addEventListener('click', (e) => {
+    if (e.detail !== 0) return;
+    const alvo = e.target.closest('.arv-no');
+    if (alvo) selecionar(alvo.dataset.id);
+  });
+  /* Só Ctrl ou ⌘ + roda zoom (o toque do trackpad em pinça manda ctrlKey); a roda sozinha rola a página. */
+  arv.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const c = paraSvg(e.clientX, e.clientY);
+    zoomar(e.deltaY < 0 ? 1.2 : 1 / 1.2, c.x, c.y);
+  }, { passive: false });
+  window.addEventListener('resize', () => {
+    if ($('#ficha-arvore').hidden) return;
+    calcularFit();
+    limitar();
+    aplicarVista();
+  });
+
+  /* ----- Árvore: teclado, seleção e detalhe ----- */
+  const MATERIAIS_FICHA = {
+    lim: ['Stewart · Cálculo, cap. 2.2 a 2.4 (livro)'],
+    der: ['Stewart · Cálculo, cap. 3.1 a 3.3 (livro)', 'Lista 4 · exercícios 1 a 20'],
+    cadeia: ['Stewart · Cálculo, cap. 3.4 (livro)', 'Lista 5 · exercícios 1 a 12'],
+    implicitas: ['Stewart · Cálculo, cap. 3.5 (livro)'],
+    osi: ['Tanenbaum · Redes, cap. 1.4 (livro)'],
+    tcp: ['Kurose · Redes, cap. 3.5 (livro)'],
+    handshake: ['Kurose · Redes, cap. 3.5 · o aperto de mão em três etapas'],
+    l1: ['Platão · A República, Livro I (livro)'],
+    l2: ['Platão · A República, Livro II (livro)'],
+  };
+  const capitalizar = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const porId = (id) => OFICIOS_FICHA.find((x) => x.id === id);
+
+  function desenharDetalhe() {
+    const el = $('#arv-detalhe');
+    const o = selecionado && porId(selecionado);
+    el.hidden = !o;
+    if (!o) { el.innerHTML = ''; return; }
+    const m = MATERIAS_FICHA.find((x) => x.id === o.mat);
+    const est = estadoFicha(o);
+    const faltam = o.req.map(porId).filter((r) => !FOLGADOS.includes(estadoFicha(r)));
+    const deps = OFICIOS_FICHA.filter((x) => x.req.includes(o.id));
+    const mats = MATERIAIS_FICHA[o.id] || [];
+    const item = (x) => `<li><button type="button" class="menu-item" data-sel="${x.id}"><span class="min-w-0 flex-1">${x.nome}</span><span class="ml-3 flex-none text-xs">${estadoFicha(x)}</span></button></li>`;
+    const dims = DIMS.map((d) => {
+      const s = estadoDim(o, d);
+      return `<li class="flex items-center justify-between gap-3 text-sm"><span class="min-w-0"><b>${LETRA[d.id]}</b> · ${d.nome}</span><span class="flex-none font-semibold${s.on ? ' text-ok' : ' text-muted'}">${capitalizar(s.texto)}</span></li>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="flex items-center gap-2 text-sm text-muted"><i class="dot" style="background: var(${m.cor})"></i>${m.nome}</p>
+          <h3 tabindex="-1" class="mt-1 break-words font-title text-xl font-bold">${o.nome}</h3>
+        </div>
+        <button type="button" class="icon-btn" data-det-fechar aria-label="Fechar detalhe"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+      <p class="mt-3 flex flex-wrap gap-2"><span class="chip chip-xp">${est}</span>${o.revisar ? '<span class="chip chip-bad">Precisa revisar</span>' : ''}</p>
+      ${est === 'Bloqueado' ? `<p class="mt-3 text-sm text-muted">Para abrir, falta deixar Liberado: ${faltam.map((r) => r.nome).join(', ')}.</p>` : ''}
+      <p class="eyebrow mb-2 mt-5">Provas</p><ul class="space-y-2">${dims}</ul>
+      <p class="eyebrow mb-2 mt-5">Pré-requisitos</p>${o.req.length ? `<ul>${o.req.map(porId).map(item).join('')}</ul>` : '<p class="text-sm text-muted">Nenhum: é a porta de entrada da matéria.</p>'}
+      <p class="eyebrow mb-2 mt-5">Desbloqueia</p>${deps.length ? `<ul>${deps.map(item).join('')}</ul>` : '<p class="text-sm text-muted">Nenhum Ofício depende deste.</p>'}
+      <p class="eyebrow mb-2 mt-5">Materiais</p>${mats.length ? `<ul class="list-disc space-y-1 pl-5 text-sm">${mats.map((t) => `<li>${t}</li>`).join('')}</ul>` : '<p class="text-sm text-muted">Nenhum material ligado ainda.</p>'}
+      ${OFICIOS.some((x) => x.id === o.id) ? '<a href="#praticar" class="btn btn-ghost mt-5 w-full">Ir para a fila de Praticar</a>' : ''}`;
+  }
+  /* Só um Ofício fica na ordem do Tab (as setas trocam de Ofício). */
+  function marcarFoco(id) {
+    focoId = id;
+    $$('#arvore .arv-no').forEach((g) => { g.tabIndex = g.dataset.id === id ? 0 : -1; });
+  }
+  function selecionar(id, doPainel = false) {
+    selecionado = id;
+    marcarFoco(id);
+    $$('#arvore .arv-no').forEach((g) => g.setAttribute('aria-pressed', String(g.dataset.id === id)));
+    desenharDetalhe();
+    if (vista.w >= fit.w - 1) focarOficio(id);
+    else garantirVisivel(id);
+    const o = porId(id);
+    $('#arv-status').textContent = `Selecionado: ${o.nome}, ${estadoFicha(o)}.`;
+    if (doPainel) $('#arv-detalhe h3').focus();
+    else if (!emTelaGrande()) $('#arv-detalhe').scrollIntoView({ block: 'nearest' });
+  }
+  function fecharDetalhe() {
+    const id = selecionado;
+    selecionado = null;
+    $$('#arvore .arv-no').forEach((g) => g.setAttribute('aria-pressed', 'false'));
+    desenharDetalhe();
+    const g = id && $(`#arv-no-${id}`);
+    if (g) g.focus({ preventScroll: true });
+  }
+  /* Seta: vai ao Ofício mais próximo naquela direção (pesa mais o desvio lateral). */
+  function moverFoco(id, tecla) {
+    const dir = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[tecla];
+    if (!dir) return;
+    const p = posArv[id];
+    let melhor = null, nota = Infinity;
+    Object.keys(posArv).forEach((outro) => {
+      if (outro === id) return;
+      const vx = posArv[outro].x - p.x, vy = posArv[outro].y - p.y;
+      const ao = vx * dir[0] + vy * dir[1], lado = Math.abs(vx * dir[1] - vy * dir[0]);
+      if (ao > 1 && ao + 2 * lado < nota) { nota = ao + 2 * lado; melhor = outro; }
+    });
+    if (melhor) $(`#arv-no-${melhor}`).focus();
+  }
+  arv.addEventListener('focusin', (e) => {
+    const g = e.target.closest('.arv-no');
+    if (!g) return;
+    marcarFoco(g.dataset.id);
+    if (g.matches(':focus-visible')) garantirVisivel(g.dataset.id);
+  });
+  arv.addEventListener('keydown', (e) => {
+    const g = e.target.closest('.arv-no');
+    if (e.key === '+' || e.key === '=') zoomar(1.25);
+    else if (e.key === '-' || e.key === '_') zoomar(1 / 1.25);
+    else if (e.key === '0') ajustarTudo();
+    else if (g && (e.key === 'Enter' || e.key === ' ')) selecionar(g.dataset.id);
+    else if (g && e.key.startsWith('Arrow')) moverFoco(g.dataset.id, e.key);
+    else if (e.key === 'Escape' && selecionado) fecharDetalhe();
+    else return;
+    e.preventDefault();
+  });
+  $('#arv-detalhe').addEventListener('click', (e) => {
+    const sel = e.target.closest('[data-sel]');
+    if (sel) selecionar(sel.dataset.sel, true);
+    else if (e.target.closest('[data-det-fechar]')) fecharDetalhe();
+  });
+  $('#arv-detalhe').addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    fecharDetalhe();
+  });
+  $('#ficha-arvore').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-arv]');
+    if (!b) return;
+    const passo = { cima: [0, -1], baixo: [0, 1], esquerda: [-1, 0], direita: [1, 0] }[b.dataset.arv];
+    if (passo) mover(passo[0] * vista.w * 0.25, passo[1] * vista.h * 0.25);
+    else if (b.dataset.arv === 'mais') zoomar(1.5);
+    else if (b.dataset.arv === 'menos') zoomar(1 / 1.5);
+    else ajustarTudo();
+  });
   $('#ficha-arvore').addEventListener('change', (e) => {
     if (e.target.name !== 'arv-materia') return;
     filtroArvore = e.target.value;
