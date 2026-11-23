@@ -13,8 +13,7 @@
   - Fonte da verdade dos tokens: tabela de docs/05-atelie.md. Os valores abaixo
     são cópia; se a tabela mudar, este arquivo precisa ser conferido.
   - ?tema=tokyo|borgonha|verde escolhe a paleta (E, G, H). Padrão: borgonha.
-  - ?variante=a|b escolhe a versão do Painel que testa a A-003.
-  - Cantos e formas (proposta da ATL-55, a aprovar): cartão 20 px, item interno
+  - Cantos e formas (D-041, aprovadas): cartão 20 px, item interno
     14 px, botão e chip em pílula, borda de 1 px em `line`, sem sombra (só o
     brilho `glow`), filete `hairline` separando seções.
   - Cores de matéria (--mat-*) são provisórias e só identificam a matéria.
@@ -24,8 +23,8 @@
     /api/review devolveria. Valores da D-038 (XP 10 por acerto e 40 por prova)
     e da D-043 (cartão 7/5/3 por tentativa, 3 na dissertativa; resposta rápida
     abaixo de 3 s só na Autonomia). ?cronometro=<segundos> encurta o limite de
-    tempo da fluência para testar. O Começar do Painel abre a prova só na
-    versão A; a B fica como está.
+    tempo da fluência para testar. O Começar do Painel executa o bloco 1 e abre
+    a prova (A-003, resolvida na D-041).
   - Ficha (ATL-57): 20 Ofícios fictícios e fixos em 3 matérias. O estado vem de
     estadoDe() mais o Bloqueado do glossário. Domínio = dimensões provadas ÷ as
     que se aplicam, arredondado para baixo (hipótese), igual ao do Painel.
@@ -45,7 +44,7 @@
 -->
 
 <script>
-  /* Aplica a paleta e a variante antes da primeira pintura (evita piscar). */
+  /* Aplica a paleta antes da primeira pintura (evita piscar). */
   (function () {
     var q = new URLSearchParams(location.search);
     var t = q.get('tema');
@@ -449,13 +448,6 @@
             <span class="eyebrow" id="data-hoje">Hoje</span>
             <h1 id="t-painel" class="mt-1 font-title text-3xl font-bold md:text-4xl">Painel</h1>
           </div>
-          <div class="proto">
-            <p class="eyebrow mb-2">Só no protótipo · A-003</p>
-            <div class="seg" role="radiogroup" aria-label="Versão do Painel">
-              <label><input type="radio" name="variante" value="a" checked><span>Um botão só</span></label>
-              <label><input type="radio" name="variante" value="b"><span>Três cartões</span></label>
-            </div>
-          </div>
         </header>
 
         <div class="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-12">
@@ -843,7 +835,7 @@
     tToast = setTimeout(() => { t.style.opacity = '0'; }, 4000);
   }
 
-  /* ----- Estado na URL (?tema=, ?variante=) ----- */
+  /* ----- Estado na URL (?tema=) ----- */
   function gravarParametro(chave, valor) {
     params.set(chave, valor);
     history.replaceState(null, '', `${location.pathname}?${params}${location.hash}`);
@@ -942,7 +934,6 @@
     { id: 4, nome: 'Cartões', min: [20, 10], motivo: '18 cartões vencidos, do mais atrasado ao mais novo.' },
   ];
   let modo = 0;
-  let variante = params.get('variante') === 'b' ? 'b' : 'a';
 
   const ativos = () => BLOCOS.filter((b) => !b.pulado);
   const pulado = (b) => `<li class="bloco bloco-pulado">
@@ -950,7 +941,7 @@
       <div class="min-w-0 flex-1"><p class="font-semibold">${b.nome} <span class="chip">Pulado</span></p><p class="mt-1 text-sm text-muted">${b.motivo}</p></div>
       <span class="text-sm text-muted">0 min</span></li>`;
 
-  function versaoA() {
+  function corpoSessao() {
     const a = ativos();
     const linhas = BLOCOS.map((b) => {
       if (b.pulado) return pulado(b);
@@ -967,34 +958,17 @@
       </div>`;
   }
 
-  function versaoB() {
-    const cartoes = ativos().map((b, i) => `<li class="bloco flex-col">
-        <span class="eyebrow">Bloco ${b.id}</span>
-        <h3 class="font-title text-lg font-bold leading-snug">${b.nome}</h3>
-        <p class="font-title text-3xl font-bold tabular-nums">${b.min[modo]} <span class="text-base font-normal text-muted" style="font-family: var(--f-text)">min</span></p>
-        <p class="flex-1 text-sm text-muted">${b.motivo}</p>
-        <button type="button" class="btn ${i === 0 ? 'btn-primary' : 'btn-ghost'} w-full" data-comecar="${b.nome}" aria-label="Começar o bloco ${b.id}: ${b.nome}">Começar</button></li>`).join('');
-    const pulados = BLOCOS.filter((b) => b.pulado).map(pulado).join('');
-    return `<ul class="grid gap-3 md:grid-cols-3">${cartoes}</ul><ul class="mt-3 space-y-3">${pulados}</ul>`;
-  }
-
   function desenharSessao() {
     const a = ativos();
     const total = a.reduce((s, b) => s + b.min[modo], 0);
     $('#sessao-total').textContent = total;
     $('#sessao-resumo').textContent = `Modo ${modo === 0 ? 'Completa' : 'Curta'}: ${a.length} blocos, ${BLOCOS.length - a.length} pulado.`;
-    $('#sessao-corpo').innerHTML = variante === 'a' ? versaoA() : versaoB();
+    $('#sessao-corpo').innerHTML = corpoSessao();
   }
   $$('input[name="modo"]').forEach((i) => i.addEventListener('change', () => { modo = Number(i.value); desenharSessao(); }));
-  $$('input[name="variante"]').forEach((i) => {
-    i.checked = i.value === variante;
-    i.addEventListener('change', () => { variante = i.value; gravarParametro('variante', variante); desenharSessao(); });
-  });
   $('#sessao-corpo').addEventListener('click', (e) => {
-    if (!e.target.closest('[data-comecar]')) return;
-    /* Versão A: o Começar executa o bloco 1 e abre a prova. A versão B não tem fluxo próprio aqui. */
-    if (variante === 'a') abrirProva(0);
-    else aviso('Na versão B o Começar não abre fluxo neste protótipo. Use a versão A.');
+    /* O Começar executa o bloco 1 e abre a prova (A-003: um botão só). */
+    if (e.target.closest('[data-comecar]')) abrirProva(0);
   });
 
   /* ----- Painel: data, anéis e barras (animam ao carregar) ----- */

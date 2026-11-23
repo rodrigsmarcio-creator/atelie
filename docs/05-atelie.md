@@ -194,14 +194,20 @@ que a API devolver.
 Resumo (nível, XP, ofensiva, domínio por matéria) e a **Árvore** em versão
 simples: SVG com leque radial por matéria. Cada Ofício é um nó com: disco
 (estado: Bloqueado, Disponível, Em prática, Liberado, Dominado), cinco
-satélites (um por dimensão), marcador "precisa revisar", rótulo. Arestas
-apagadas/abertas/acesas conforme desbloqueio. Pan, zoom, teclado, painel de
-detalhe com pré-requisitos, provas, materiais e o que desbloqueia. Filtro por
-matéria. Conquistas e Evolução ficam para depois.
+satélites (um por dimensão), marcador "precisa revisar". **O nó não tem nome
+fixo** (D-041): o nome aparece numa etiqueta ao passar o mouse, focar ou
+selecionar, no card de detalhe e na busca por nome; só o título da matéria fica
+fixo. Arestas apagadas/abertas/acesas conforme desbloqueio. Pan, zoom (roda do
+mouse, pinça, teclado), tela cheia, painel de detalhe com pré-requisitos,
+provas, materiais e o que desbloqueia. Filtro por matéria. Conquistas e
+Evolução ficam para depois.
 
-Geometria (do protótipo antigo, vale como ponto de partida): `R0 = 180`,
-`STEP = 140` por profundidade, leque de 170° dividido entre matérias por número
-de Ofícios, `lane` desloca lateralmente dentro do setor.
+Geometria: a referência é a Árvore do `prototipo/index.html` (ATL-57), que parte
+do protótipo antigo: `R0 = 180`, `STEP = 140` por profundidade, leque de 170°
+dividido entre matérias por número de Ofícios, `lane` desloca lateralmente
+dentro do setor. Os raios crescem com a quantidade de Ofícios (`GAP_NOS = 118`).
+Para aguentar volume, só se desenha o que está na tela (mais uma margem), em 4
+níveis de detalhe pelo zoom, com as linhas juntas em poucos traçados (D-041).
 
 ## Fora do MVP nesta camada
 
