@@ -37,9 +37,22 @@ Riscos que seguem valendo:
   app, clicar Começar, fazer uma prova, ver a prova acender, o XP subir, a
   ofensiva contar e a próxima revisão agendada. Usar por duas semanas.
 
-## Depois do MVP (candidatos)
+## Depois do MVP
 
-- Extração de PDF e de link (API de extração), leitor de PDF, tela Livros.
+Em ordem:
+
+1. **ATL-119, Matéria ampla: curso, pré-requisitos e conteúdo em tandas.** Não é
+   fase nova: prepara o conteúdo do MVP. O texto de estudo da fase Aprender
+   (D-052) faz parte do MVP e fica pronto antes de começar as 2 semanas de uso.
+2. **Marco: MVP em uso real por 2 semanas** (a regra do topo deste documento).
+3. **ATL-120, Mini curso superior:** nivelamento (A-012), Árvore cheia com zoom
+   por níveis e busca (D-047), trabalhos e TCC corrigidos pela Jane e nota por
+   disciplina (D-048).
+
+### Candidatos
+
+- Extração de PDF e de link (API de extração), leitor de PDF, vídeo como
+  material, tela Livros.
 - Sessão em etapas com relógio por bloco, captura rápida.
 - Evolução (linha do tempo), Conquistas, caderno de erros, simulados.
 - Prazo de prova e plano da semana no Gregor; proteção de ofensiva; benefícios

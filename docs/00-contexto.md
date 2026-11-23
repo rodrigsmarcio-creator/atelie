@@ -51,8 +51,10 @@ Tudo o que for construído deve servir a um destes dois cenários. Se não serve
 
 **A. Começar uma matéria do zero.** O usuário diz "quero estudar Redes de
 Computadores". A Jane decompõe em Ofícios com pré-requisitos e gera itens de
-prática (JSON). O usuário importa o arquivo na Biblioteca, a Ficha ganha um
-leque novo na Árvore e o Gregor passa a sugerir pelo primeiro Ofício disponível.
+prática (JSON). O arquivo é importado (pelo comando ou pela tela Importar da
+Biblioteca, D-051), a Ficha ganha um leque novo na Árvore e o Gregor passa a
+sugerir pelo primeiro Ofício disponível. Matéria ampla é quebrada em disciplinas
+de uma grade de curso superior (D-045).
 
 **B. Estudar a partir de um material.** O fluxo completo é: link ou PDF → API de
 extração → markdown → Jane → JSON → validador → banco → Gregor. A extração de
@@ -91,6 +93,16 @@ import incomodar.
 `packages/db` guarda tudo em SQLite. `apps/web` tem cinco abas: Painel,
 Planejar, Biblioteca, Praticar e Ficha. Fluxo e visual em `docs/05-atelie.md`.
 
+## Direção de longo prazo
+
+O Ateliê caminha para ser um **mini curso superior**: a Jane quebra uma matéria
+ampla em disciplinas de uma grade de curso superior consolidado, registrando
+curso, instituição e ano (D-045). Pré-requisito vale por padrão, inclusive entre
+matérias (D-044), e a Árvore fica cheia a cada rodada (D-047). O nível "curso"
+já existe no backend, sem tela no MVP (D-046). Trabalhos, TCC, notas por
+disciplina e nivelamento (A-012) vêm no épico ATL-120, só depois de 2 semanas de
+uso real do MVP (D-048).
+
 ## Escopo do MVP
 
 Ver `docs/08-roadmap.md` para os épicos. Em uma frase: **abrir o Ateliê, ver a
@@ -104,7 +116,15 @@ Dentro do MVP:
 - **Planejar**: grade da semana com Google Agenda; o usuário escolhe a sessão e
   o horário e o app cria o evento.
 - **Biblioteca**: Materiais e Importar (`.json` direto pelo validador; `.md`
-  guardado até a Jane converter).
+  guardado até a Jane converter). Materiais lista os PDFs locais e os links,
+  citados por nome de arquivo ou link e ligados aos Ofícios com páginas; o
+  Márcio abre o arquivo fora do app (D-049, D-050).
+- **Fluxo de conteúdo**: o Márcio dá as fontes ao Claude Code, a Jane importa
+  pelo comando no banco real (D-051); a tela Importar é a alternativa.
+- **Fase Aprender** (D-052): para o Ofício sem nenhuma tentativa, texto de
+  estudo (explicação, recomendações, orientações e dúvidas comuns) e sessão com
+  a Jane para dúvidas específicas. Não dá XP, não conta para a ofensiva e não
+  sobe domínio.
 - **Praticar**: fila de hoje (as 5 provas, botão Resolver) e Cartões.
 - **Ficha**: resumo (nível, XP, ofensiva, domínio por matéria) e Árvore
   simples.
@@ -115,7 +135,8 @@ Dentro do MVP:
 Fora do MVP: tela Livros, extração de PDF e de link, sessão em etapas com
 relógio por bloco, captura rápida, missões, conquistas, Evolução, caderno de
 erros, simulados, plano da semana automático, prazo de prova no cálculo, chat
-embutido da Jane, leitor de PDF, proteção de ofensiva, redação corrigida,
+embutido da Jane, leitor de PDF, vídeo, trabalhos, TCC, notas por disciplina,
+nivelamento, tela do nível curso, proteção de ofensiva, redação corrigida,
 benefícios por nível.
 
 ## Princípios que decidem empates
