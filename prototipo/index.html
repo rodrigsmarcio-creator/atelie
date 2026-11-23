@@ -29,6 +29,11 @@
   - Ficha (ATL-57): 20 Ofícios fictícios e fixos em 3 matérias. O estado vem de
     estadoDe() mais o Bloqueado do glossário. Domínio = dimensões provadas ÷ as
     que se aplicam, arredondado para baixo (hipótese), igual ao do Painel.
+    Os nomes da Árvore têm tamanho fixo em pixels e são reposicionados a cada
+    zoom sem encostar em disco, satélite, linha, título ou outro nome; o que não
+    cabe fica oculto até aproximar. Os raios crescem com a quantidade de Ofícios.
+    ?volume=N soma N Ofícios fictícios a cada matéria (teste de volume; os
+    números do Resumo mudam).
   - Tailwind v4 (build de navegador, pelo jsDelivr) com `integrity`: o
     cdn.tailwindcss.com não manda cabeçalho CORS, então não aceita a checagem de
     integridade que o SonarCloud exige (regra S5725). Ao trocar a versão, gerar o
@@ -284,11 +289,14 @@
   .arv-espera { fill: none; stroke: var(--xp); stroke-width: 1; stroke-dasharray: 1.5 1.5; }
   .arv-letra { fill: var(--muted); font-size: 9px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
   .arv-sat.on + .arv-letra { fill: var(--bg); }
-  .arv-rotulo { fill: var(--text); font-size: 17px; font-weight: 600; text-anchor: middle; stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
+  /* Os nomes ficam num grupo que desfaz o zoom: aqui 1 unidade = 1 pixel, então o tamanho é o mesmo em qualquer zoom. */
+  .arv-rotulos { pointer-events: none; }
+  .arv-rotulo { fill: var(--text); font-weight: 600; stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
+  .lod-medio .arv-letra, .lod-baixo .arv-num, .lod-baixo .arv-sat-linha { display: none; }
   .arv-selo { fill: var(--bad); stroke: var(--bg); stroke-width: 2; }
   .arv-mat-ponto { fill: var(--c); }
-  .arv-mat-nome { fill: var(--text); font-size: 15px; font-weight: 700; letter-spacing: .12em; text-anchor: middle; }
-  .arv-mat-pct { fill: var(--muted); font-size: 13px; text-anchor: middle; }
+  .arv-mat-nome { fill: var(--text); font-weight: 700; letter-spacing: .12em; stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
+  .arv-mat-pct { fill: var(--muted); stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
   .arv-hub-trilha { fill: none; stroke: var(--surface-2); stroke-width: 14; }
   .arv-hub { fill: var(--surface); stroke: var(--xp); stroke-width: 2; }
   .arv-xp-trilha { fill: none; stroke: var(--line); stroke-width: 3; }
@@ -1647,6 +1655,33 @@
     { id: 'cav', mat: 'fil', nome: 'Alegoria da caverna', req: ['l3'], d: 4, lane: 0, provas: [], naoSeAplica: ['fluencia'] },
   ].map((o) => ({ ...o, provas: new Set(o.provas), naoSeAplica: o.naoSeAplica || [] }));
 
+  /* ?volume=N soma N Ofícios fictícios a cada matéria, para ver a Árvore com muita informação (os números do Resumo mudam). */
+  const volumeExtra = Math.min(300, Math.max(0, Number.parseInt(params.get('volume') || '0', 10) || 0));
+  if (volumeExtra > 0) {
+    let semente = 7;
+    const sorteio = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+    MATERIAS_FICHA.forEach((m) => {
+      const pool = OFICIOS_FICHA.filter((o) => o.mat === m.id);
+      const novos = [];
+      for (let i = 0; i < volumeExtra; i++) {
+        const pai = pool[Math.floor(sorteio() * pool.length)];
+        const sorte = sorteio();
+        const o = { id: `${m.id}-t${i}`, mat: m.id, nome: `${m.nome.split(' ')[0]} · tópico ${i + 1}`, req: [pai.id], d: pai.d + 1, lane: 0,
+          provas: new Set(sorte < 0.3 ? ['conceitual', 'autonomia'] : sorte < 0.5 ? ['conceitual'] : []), naoSeAplica: [], revisar: sorteio() < 0.05 };
+        pool.push(o);
+        novos.push(o);
+      }
+      /* Faixas iguais por profundidade, na ordem do pai, para os irmãos não se atravessarem. */
+      const doPool = new Map(pool.map((o) => [o.id, o]));
+      const maxProf = Math.max(...novos.map((o) => o.d));
+      for (let d = 2; d <= maxProf; d++) {
+        const grupo = novos.filter((o) => o.d === d).sort((a, b) => doPool.get(a.req[0]).lane - doPool.get(b.req[0]).lane);
+        grupo.forEach((o, i) => { o.lane = ((i + 0.5) / grupo.length) * 1.9 - 0.95; });
+      }
+      OFICIOS_FICHA.push(...novos);
+    });
+  }
+
   /* Bloqueado = algum pré-requisito ainda não Liberado (glossário); o resto vem de estadoDe(). */
   const FOLGADOS = ['Liberado', 'Dominado'];
   function estadoFicha(o) {
@@ -1691,13 +1726,18 @@
   }
   /* ----- Árvore: leque radial por matéria. Geometria do protótipo antigo (R0, STEP, leque de 170°),
      estados e satélites pelo modelo das 5 dimensões (D-022, D-043). ----- */
-  const ARV = { R0: 180, STEP: 140, ORBIT: 42, SAT: 8, FAN: [175, 5] };
+  /* GAP_NOS: distância mínima entre dois discos da mesma profundidade (os raios crescem para respeitá-la).
+     RN: raio que os nomes e os títulos nunca invadem (satélites + anel de seleção e de foco). */
+  const ARV = { R0: 180, STEP: 140, ORBIT: 42, SAT: 8, FAN: [175, 5], GAP_NOS: 118, RN: 60 };
   const LETRA = { conceitual: 'C', fluencia: 'F', problemas: 'R', autonomia: 'A', explicacao: 'E' };
   const SLUG = { Bloqueado: 'bloqueado', Disponível: 'disponivel', 'Em prática': 'pratica', Liberado: 'liberado', Dominado: 'dominado' };
-  const ZMAX = 6;
+  const ZMAX = 8;
+  let larguraPx = 800;
   let filtroArvore = 'todas';
   /* Vista: base = a Árvore desenhada; fit = a caixa que a mostra inteira no formato do elemento; vista = o que aparece agora. */
   let base = { x: 0, y: 0, w: 1, h: 1 }, fit = { ...base }, vista = { ...base }, razao = 0.6, posArv = {};
+  /* Dados da Árvore desenhada, para posicionar os nomes: Ofícios (com posição), linhas e títulos das matérias. */
+  let nosArv = [], arestasArv = [], titulosArv = [], rotulosAgendados = false;
   let selecionado = null, focoId = null;
   const corDe = (id) => MATERIAS_FICHA.find((m) => m.id === id).cor;
   const f1 = (n) => n.toFixed(1);
@@ -1720,12 +1760,51 @@
     });
     return out;
   }
-  function posicoes(ids, sets) {
+  function anguloDe(o, sets) {
+    const [a0, a1] = sets[o.mat];
+    return (a0 + a1) / 2 + o.lane * ((a0 - a1) / 2) * 0.62;
+  }
+  /* Raio de cada profundidade. Começa no padrão (R0 + passo) e cresce quando os Ofícios de uma matéria naquela
+     profundidade não cabem no arco do setor com GAP_NOS entre os discos: com muitos Ofícios a Árvore se alarga
+     (o raio sobe na proporção da quantidade) em vez de amontoar. */
+  function raios(lista, sets) {
+    const maxD = Math.max(...lista.map((o) => o.d));
+    const out = [];
+    for (let d = 1; d <= maxD; d++) {
+      let r = ARV.R0 + (d - 1) * ARV.STEP;
+      const contagem = {};
+      lista.filter((o) => o.d === d).forEach((o) => { contagem[o.mat] = (contagem[o.mat] || 0) + 1; });
+      Object.entries(contagem).forEach(([mat, n]) => {
+        if (n < 2) return;
+        const [a0, a1] = sets[mat];
+        r = Math.max(r, ((n - 1) * ARV.GAP_NOS) / (((a0 - a1) * 0.62 * Math.PI) / 180));
+      });
+      if (d > 1) r = Math.max(r, out[d - 2] + ARV.STEP);
+      out.push(r);
+    }
+    return out;
+  }
+  /* Posições. O ângulo de cada Ofício vem da faixa (lane) dele; quando dois ficam mais perto que GAP_NOS no raio
+     da profundidade, os vizinhos são afastados (sem trocar a ordem) dentro da faixa do setor. */
+  function posicoes(lista, sets, R) {
     const pos = {};
-    OFICIOS_FICHA.filter((o) => ids.includes(o.mat)).forEach((o) => {
-      const [a0, a1] = sets[o.mat];
-      const angulo = (a0 + a1) / 2 + o.lane * ((a0 - a1) / 2) * 0.62;
-      pos[o.id] = polar(angulo, ARV.R0 + (o.d - 1) * ARV.STEP);
+    const grupos = new Map();
+    lista.forEach((o) => {
+      const k = `${o.mat}|${o.d}`;
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(o);
+    });
+    grupos.forEach((grupo) => {
+      const { mat, d } = grupo[0];
+      const [a0, a1] = sets[mat];
+      const folga = ((a0 - a1) / 2) * 0.62, centro = (a0 + a1) / 2;
+      const minimo = ((ARV.GAP_NOS / R[d - 1]) * 180) / Math.PI;
+      const item = grupo.map((o) => ({ o, a: anguloDe(o, sets) })).sort((x, y) => x.a - y.a);
+      for (let i = 1; i < item.length; i++) item[i].a = Math.max(item[i].a, item[i - 1].a + minimo);
+      const fim = item.length - 1;
+      item[fim].a = Math.min(item[fim].a, centro + folga);
+      for (let i = fim - 1; i >= 0; i--) item[i].a = Math.min(item[i].a, item[i + 1].a - minimo);
+      item.forEach(({ o, a }) => { pos[o.id] = polar(a, R[d - 1]); });
     });
     return pos;
   }
@@ -1737,38 +1816,18 @@
     const p0 = polar(a0, R), p1 = polar(a1, R);
     return `M0 0 L${f1(p0.x)} ${f1(p0.y)} A${R} ${R} 0 0 1 ${f1(p1.x)} ${f1(p1.y)} Z`;
   }
-  function linhasRotulo(nome) {
-    const linhas = [];
-    let atual = '';
-    nome.split(' ').forEach((w) => {
-      if (atual && `${atual} ${w}`.length > 14) { linhas.push(atual); atual = w; } else atual = atual ? `${atual} ${w}` : w;
-    });
-    if (atual) linhas.push(atual);
-    return linhas.slice(0, 2);
-  }
-
-  function fundoArvore(ids, sets, maxD, lista) {
-    const rMax = ARV.R0 + (maxD - 1) * ARV.STEP + 60;
-    const multi = ids.length > 1;
+  function fundoArvore(ids, sets, R) {
+    const rMax = R[R.length - 1] + 60;
     const cunhas = ids.map((id) => `<path class="arv-cunha" style="--c: var(${corDe(id)})" opacity=".06" d="${cunha(rMax, ...sets[id])}"/>`).join('');
-    const guias = Array.from({ length: maxD }, (_, i) => {
-      const r = ARV.R0 + i * ARV.STEP, p0 = polar(ARV.FAN[0], r), p1 = polar(ARV.FAN[1], r);
-      return `<path class="arv-guia" d="M${f1(p0.x)} ${f1(p0.y)} A${r} ${r} 0 0 1 ${f1(p1.x)} ${f1(p1.y)}"/>`;
+    const guias = R.map((r) => {
+      const p0 = polar(ARV.FAN[0], r), p1 = polar(ARV.FAN[1], r);
+      return `<path class="arv-guia" d="M${f1(p0.x)} ${f1(p0.y)} A${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${f1(p1.x)} ${f1(p1.y)}"/>`;
     }).join('');
-    const seps = multi ? [...new Set(ids.flatMap((id) => sets[id]))].map((a) => {
+    const seps = ids.length > 1 ? [...new Set(ids.flatMap((id) => sets[id]))].map((a) => {
       const p = polar(a, rMax);
       return `<line class="arv-sep" x1="0" y1="0" x2="${f1(p.x)}" y2="${f1(p.y)}"/>`;
     }).join('') : '';
-    const nomes = multi ? ids.map((id) => {
-      const m = MATERIAS_FICHA.find((x) => x.id === id);
-      const [a0, a1] = sets[id];
-      const prof = Math.max(...lista.filter((o) => o.mat === id).map((o) => o.d));
-      const p = polar((a0 + a1) / 2, ARV.R0 + (prof - 1) * ARV.STEP + 100);
-      const pct = dominioDe(OFICIOS_FICHA.filter((o) => o.mat === id)).pct;
-      return `<g transform="translate(${f1(p.x)} ${f1(p.y)})" style="--c: var(${m.cor})"><circle class="arv-mat-ponto" r="9"/>
-        <text class="arv-mat-nome" y="32">${m.nome.toUpperCase()}</text><text class="arv-mat-pct" y="50">${pct}% dominado</text></g>`;
-    }).join('') : '';
-    return cunhas + guias + seps + nomes;
+    return cunhas + guias + seps;
   }
   function arestas(lista, pos) {
     return lista.flatMap((o) => (o.req.length ? o.req : [null]).map((rid) => {
@@ -1818,34 +1877,167 @@
     const miolo = est === 'Bloqueado'
       ? '<use href="#i-lock" x="-10" y="-10" width="20" height="20" class="ico" style="color: var(--muted)"/>'
       : `<text class="arv-num">${prov}/${apl.length}</text>`;
-    const rotulo = linhasRotulo(o.rotulo || o.nome).map((l, i) => `<tspan x="0" dy="${i ? 16 : 0}">${l}</tspan>`).join('');
     return `<g class="arv-no est-${SLUG[est]}" id="arv-no-${o.id}" data-id="${o.id}" tabindex="${o.id === focoId ? 0 : -1}" transform="translate(${f1(p.x)} ${f1(p.y)})" style="--c: var(${corDe(o.mat)})" role="button" aria-pressed="${o.id === selecionado}" aria-label="${resumo}">
       <title>${resumo}</title><circle class="arv-hit" r="52"/>${satelites(o)}${est === 'Dominado' ? '<circle class="arv-aro" r="31"/>' : ''}<circle class="arv-disco" r="25"/>${miolo}${selo}
-      <circle class="arv-anel-sel" r="57"/><circle class="arv-foco" r="63"/><text class="arv-rotulo" y="68">${rotulo}</text></g>`;
+      <circle class="arv-anel-sel" r="55"/><circle class="arv-foco" r="58"/></g>`;
   }
   function desenharArvore() {
     const ids = filtroArvore === 'todas' ? MATERIAS_FICHA.map((m) => m.id) : [filtroArvore];
-    const sets = setores(ids), pos = posicoes(ids, sets);
+    const sets = setores(ids);
     const lista = OFICIOS_FICHA.filter((o) => ids.includes(o.mat));
-    const maxD = Math.max(...lista.map((o) => o.d));
-    const xs = [-80, 80], ys = [-80, 80];
-    lista.forEach((o) => { const p = pos[o.id]; xs.push(p.x - 75, p.x + 75); ys.push(p.y - 65, p.y + 100); });
-    if (ids.length > 1) {
-      ids.forEach((id) => {
-        const [a0, a1] = sets[id];
-        const prof = Math.max(...lista.filter((o) => o.mat === id).map((o) => o.d));
-        const p = polar((a0 + a1) / 2, ARV.R0 + (prof - 1) * ARV.STEP + 100);
-        xs.push(p.x - 120, p.x + 120); ys.push(p.y - 20, p.y + 60);
-      });
-    }
+    const R = raios(lista, sets), pos = posicoes(lista, sets, R);
+    const xs = [-90, 90], ys = [-90, 90];
+    lista.forEach((o) => { const p = pos[o.id]; xs.push(p.x - 90, p.x + 90); ys.push(p.y - 90, p.y + 90); });
+    /* Títulos das matérias: ficam além do anel mais fundo de cada setor (a posição exata sai do cálculo dos nomes). */
+    titulosArv = ids.length > 1 ? ids.map((id) => {
+      const m = MATERIAS_FICHA.find((x) => x.id === id);
+      const [a0, a1] = sets[id];
+      const prof = Math.max(...lista.filter((o) => o.mat === id).map((o) => o.d));
+      const t = { id, nome: m.nome, cor: m.cor, ang: (a0 + a1) / 2, rFim: R[prof - 1], pct: dominioDe(OFICIOS_FICHA.filter((o) => o.mat === id)).pct };
+      const p = polar(t.ang, t.rFim + 170);
+      xs.push(p.x - 140, p.x + 140); ys.push(p.y - 60, p.y + 60);
+      return t;
+    }) : [];
     const x0 = Math.min(...xs), y0 = Math.min(...ys);
     base = { x: x0, y: y0, w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 };
     posArv = pos;
+    nosArv = lista.map((o) => ({ id: o.id, nome: o.rotulo || o.nome, d: o.d, revisar: Boolean(o.revisar), p: pos[o.id] }));
+    arestasArv = lista.flatMap((o) => (o.req.length ? o.req : [null]).map((rid) => [rid ? pos[rid] : { x: 0, y: 0 }, pos[o.id]]));
     if (!lista.some((o) => o.id === selecionado)) selecionado = null;
     if (!lista.some((o) => o.id === focoId)) focoId = selecionado || lista[0].id;
-    $('#arvore').innerHTML = fundoArvore(ids, sets, maxD, lista) + arestas(lista, pos) + hubArvore(ids, sets) + lista.map((o) => noArvore(o, pos[o.id])).join('');
+    $('#arvore').innerHTML = fundoArvore(ids, sets, R) + arestas(lista, pos) + hubArvore(ids, sets) + lista.map((o) => noArvore(o, pos[o.id])).join('')
+      + '<g id="arv-rotulos" class="arv-rotulos" aria-hidden="true"></g>';
     vistaInicial();
+    desenharRotulos();
     desenharDetalhe();
+  }
+
+  /* ----- Árvore: nomes na tela. Tamanho fixo em pixels; a posição é refeita a cada zoom, sem encostar em disco,
+     satélite, título ou outro nome. O que não cabe fica oculto até aproximar (e o contador avisa quantos). ----- */
+  const medidor = document.createElement('canvas').getContext('2d');
+  const larguras = new Map();
+  function largura(texto, px, peso) {
+    const chave = `${peso}|${px}|${texto}`;
+    if (!larguras.has(chave)) {
+      medidor.font = `${peso} ${px}px ${getComputedStyle(root).getPropertyValue('--f-text')}`;
+      larguras.set(chave, medidor.measureText(texto).width);
+    }
+    return larguras.get(chave);
+  }
+  /* Até 2 linhas de no máximo maxL pixels (o que passar vai para a segunda linha). */
+  function quebrar(nome, px, maxL) {
+    const linhas = [];
+    let atual = '';
+    nome.split(' ').forEach((w) => {
+      const teste = atual ? `${atual} ${w}` : w;
+      if (atual && largura(teste, px, 600) > maxL) { linhas.push(atual); atual = w; } else atual = teste;
+    });
+    linhas.push(atual);
+    return linhas.length > 2 ? [linhas[0], linhas.slice(1).join(' ')] : linhas;
+  }
+  const cruzaCirculo = (r, c) => {
+    const nx = Math.max(r.x, Math.min(c.x, r.x + r.w)), ny = Math.max(r.y, Math.min(c.y, r.y + r.h));
+    return (nx - c.x) ** 2 + (ny - c.y) ** 2 < c.r * c.r;
+  };
+  const cruzaRetangulo = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  /* Segmento contra retângulo (Liang-Barsky). */
+  function cruzaSegmento(r, [x1, y1, x2, y2]) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const p = [-dx, dx, -dy, dy], q = [x1 - r.x, r.x + r.w - x1, y1 - r.y, r.y + r.h - y1];
+    let t0 = 0, t1 = 1;
+    for (let i = 0; i < 4; i++) {
+      if (p[i] === 0) { if (q[i] < 0) return false; continue; }
+      const t = q[i] / p[i];
+      if (p[i] < 0) { if (t > t1) return false; t0 = Math.max(t0, t); } else { if (t < t0) return false; t1 = Math.min(t1, t); }
+    }
+    return true;
+  }
+  /* Oito posições em volta do disco: embaixo, direita, esquerda, em cima e as quatro diagonais. */
+  function candidatos(cx, cy, R, w, h, g) {
+    const d = R * 0.7071 + g;
+    return [
+      { x: cx - w / 2, y: cy + R + g, ancora: 'middle' },
+      { x: cx + R + g, y: cy - h / 2, ancora: 'start' },
+      { x: cx - R - g - w, y: cy - h / 2, ancora: 'end' },
+      { x: cx - w / 2, y: cy - R - g - h, ancora: 'middle' },
+      { x: cx + d, y: cy + d, ancora: 'start' },
+      { x: cx - d - w, y: cy + d, ancora: 'end' },
+      { x: cx + d, y: cy - d - h, ancora: 'start' },
+      { x: cx - d - w, y: cy - d - h, ancora: 'end' },
+    ].map((c, i) => ({ ...c, w, h, pref: i * 0.05 }));
+  }
+  function desenharRotulos() {
+    const alvo = $('#arv-rotulos');
+    const r = $('#arvore').getBoundingClientRect();
+    if (!alvo || !r.width) return;
+    rotulosAgendados = false;
+    const k = r.width / vista.w;
+    const tela = (p) => ({ x: (p.x - vista.x) * k, y: (p.y - vista.y) * k });
+    const px = r.width < 640 ? 12 : 13, LH = Math.round(px * 1.25), RN = ARV.RN * k;
+    const perto = (s, m) => s.x > -m && s.x < r.width + m && s.y > -m && s.y < r.height + m;
+    /* Só entra na conta o que está perto da tela: com muitos Ofícios, o resto não custa nada. */
+    const hub = { ...tela({ x: 0, y: 0 }), r: 70 * k };
+    /* Obstáculos até 2 raios + a largura de um nome além da borda: um nome meio fora da tela ainda não pode encostar neles. */
+    const alcance = 2 * RN + 260;
+    const discos = nosArv.map((n) => ({ ...tela(n.p), r: RN })).filter((c) => perto(c, alcance));
+    const segs = arestasArv.map(([a, b]) => { const sa = tela(a), sb = tela(b); return [sa.x, sa.y, sb.x, sb.y]; })
+      .filter(([x1, y1, x2, y2]) => Math.max(x1, x2) > -alcance && Math.min(x1, x2) < r.width + alcance && Math.max(y1, y2) > -alcance && Math.min(y1, y2) < r.height + alcance);
+    const colocados = [];
+    const livre = (ret) => !discos.some((c) => cruzaCirculo(ret, c)) && !cruzaCirculo(ret, hub) && !colocados.some((o) => cruzaRetangulo(ret, o));
+    let saida = '';
+
+    /* 1) Títulos das matérias, além do anel mais fundo de cada uma. */
+    titulosArv.forEach((t) => {
+      const pxT = px + 1, pxP = px - 1;
+      const nome = t.nome.toUpperCase();
+      const w = Math.max(largura(nome, pxT, 700) + nome.length * 0.12 * pxT, largura(`${t.pct}% dominado`, pxP, 400)) + 26;
+      const h = Math.round(pxT * 1.3 + pxP * 1.3) + 4;
+      const rad = (t.ang * Math.PI) / 180, base0 = tela(polar(t.ang, t.rFim));
+      for (let passo = 0; passo < 14; passo++) {
+        const dist = RN + 14 + h / 2 + passo * 16;
+        const cx = base0.x + Math.cos(rad) * dist, cy = base0.y - Math.sin(rad) * dist;
+        const ret = { x: cx - w / 2, y: cy - h / 2, w, h };
+        if (!livre(ret) || segs.some((sg) => cruzaSegmento(ret, sg))) continue;
+        colocados.push(ret);
+        saida += `<g style="--c: var(${t.cor})"><circle class="arv-mat-ponto" cx="${f1(ret.x + 7)}" cy="${f1(ret.y + pxT * 0.65)}" r="5"/>
+          <text class="arv-mat-nome" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT)}" font-size="${pxT}">${nome}</text>
+          <text class="arv-mat-pct" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT * 1.3 + pxP)}" font-size="${pxP}">${t.pct}% dominado</text></g>`;
+        break;
+      }
+    });
+
+    /* 2) Nomes dos Ofícios, do mais importante ao menos (escolhido, com foco, "precisa revisar", depois os mais perto do centro). */
+    const peso = (n) => (n.id === selecionado ? 100 : 0) + (n.id === focoId ? 50 : 0) + (n.revisar ? 10 : 0);
+    let ocultos = 0;
+    nosArv.map((n) => ({ n, s: tela(n.p) })).filter(({ s }) => perto(s, RN + 160))
+      .sort((a, b) => peso(b.n) - peso(a.n) || a.n.d - b.n.d)
+      .forEach(({ n, s }) => {
+        const linhas = quebrar(n.nome, px, 120);
+        const w = Math.max(...linhas.map((l) => largura(l, px, 600))) + 6, h = linhas.length * LH + 2;
+        let melhor = null, custo = Infinity;
+        candidatos(s.x, s.y, RN, w, h, 4).forEach((c) => {
+          const ret = { x: c.x, y: c.y, w: c.w, h: c.h };
+          if (!livre(ret) || segs.some((sg) => cruzaSegmento(ret, sg))) return;
+          /* A borda da tela não proíbe: o nome cortado ainda é melhor que nenhum, mas pesa na escolha. */
+          let cst = c.pref;
+          if (ret.x < 0 || ret.y < 0 || ret.x + ret.w > r.width || ret.y + ret.h > r.height) cst += 2;
+          if (cst < custo) { custo = cst; melhor = { ...c, ret }; }
+        });
+        if (!melhor) { if (perto(s, 0)) ocultos += 1; return; }
+        colocados.push(melhor.ret);
+        const x = melhor.ancora === 'middle' ? melhor.ret.x + w / 2 : melhor.ancora === 'start' ? melhor.ret.x + 3 : melhor.ret.x + w - 3;
+        saida += `<text class="arv-rotulo" text-anchor="${melhor.ancora}" font-size="${px}">${linhas.map((l, i) => `<tspan x="${f1(x)}" y="${f1(melhor.ret.y + 1 + i * LH + px * 0.95)}">${l}</tspan>`).join('')}</text>`;
+      });
+    /* O grupo desfaz o zoom: dentro dele, 1 unidade = 1 pixel da tela. */
+    alvo.setAttribute('transform', `translate(${f1(vista.x)} ${f1(vista.y)}) scale(${(1 / k).toFixed(5)})`);
+    alvo.innerHTML = saida;
+    $('#arv-zoom').textContent = `${Math.round((fit.w / vista.w) * 100)}%${ocultos ? ` · ${ocultos} ${ocultos === 1 ? 'nome oculto' : 'nomes ocultos'}: aproxime` : ''}`;
+  }
+  /* Muitos eventos de zoom e arraste por quadro: o cálculo dos nomes roda uma vez por quadro. */
+  function agendarRotulos() {
+    if (rotulosAgendados) return;
+    rotulosAgendados = true;
+    requestAnimationFrame(desenharRotulos);
   }
 
   /* ----- Árvore: pan e zoom pelo viewBox ----- */
@@ -1854,6 +2046,7 @@
     const r = $('#arvore').getBoundingClientRect();
     if (!r.width) return;
     razao = r.height / r.width;
+    larguraPx = r.width;
     const w = Math.max(base.w, base.h / razao);
     fit = { w, h: w * razao, x: base.x + base.w / 2 - w / 2, y: base.y + base.h / 2 - (w * razao) / 2 };
   }
@@ -1865,8 +2058,10 @@
     limitar();
     aplicarVista();
   }
+  /* O zoom máximo é 8× a Árvore inteira ou 2 pixels por unidade (o que der mais zoom): numa Árvore enorme o 8× não bastaria. */
+  const larguraMinima = () => Math.min(fit.w / ZMAX, larguraPx / 2);
   function limitar() {
-    vista.w = Math.min(fit.w, Math.max(fit.w / ZMAX, vista.w));
+    vista.w = Math.min(fit.w, Math.max(larguraMinima(), vista.w));
     vista.h = vista.w * razao;
     vista.x = Math.min(fit.x + fit.w - vista.w, Math.max(fit.x, vista.x));
     vista.y = Math.min(fit.y + fit.h - vista.h, Math.max(fit.y, vista.y));
@@ -1877,6 +2072,11 @@
     /* Com zoom, arrastar move a Árvore; sem zoom, o dedo continua rolando a página. */
     svg.style.touchAction = vista.w < fit.w - 1 ? 'none' : '';
     $('#arv-zoom').textContent = `${Math.round((fit.w / vista.w) * 100)}%`;
+    /* Nível de detalhe: de longe os discos perdem as letras e os números (não dá para ler) e ficam mais leves. */
+    const k = svg.getBoundingClientRect().width / vista.w;
+    svg.classList.toggle('lod-medio', k < 0.8);
+    svg.classList.toggle('lod-baixo', k < 0.3);
+    agendarRotulos();
   }
   /* PC: a Árvore inteira. Celular: ampliada, começando pelo centro (o texto não cabe inteiro numa tela estreita). */
   function vistaInicial() {
@@ -1893,7 +2093,7 @@
   }
   function ajustarTudo() { vista = { ...fit }; limitar(); aplicarVista(); }
   function zoomar(fator, cx = vista.x + vista.w / 2, cy = vista.y + vista.h / 2) {
-    const k = Math.min(fit.w, Math.max(fit.w / ZMAX, vista.w / fator)) / vista.w;
+    const k = Math.min(fit.w, Math.max(larguraMinima(), vista.w / fator)) / vista.w;
     vista.x = cx - (cx - vista.x) * k;
     vista.y = cy - (cy - vista.y) * k;
     vista.w *= k;
@@ -2052,6 +2252,7 @@
   function marcarFoco(id) {
     focoId = id;
     $$('#arvore .arv-no').forEach((g) => { g.tabIndex = g.dataset.id === id ? 0 : -1; });
+    agendarRotulos();
   }
   function selecionar(id, doPainel = false) {
     selecionado = id;
@@ -2070,6 +2271,7 @@
     selecionado = null;
     $$('#arvore .arv-no').forEach((g) => g.setAttribute('aria-pressed', 'false'));
     desenharDetalhe();
+    agendarRotulos();
     const g = id && $(`#arv-no-${id}`);
     if (g) g.focus({ preventScroll: true });
   }
