@@ -62,7 +62,7 @@ Versões: fixar no `package.json` com `~` (patch) e atualizar de propósito.
 atelie/
 ├── CLAUDE.md
 ├── docs/                      # estes documentos (docs/historico: só leitura)
-├── imports/                   # JSON gerado pela Jane (versionado)
+├── imports/                   # JSON gerado pela Jane (fora do Git; só o README)
 ├── .claude/skills/            # atelie-gregor, -dados, -conteudo, -web
 ├── packages/
 │   ├── core/                  # Gregor
@@ -153,8 +153,9 @@ Google, onde guardar o segredo (A-007).
   copiar o arquivo com o app parado, ou `VACUUM INTO` com ele rodando.
 - Acervo no MVP: o texto do `.md` fica no banco; PDF fica para depois
   (D-028, D-036). `data/acervo/` só existe no PC.
-- `imports/` versionado no Git: é o histórico do conteúdo gerado. Conteúdo real
-  de estudo e segredos ficam fora do Git.
+- `imports/` fora do Git (só o `README.md` é versionado, D-053): o JSON gerado
+  pela Jane é conteúdo real de estudo. O histórico do conteúdo é o banco.
+  Segredos também ficam fora do Git.
 
 ## Execução
 

@@ -47,14 +47,17 @@ Validação: Zod em `packages/db/src/import/schema.ts`. O que está escrito aqui
 | depth | int ≥ 1 | profundidade no leque; raiz = 1 |
 | lane | number −1..1 | posição lateral no setor; 0 = centro |
 | estimated_minutes | int 10–40 | tempo de uma sessão de prática |
-| prereqs | ULID[] | IDs de Ofícios deste arquivo ou já existentes. Grafo acíclico |
+| prereqs | ULID[] | IDs de Ofícios deste arquivo ou já existentes, inclusive de outra matéria. Grafo acíclico |
 | origin | `"manual" \| "ia"` | a Jane sempre escreve `"ia"` |
 | reviewed_by_user | boolean | a Jane sempre escreve `false` |
 | source | `{ material_id: ULID, page_from?: int, page_to?: int }` | opcional; obrigatório quando gerado de material do Acervo |
 
 Regras de decomposição (da skill): testável em 10–40 min; pré-requisito é
-dependência real, não ordem de apostila; na dúvida, não crie a aresta;
-`depth` de um Ofício ≥ max(depth dos pré-requisitos) + 1.
+dependência real, não ordem de apostila, e é criado **por padrão**, inclusive
+entre matérias (D-044): omite-se a aresta só em caso isolado, e a Jane lista no
+chat as de que tem menos certeza; `depth` de um Ofício ≥ max(depth dos
+pré-requisitos **da mesma matéria**) + 1. Aresta para Ofício de outra matéria
+não mexe no `depth`, porque o `depth` serve ao leque de cada matéria (D-053).
 
 ## `items[]` — questões e cartões
 
@@ -83,7 +86,7 @@ são equívocos reais; sem certeza do fato, não gere o item e diga no chat.
 2. ULID inválido ou duplicado dentro do arquivo.
 3. `prereqs` com ID inexistente (arquivo + banco).
 4. Ciclo no grafo (arquivo + banco).
-5. `depth` menor ou igual ao de um pré-requisito.
+5. `depth` menor ou igual ao de um pré-requisito da mesma matéria.
 6. Item sem `explanation` ou com menos de 20 caracteres.
 7. ME sem exatamente 4 `options`, ou `answer` fora de 0–3.
 8. Ofício com menos de 3 itens ou mais de 20 (aviso, não erro, entre 3–7 e
@@ -206,4 +209,7 @@ para a tabela `imports`.
    Importar, enviar o mesmo `.json` (passa pelo mesmo validador).
 5. Conferir por amostragem os itens que a Jane apontou como duvidosos;
    marcar `reviewed_by_user` pela UI.
-6. Commit do JSON. É o histórico do conteúdo.
+
+O JSON **não vai para o Git**: conteúdo real fica fora do repositório público
+(D-034), e `imports/` está no `.gitignore` (só o `README.md` é versionado). O
+histórico do conteúdo é o banco.
