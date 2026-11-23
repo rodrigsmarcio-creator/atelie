@@ -233,6 +233,44 @@
   }
   body:has(dialog.prova[open]) { overflow: hidden; }
 
+  /* Ficha: Árvore (ATL-57). Cada Ofício leva a cor da matéria em --c; o estado também aparece na forma e no texto. */
+  .arv text { font-family: var(--f-text); }
+  .arv-cunha { fill: var(--c); }
+  .arv-guia { fill: none; stroke: var(--muted); stroke-opacity: .35; stroke-dasharray: 3 9; }
+  .arv-sep { stroke: var(--muted); stroke-opacity: .25; }
+  .arv-aresta { stroke-linecap: round; }
+  .arv-aresta.apagada { stroke: var(--muted); stroke-opacity: .65; stroke-width: 2; stroke-dasharray: 3 7; }
+  .arv-aresta.aberta { stroke: var(--muted); stroke-width: 2.5; }
+  .arv-aresta.acesa { stroke: var(--c); stroke-width: 4; }
+  .arv-disco { fill: var(--surface); stroke: var(--c); stroke-width: 2; }
+  .est-bloqueado .arv-disco { stroke: var(--muted); stroke-dasharray: 4 4; }
+  .est-pratica .arv-disco { fill: var(--surface-2); stroke-width: 3; }
+  .est-liberado .arv-disco { fill: color-mix(in srgb, var(--c) 30%, var(--surface)); stroke-width: 3; }
+  .est-dominado .arv-disco { fill: var(--c); stroke-width: 3; }
+  .arv-aro { fill: none; stroke: var(--c); stroke-width: 1.5; }
+  .arv-num { fill: var(--text); font-size: 13px; font-weight: 700; text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; }
+  .est-dominado .arv-num { fill: var(--bg); }
+  .arv-sat-linha { stroke: var(--muted); stroke-opacity: .5; stroke-width: 1; }
+  .arv-sat-linha.on { stroke: var(--c); stroke-opacity: 1; }
+  .arv-sat { fill: var(--surface); stroke: var(--muted); stroke-width: 1.5; }
+  .arv-sat.on { fill: var(--c); stroke: var(--c); }
+  .arv-sat.na { stroke-dasharray: 2 2; }
+  .arv-sat.espera { stroke: var(--xp); stroke-width: 2; }
+  .arv-espera { fill: none; stroke: var(--xp); stroke-width: 1; stroke-dasharray: 1.5 1.5; }
+  .arv-letra { fill: var(--muted); font-size: 9px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+  .arv-sat.on + .arv-letra { fill: var(--bg); }
+  .arv-rotulo { fill: var(--text); font-size: 15px; font-weight: 600; text-anchor: middle; stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
+  .arv-selo { fill: var(--bad); stroke: var(--bg); stroke-width: 2; }
+  .arv-mat-ponto { fill: var(--c); }
+  .arv-mat-nome { fill: var(--text); font-size: 15px; font-weight: 700; letter-spacing: .12em; text-anchor: middle; }
+  .arv-mat-pct { fill: var(--muted); font-size: 13px; text-anchor: middle; }
+  .arv-hub-trilha { fill: none; stroke: var(--surface-2); stroke-width: 14; }
+  .arv-hub { fill: var(--surface); stroke: var(--xp); stroke-width: 2; }
+  .arv-xp-trilha { fill: none; stroke: var(--line); stroke-width: 3; }
+  .arv-xp { fill: none; stroke: var(--xp); stroke-width: 3; stroke-linecap: round; }
+  .arv-hub-texto { fill: var(--text); font-size: 15px; font-weight: 700; text-anchor: middle; }
+  .arv-hub-sub { fill: var(--xp); font-size: 12px; font-weight: 600; text-anchor: middle; }
+
   #toast { transition: opacity .25s ease; }
 </style>
 </head>
@@ -252,6 +290,8 @@
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-chama" viewBox="0 0 24 24"><path d="M12 3c.6 3.2 5 5.2 5 10a5 5 0 0 1-10 0c0-2 .8-3.2 2-4.2 0 1.8.8 2.8 1.8 3C10.4 8.6 10.6 5.4 12 3z"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="o-e" viewBox="0 0 24 16">
     <path d="M12 .8C12.7 5.6 13.9 6.9 18.4 8 13.9 9.1 12.7 10.4 12 15.2 11.3 10.4 10.1 9.1 5.6 8 10.1 6.9 11.3 5.6 12 .8Z" fill="currentColor" stroke="none"/>
     <path d="M3 8h1.4M19.6 8H21"/>
@@ -594,10 +634,25 @@
         </div>
 
         <div id="ficha-arvore" hidden>
-          <div class="card">
-            <h2 class="font-title text-2xl font-bold">Árvore</h2>
-            <p class="mt-2 text-sm text-muted">A Árvore de Ofícios entra no próximo passo do ATL-57.</p>
+          <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div class="min-w-0 md:max-w-[560px]">
+              <h2 class="font-title text-2xl font-bold">Árvore</h2>
+              <p class="mt-1 text-sm text-muted">Mapa de pré-requisitos dos Ofícios, em leque por matéria. Cada Ofício é um disco com cinco satélites, um por dimensão.</p>
+            </div>
+            <div class="seg" role="radiogroup" aria-label="Filtrar por matéria">
+              <label><input type="radio" name="arv-materia" value="todas" checked><span>Todas</span></label>
+              <label><input type="radio" name="arv-materia" value="calc"><span>Cálculo</span></label>
+              <label><input type="radio" name="arv-materia" value="redes"><span>Redes</span></label>
+              <label><input type="radio" name="arv-materia" value="fil"><span>Filosofia</span></label>
+            </div>
           </div>
+          <div class="card">
+            <svg id="arvore" class="arv block h-auto w-full" role="group" aria-label="Árvore de Ofícios"></svg>
+          </div>
+          <section class="card mt-6" aria-labelledby="t-arv-legenda">
+            <h3 id="t-arv-legenda" class="font-title text-lg font-bold">Como ler a Árvore</h3>
+            <div id="arv-legenda" class="mt-4 grid gap-6 md:grid-cols-3"></div>
+          </section>
         </div>
       </section>
 
@@ -1515,7 +1570,7 @@
      Os quatro Ofícios da fila de Praticar (cadeia, implicitas, handshake, limites) começam com o mesmo estado de lá. */
   const OFICIOS_FICHA = [
     { id: 'lim', mat: 'calc', nome: 'Limites', req: [], d: 1, lane: 0, provas: TODAS },
-    { id: 'limites', mat: 'calc', nome: 'Limites laterais', req: ['lim'], d: 2, lane: 0.55, provas: ['autonomia'] },
+    { id: 'limites', mat: 'calc', nome: 'Limites laterais', req: ['lim'], d: 2, lane: 0.8, provas: ['autonomia'] },
     { id: 'cont', mat: 'calc', nome: 'Continuidade', req: ['lim'], d: 2, lane: -0.45, provas: TODAS },
     { id: 'der', mat: 'calc', nome: 'Derivadas', req: ['cont'], d: 3, lane: -0.45, provas: ['conceitual', 'fluencia', 'autonomia', 'problemas'] },
     { id: 'cadeia', mat: 'calc', nome: 'Regra da cadeia', req: ['der'], d: 4, lane: -0.55, provas: ['conceitual', 'fluencia'], revisar: true },
@@ -1530,8 +1585,8 @@
     { id: 'handshake', mat: 'redes', nome: 'Handshake do TCP', req: ['tcp'], d: 5, lane: -0.6, provas: ['autonomia', 'conceitual'], naoSeAplica: ['fluencia'], revisar: true },
     { id: 'dns', mat: 'redes', nome: 'DNS e HTTP', req: ['tcp', 'sub'], d: 5, lane: 0.1, provas: [], naoSeAplica: ['fluencia'] },
     { id: 'l1', mat: 'fil', nome: 'Livro I · O que é justiça', rotulo: 'Livro I', req: [], d: 1, lane: 0, provas: ['conceitual', 'autonomia', 'explicacao'] },
-    { id: 'l2', mat: 'fil', nome: 'Livro II · A cidade nasce', rotulo: 'Livro II', req: ['l1'], d: 2, lane: -0.4, provas: ['autonomia', 'explicacao'] },
-    { id: 'just', mat: 'fil', nome: 'Justiça na alma', req: ['l1'], d: 2, lane: 0.6, provas: [], naoSeAplica: ['fluencia'] },
+    { id: 'l2', mat: 'fil', nome: 'Livro II · A cidade nasce', rotulo: 'Livro II', req: ['l1'], d: 2, lane: -1, provas: ['autonomia', 'explicacao'] },
+    { id: 'just', mat: 'fil', nome: 'Justiça na alma', req: ['l1'], d: 2, lane: 0.9, provas: [], naoSeAplica: ['fluencia'] },
     { id: 'l3', mat: 'fil', nome: 'Livro III · Educação', rotulo: 'Livro III', req: ['l2'], d: 3, lane: -0.4, provas: [] },
     { id: 'cav', mat: 'fil', nome: 'Alegoria da caverna', req: ['l3'], d: 4, lane: 0, provas: [], naoSeAplica: ['fluencia'] },
   ].map((o) => ({ ...o, provas: new Set(o.provas), naoSeAplica: o.naoSeAplica || [] }));
@@ -1578,11 +1633,200 @@
       $$('#f-dominio-lista .bar').forEach((b) => { b.style.setProperty('--v', `${b.dataset.alvo}%`); });
     }));
   }
+  /* ----- Árvore: leque radial por matéria. Geometria do protótipo antigo (R0, STEP, leque de 170°),
+     estados e satélites pelo modelo das 5 dimensões (D-022, D-043). ----- */
+  const ARV = { R0: 180, STEP: 140, ORBIT: 42, SAT: 8, FAN: [175, 5] };
+  const LETRA = { conceitual: 'C', fluencia: 'F', problemas: 'R', autonomia: 'A', explicacao: 'E' };
+  const SLUG = { Bloqueado: 'bloqueado', Disponível: 'disponivel', 'Em prática': 'pratica', Liberado: 'liberado', Dominado: 'dominado' };
+  let filtroArvore = 'todas';
+  const corDe = (id) => MATERIAS_FICHA.find((m) => m.id === id).cor;
+  const f1 = (n) => n.toFixed(1);
+  function polar(graus, r) {
+    const a = (graus * Math.PI) / 180;
+    return { x: Math.cos(a) * r, y: -Math.sin(a) * r };
+  }
+  /* O leque de 170° é dividido entre as matérias pelo número de Ofícios. */
+  function setores(ids) {
+    const [inicio, fim] = ARV.FAN;
+    if (ids.length === 1) return { [ids[0]]: [inicio, fim] };
+    const pesos = ids.map((id) => OFICIOS_FICHA.filter((o) => o.mat === id).length);
+    const soma = pesos.reduce((s, n) => s + n, 0);
+    const out = {};
+    let a = inicio;
+    ids.forEach((id, i) => {
+      const tam = ((inicio - fim) * pesos[i]) / soma;
+      out[id] = [a, a - tam];
+      a -= tam;
+    });
+    return out;
+  }
+  function posicoes(ids, sets) {
+    const pos = {};
+    OFICIOS_FICHA.filter((o) => ids.includes(o.mat)).forEach((o) => {
+      const [a0, a1] = sets[o.mat];
+      const angulo = (a0 + a1) / 2 + o.lane * ((a0 - a1) / 2) * 0.62;
+      pos[o.id] = polar(angulo, ARV.R0 + (o.d - 1) * ARV.STEP);
+    });
+    return pos;
+  }
+  function arco(r0, r1, a0, a1) {
+    const s0 = polar(a0, r1), s1 = polar(a1, r1), e1 = polar(a1, r0), e0 = polar(a0, r0);
+    return `M${f1(s0.x)} ${f1(s0.y)} A${r1} ${r1} 0 0 1 ${f1(s1.x)} ${f1(s1.y)} L${f1(e1.x)} ${f1(e1.y)} A${r0} ${r0} 0 0 0 ${f1(e0.x)} ${f1(e0.y)} Z`;
+  }
+  function cunha(R, a0, a1) {
+    const p0 = polar(a0, R), p1 = polar(a1, R);
+    return `M0 0 L${f1(p0.x)} ${f1(p0.y)} A${R} ${R} 0 0 1 ${f1(p1.x)} ${f1(p1.y)} Z`;
+  }
+  function linhasRotulo(nome) {
+    const linhas = [];
+    let atual = '';
+    nome.split(' ').forEach((w) => {
+      if (atual && `${atual} ${w}`.length > 14) { linhas.push(atual); atual = w; } else atual = atual ? `${atual} ${w}` : w;
+    });
+    if (atual) linhas.push(atual);
+    return linhas.slice(0, 2);
+  }
+
+  function fundoArvore(ids, sets, maxD, lista) {
+    const rMax = ARV.R0 + (maxD - 1) * ARV.STEP + 60;
+    const multi = ids.length > 1;
+    const cunhas = ids.map((id) => `<path class="arv-cunha" style="--c: var(${corDe(id)})" opacity=".06" d="${cunha(rMax, ...sets[id])}"/>`).join('');
+    const guias = Array.from({ length: maxD }, (_, i) => {
+      const r = ARV.R0 + i * ARV.STEP, p0 = polar(ARV.FAN[0], r), p1 = polar(ARV.FAN[1], r);
+      return `<path class="arv-guia" d="M${f1(p0.x)} ${f1(p0.y)} A${r} ${r} 0 0 1 ${f1(p1.x)} ${f1(p1.y)}"/>`;
+    }).join('');
+    const seps = multi ? [...new Set(ids.flatMap((id) => sets[id]))].map((a) => {
+      const p = polar(a, rMax);
+      return `<line class="arv-sep" x1="0" y1="0" x2="${f1(p.x)}" y2="${f1(p.y)}"/>`;
+    }).join('') : '';
+    const nomes = multi ? ids.map((id) => {
+      const m = MATERIAS_FICHA.find((x) => x.id === id);
+      const [a0, a1] = sets[id];
+      const prof = Math.max(...lista.filter((o) => o.mat === id).map((o) => o.d));
+      const p = polar((a0 + a1) / 2, ARV.R0 + (prof - 1) * ARV.STEP + 100);
+      const pct = dominioDe(OFICIOS_FICHA.filter((o) => o.mat === id)).pct;
+      return `<g transform="translate(${f1(p.x)} ${f1(p.y)})" style="--c: var(${m.cor})"><circle class="arv-mat-ponto" r="9"/>
+        <text class="arv-mat-nome" y="32">${m.nome.toUpperCase()}</text><text class="arv-mat-pct" y="50">${pct}% dominado</text></g>`;
+    }).join('') : '';
+    return cunhas + guias + seps + nomes;
+  }
+  function arestas(lista, pos) {
+    return lista.flatMap((o) => (o.req.length ? o.req : [null]).map((rid) => {
+      const a = rid ? pos[rid] : { x: 0, y: 0 }, b = pos[o.id];
+      const ref = estadoFicha(rid ? OFICIOS_FICHA.find((x) => x.id === rid) : o);
+      const aberta = rid ? FOLGADOS.includes(ref) : true;
+      const cls = ref === 'Dominado' ? 'acesa' : aberta ? 'aberta' : 'apagada';
+      return `<line class="arv-aresta ${cls}" style="--c: var(${corDe(o.mat)})" x1="${f1(a.x)}" y1="${f1(a.y)}" x2="${f1(b.x)}" y2="${f1(b.y)}"/>`;
+    })).join('');
+  }
+  function hubArvore(ids, sets) {
+    const unico = ids.length === 1, circ = 2 * Math.PI * 38;
+    const segs = ids.map((id) => {
+      const [a0, a1] = sets[id];
+      const m = dominioDe(OFICIOS_FICHA.filter((o) => o.mat === id)).pct / 100;
+      return `<path class="arv-cunha" style="--c: var(${corDe(id)})" opacity="${(0.4 + 0.6 * m).toFixed(2)}" d="${arco(53, 67, a0 - 1.2, a1 + 1.2)}"/>`;
+    }).join('');
+    const centro = unico
+      ? `<text class="arv-hub-texto" y="2">${dominioDe(OFICIOS_FICHA.filter((o) => o.mat === ids[0])).pct}%</text><text class="arv-hub-sub" y="18">dominado</text>`
+      : '<text class="arv-hub-texto" y="-2">Você</text><text class="arv-hub-sub" y="15">Nv 7</text>';
+    return `<g aria-hidden="true"><circle class="arv-hub-trilha" r="60"/>${segs}<circle class="arv-hub" r="46"/><circle class="arv-xp-trilha" r="38"/>
+      <circle class="arv-xp" r="38" transform="rotate(-90)" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${(circ * (1 - xp / REGRAS.XP_NIVEL)).toFixed(2)}"/>${centro}</g>`;
+  }
+  /* Cinco satélites, um por dimensão, a partir do topo no sentido horário. */
+  function satelites(o) {
+    return DIMS.map((d, i) => {
+      const a = ((-90 + 72 * i) * Math.PI) / 180;
+      const x = f1(Math.cos(a) * ARV.ORBIT), y = f1(Math.sin(a) * ARV.ORBIT);
+      const na = o.naoSeAplica.includes(d.id), on = o.provas.has(d.id);
+      const espera = d.id === 'explicacao' && o.aguardaJane && !on;
+      const estado = na ? 'não se aplica' : on ? 'provada' : espera ? 'aguardando a Jane' : 'pendente';
+      const cls = na ? 'na' : on ? 'on' : espera ? 'espera' : '';
+      return `<line class="arv-sat-linha${on ? ' on' : ''}" x1="0" y1="0" x2="${x}" y2="${y}"/>
+        <g transform="translate(${x} ${y})"><title>${d.nome}: ${estado}</title><circle class="arv-sat ${cls}" r="${ARV.SAT}"/>${espera ? `<circle class="arv-espera" r="${ARV.SAT - 3}"/>` : ''}<text class="arv-letra">${na ? '–' : LETRA[d.id]}</text></g>`;
+    }).join('');
+  }
+  function noArvore(o, p) {
+    const est = estadoFicha(o), apl = aplicaveis(o);
+    const prov = apl.filter((d) => o.provas.has(d.id)).length;
+    const resumo = `${o.nome}: ${est}, ${prov} de ${apl.length} dimensões provadas${o.revisar ? ', precisa revisar' : ''}`;
+    const selo = o.revisar
+      ? '<g transform="translate(20 -20)"><circle class="arv-selo" r="9.5"/><use href="#i-clock" x="-6" y="-6" width="12" height="12" class="ico" style="color: var(--bg); stroke-width: 2.4"/></g>'
+      : '';
+    const miolo = est === 'Bloqueado'
+      ? '<use href="#i-lock" x="-10" y="-10" width="20" height="20" class="ico" style="color: var(--muted)"/>'
+      : `<text class="arv-num">${prov}/${apl.length}</text>`;
+    const rotulo = linhasRotulo(o.rotulo || o.nome).map((l, i) => `<tspan x="0" dy="${i ? 16 : 0}">${l}</tspan>`).join('');
+    return `<g class="est-${SLUG[est]}" transform="translate(${f1(p.x)} ${f1(p.y)})" style="--c: var(${corDe(o.mat)})" role="img" aria-label="${resumo}">
+      <title>${resumo}</title>${satelites(o)}${est === 'Dominado' ? '<circle class="arv-aro" r="31"/>' : ''}<circle class="arv-disco" r="25"/>${miolo}${selo}
+      <text class="arv-rotulo" y="68">${rotulo}</text></g>`;
+  }
+  function desenharArvore() {
+    const ids = filtroArvore === 'todas' ? MATERIAS_FICHA.map((m) => m.id) : [filtroArvore];
+    const sets = setores(ids), pos = posicoes(ids, sets);
+    const lista = OFICIOS_FICHA.filter((o) => ids.includes(o.mat));
+    const maxD = Math.max(...lista.map((o) => o.d));
+    const xs = [-80, 80], ys = [-80, 80];
+    lista.forEach((o) => { const p = pos[o.id]; xs.push(p.x - 75, p.x + 75); ys.push(p.y - 65, p.y + 100); });
+    if (ids.length > 1) {
+      ids.forEach((id) => {
+        const [a0, a1] = sets[id];
+        const prof = Math.max(...lista.filter((o) => o.mat === id).map((o) => o.d));
+        const p = polar((a0 + a1) / 2, ARV.R0 + (prof - 1) * ARV.STEP + 100);
+        xs.push(p.x - 120, p.x + 120); ys.push(p.y - 20, p.y + 60);
+      });
+    }
+    const x0 = Math.min(...xs), y0 = Math.min(...ys);
+    const svg = $('#arvore');
+    svg.setAttribute('viewBox', `${f1(x0)} ${f1(y0)} ${f1(Math.max(...xs) - x0)} ${f1(Math.max(...ys) - y0)}`);
+    svg.innerHTML = fundoArvore(ids, sets, maxD, lista) + arestas(lista, pos) + hubArvore(ids, sets) + lista.map((o) => noArvore(o, pos[o.id])).join('');
+  }
+  $('#ficha-arvore').addEventListener('change', (e) => {
+    if (e.target.name !== 'arv-materia') return;
+    filtroArvore = e.target.value;
+    desenharArvore();
+  });
+
+  /* Legenda: o estado nunca depende só da cor (forma do disco, traço da linha e texto). */
+  function discoMini(est, texto) {
+    const miolo = est === 'bloqueado'
+      ? '<use href="#i-lock" x="-10" y="-10" width="20" height="20" class="ico" style="color: var(--muted)"/>'
+      : `<text class="arv-num">${texto}</text>`;
+    return `<svg viewBox="-34 -34 68 68" width="40" height="40" class="arv est-${est} flex-none" style="--c: var(--mat-1)" aria-hidden="true">${est === 'dominado' ? '<circle class="arv-aro" r="31"/>' : ''}<circle class="arv-disco" r="25"/>${miolo}</svg>`;
+  }
+  function linhaMini(cls) {
+    return `<svg viewBox="0 0 56 8" width="56" height="8" class="flex-none" style="--c: var(--mat-1)" aria-hidden="true"><line class="arv-aresta ${cls}" x1="3" y1="4" x2="53" y2="4"/></svg>`;
+  }
+  function legendaArvore() {
+    const estados = [
+      ['bloqueado', '–', 'Bloqueado', 'algum pré-requisito ainda não Liberado'],
+      ['disponivel', '0/5', 'Disponível', 'nenhuma dimensão provada'],
+      ['pratica', '1/5', 'Em prática', '1 dimensão, ou 2 ou mais sem a Compreensão conceitual'],
+      ['liberado', '2/5', 'Liberado', '2 ou mais, com a Compreensão conceitual; abre os dependentes'],
+      ['dominado', '5/5', 'Dominado', 'todas as dimensões que se aplicam'],
+    ];
+    const linhas = [
+      ['apagada', 'Apagada (pontilhada)', 'o pré-requisito ainda não está Liberado'],
+      ['aberta', 'Aberta (contínua)', 'o pré-requisito está Liberado'],
+      ['acesa', 'Acesa (grossa, na cor da matéria)', 'o pré-requisito está Dominado'],
+    ];
+    $('#arv-legenda').innerHTML = `
+      <div><p class="eyebrow mb-3">Estado do Ofício</p><ul class="space-y-3">${estados.map(([s, t, n, d]) => `<li class="flex items-center gap-3 text-sm">${discoMini(s, t)}<span class="min-w-0"><b>${n}</b>: ${d}</span></li>`).join('')}</ul>
+        <p class="mt-3 text-sm text-muted">O número dentro do disco são as dimensões provadas, entre as que se aplicam ao Ofício.</p></div>
+      <div><p class="eyebrow mb-3">Satélites</p>
+        <p class="text-sm text-muted">Cinco pontos ao redor do disco, do topo no sentido horário:</p>
+        <ul class="mt-2 space-y-1 text-sm">${DIMS.map((d) => `<li><b>${LETRA[d.id]}</b> · ${d.nome}</li>`).join('')}</ul>
+        <p class="mt-3 text-sm text-muted">Cheio: provada. Vazio: pendente. Tracejado com traço: não se aplica. Aro pontilhado: aguardando a Jane.</p></div>
+      <div><p class="eyebrow mb-3">Linhas e selo</p><ul class="space-y-3">${linhas.map(([c, n, d]) => `<li class="flex items-center gap-3 text-sm">${linhaMini(c)}<span class="min-w-0"><b>${n}</b>: ${d}</span></li>`).join('')}</ul>
+        <p class="mt-4 flex items-center gap-3 text-sm"><svg viewBox="-12 -12 24 24" width="24" height="24" class="flex-none" aria-hidden="true"><circle class="arv-selo" r="9.5"/><use href="#i-clock" x="-6" y="-6" width="12" height="12" class="ico" style="color: var(--bg); stroke-width: 2.4"/></svg><span class="min-w-0"><b>Precisa revisar</b>: a revisão do Ofício venceu; nenhuma prova se perde</span></p></div>`;
+  }
+  legendaArvore();
+
   function mostrarFicha() {
     const resumo = itemAtual === 0;
     $('#ficha-resumo').hidden = !resumo;
     $('#ficha-arvore').hidden = resumo;
     if (resumo) desenharResumo();
+    else desenharArvore();
   }
 
   desenharSessao();
