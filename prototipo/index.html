@@ -32,8 +32,9 @@
     Na Árvore os Ofícios não têm nome fixo: o nome aparece numa etiqueta presa
     ao disco (mouse, foco de teclado ou seleção), no card de detalhe e na busca
     por nome. Só os títulos das matérias ficam fixos. Os raios crescem com a
-    quantidade de Ofícios. ?volume=N soma N Ofícios fictícios a cada matéria
-    (teste de volume; os números do Resumo mudam).
+    quantidade de Ofícios. Teste de limite: ?volume=N soma N Ofícios fictícios a
+    cada matéria (até 2000; os números do Resumo mudam) e ?medir mostra no canto
+    o número de elementos, o tempo dos desenhos e o tempo entre quadros.
   - Tailwind v4 (build de navegador, pelo jsDelivr) com `integrity`: o
     cdn.tailwindcss.com não manda cabeçalho CORS, então não aceita a checagem de
     integridade que o SonarCloud exige (regra S5725). Ao trocar a versão, gerar o
@@ -309,6 +310,10 @@
   .arv-xp { fill: none; stroke: var(--xp); stroke-width: 3; stroke-linecap: round; }
   .arv-hub-texto { fill: var(--text); font-size: 15px; font-weight: 700; text-anchor: middle; }
   .arv-hub-sub { fill: var(--xp); font-size: 12px; font-weight: 600; text-anchor: middle; }
+
+  /* Só com ?medir (teste de limite da Árvore). */
+  #arv-hud { position: fixed; right: 8px; bottom: 76px; z-index: 70; padding: 6px 10px; border: 1px solid var(--hairline); border-radius: 10px;
+    background: var(--surface-2); color: var(--text); font: 12px/1.4 ui-monospace, Consolas, monospace; white-space: pre; pointer-events: none; }
 
   #toast { transition: opacity .25s ease; }
 </style>
@@ -1667,7 +1672,34 @@
   ].map((o) => ({ ...o, provas: new Set(o.provas), naoSeAplica: o.naoSeAplica || [] }));
 
   /* ?volume=N soma N Ofícios fictícios a cada matéria, para ver a Árvore com muita informação (os números do Resumo mudam). */
-  const volumeExtra = Math.min(300, Math.max(0, Number.parseInt(params.get('volume') || '0', 10) || 0));
+  const volumeExtra = Math.min(2000, Math.max(0, Number.parseInt(params.get('volume') || '0', 10) || 0));
+  /* ?medir guarda em window.__medidas o tempo (ms) de cada desenho da Árvore e de cada cálculo dos títulos e etiquetas. */
+  const medir = params.has('medir');
+  const medidas = { arvore: [], rotulos: [] };
+  if (medir) {
+    window.__medidas = medidas;
+    /* Medidor no canto da tela: Ofícios, elementos do SVG, tempo dos desenhos e tempo entre quadros (pior dos últimos 60). */
+    const hud = document.createElement('div');
+    hud.id = 'arv-hud';
+    hud.setAttribute('aria-hidden', 'true');
+    document.body.append(hud);
+    let anterior = performance.now();
+    const intervalos = [];
+    const contar = (t) => {
+      intervalos.push(t - anterior);
+      anterior = t;
+      if (intervalos.length > 60) intervalos.shift();
+      requestAnimationFrame(contar);
+    };
+    requestAnimationFrame(contar);
+    setInterval(() => {
+      const media = intervalos.reduce((s, v) => s + v, 0) / (intervalos.length || 1);
+      const ult = (lista) => (lista.length ? lista[lista.length - 1] : '-');
+      hud.textContent = `Ofícios: ${document.querySelectorAll('#arvore .arv-no').length} · elementos: ${document.querySelectorAll('#arvore *').length}\n`
+        + `Desenho da Árvore: ${ult(medidas.arvore)} ms · títulos e etiquetas: ${ult(medidas.rotulos)} ms\n`
+        + `Quadros: ${media.toFixed(1)} ms (${(1000 / media).toFixed(0)} por s) · pior: ${Math.max(0, ...intervalos).toFixed(0)} ms`;
+    }, 500);
+  }
   if (volumeExtra > 0) {
     let semente = 7;
     const sorteio = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
@@ -1894,6 +1926,7 @@
       <circle class="arv-anel-sel" r="55"/><circle class="arv-foco" r="58"/></g>`;
   }
   function desenharArvore() {
+    const t0 = medir ? performance.now() : 0;
     const ids = filtroArvore === 'todas' ? MATERIAS_FICHA.map((m) => m.id) : [filtroArvore];
     const sets = setores(ids);
     const lista = OFICIOS_FICHA.filter((o) => ids.includes(o.mat));
@@ -1922,6 +1955,7 @@
     vistaInicial();
     desenharRotulos();
     desenharDetalhe();
+    if (medir) medidas.arvore.push(Math.round(performance.now() - t0));
   }
 
   /* ----- Árvore: títulos das matérias e etiqueta do Ofício (ver desenharRotulos) ----- */
@@ -1970,6 +2004,7 @@
     const r = $('#arvore').getBoundingClientRect();
     if (!alvo || !r.width) return;
     rotulosAgendados = false;
+    const t0 = medir ? performance.now() : 0;
     const k = r.width / vista.w;
     const tela = (p) => ({ x: (p.x - vista.x) * k, y: (p.y - vista.y) * k });
     const px = r.width < 640 ? 12 : 13, RN = ARV.RN * k;
@@ -2027,6 +2062,7 @@
     /* O grupo desfaz o zoom: dentro dele, 1 unidade = 1 pixel da tela. */
     alvo.setAttribute('transform', `translate(${f1(vista.x)} ${f1(vista.y)}) scale(${(1 / k).toFixed(5)})`);
     alvo.innerHTML = saida;
+    if (medir) medidas.rotulos.push(Math.round((performance.now() - t0) * 10) / 10);
   }
   /* Muitos eventos de zoom e arraste por quadro: o cálculo dos nomes roda uma vez por quadro. */
   function agendarRotulos() {
