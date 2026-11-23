@@ -693,7 +693,7 @@
                 </div>
                 <details class="mt-3">
                   <summary class="cursor-pointer text-sm font-semibold text-muted">Como mexer na Árvore</summary>
-                  <p id="arv-dica" class="mt-2 text-sm text-muted">Escolha um Ofício para ver o detalhe. Arraste para mover; Ctrl + roda do mouse ou os botões aproximam. Com o teclado: setas trocam de Ofício, Enter seleciona, + e − aproximam, 0 mostra tudo, Esc fecha o detalhe e depois sai da tela cheia.</p>
+                  <p id="arv-dica" class="mt-2 text-sm text-muted">Escolha um Ofício para ver o detalhe. Arraste para mover; a roda do mouse ou os botões aproximam e afastam. Com o teclado: setas trocam de Ofício, Enter seleciona, + e − aproximam, 0 mostra tudo, Esc fecha o detalhe e depois sai da tela cheia.</p>
                 </details>
               </div>
               <svg id="arvore" class="arv block w-full" role="group" aria-label="Árvore de Ofícios" aria-describedby="arv-dica"></svg>
@@ -1989,12 +1989,13 @@
     const alvo = e.target.closest('.arv-no');
     if (alvo) selecionar(alvo.dataset.id);
   });
-  /* Só Ctrl ou ⌘ + roda zoom (o toque do trackpad em pinça manda ctrlKey); a roda sozinha rola a página. */
+  /* A roda do mouse dá o zoom, em volta do ponteiro. Sobre a Árvore ela não rola a página (a página rola pelo resto da tela).
+     A pinça do trackpad chega como roda com ctrlKey e deltas pequenos, então pesa mais. */
   arv.addEventListener('wheel', (e) => {
-    if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
+    const delta = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
     const c = paraSvg(e.clientX, e.clientY);
-    zoomar(e.deltaY < 0 ? 1.2 : 1 / 1.2, c.x, c.y);
+    zoomar(Math.exp(-delta * (e.ctrlKey ? 0.01 : 0.0015)), c.x, c.y);
   }, { passive: false });
   window.addEventListener('resize', () => {
     if ($('#ficha-arvore').hidden) return;
