@@ -174,6 +174,8 @@
     font-size: 14px; font-weight: 600; color: var(--muted); white-space: nowrap; }
   .seg input:checked + span { background: var(--accent); color: var(--on-accent); }
   .seg input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+  .seg-curto span { padding: 0 10px; }
+  @media (min-width: 640px) { .seg-curto span { padding: 0 16px; } }
 
   /* Navegação */
   .tab[aria-current="page"] { box-shadow: inset 0 2px 0 var(--xp); }
@@ -235,6 +237,20 @@
 
   /* Ficha: Árvore (ATL-57). Cada Ofício leva a cor da matéria em --c; o estado também aparece na forma e no texto. */
   .arv { cursor: grab; user-select: none; touch-action: pan-y pinch-zoom; }
+  /* A Árvore ocupa a altura da janela, menos o que fica em volta. */
+  #arvore { height: max(420px, calc(100dvh - 300px)); }
+  @media (min-width: 768px) { #arvore { height: max(520px, calc(100dvh - 190px)); } }
+  /* Na aba Árvore o conteúdo usa a largura toda, sem o teto de 1120 px. */
+  #conteudo.largo { max-width: none; padding-inline: 12px; }
+  /* Tela cheia: a área cobre a janela (e, quando o navegador deixa, usa a tela cheia de verdade). */
+  .arv-area.cheia { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; padding: 12px; background: var(--bg); }
+  .arv-area.cheia .arv-cartao { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .arv-area.cheia #arvore { flex: 1; height: auto; min-height: 0; }
+  .arv-area.cheia .arv-painel { position: absolute; z-index: 10; margin: 0; inset: auto 24px 24px 24px; max-height: 42%; width: auto; overflow-y: auto; }
+  @media (min-width: 1024px) {
+    .arv-area.cheia .arv-painel { inset: 24px 24px auto auto; width: 320px; max-height: calc(100% - 48px); }
+  }
+  body:has(.arv-area.cheia) { overflow: hidden; }
   .arv text { font-family: var(--f-text); }
   .arv-painel { background: var(--surface-2); border-color: var(--hairline); }
   .arv-no { cursor: pointer; outline: none; }
@@ -303,6 +319,8 @@
   <symbol id="i-menos" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
   <symbol id="i-ajustar" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
   <symbol id="i-seta" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-expandir" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></symbol>
+  <symbol id="i-recolher" viewBox="0 0 24 24"><path d="M20 10h-6V4M14 10l7-7M4 14h6v6M10 14l-7 7"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="o-e" viewBox="0 0 24 16">
@@ -647,23 +665,21 @@
         </div>
 
         <div id="ficha-arvore" hidden>
-          <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div class="min-w-0 md:max-w-[560px]">
-              <h2 class="font-title text-2xl font-bold">Árvore</h2>
-              <p class="mt-1 text-sm text-muted">Mapa de pré-requisitos dos Ofícios, em leque por matéria. Cada Ofício é um disco com cinco satélites, um por dimensão.</p>
-            </div>
-            <div class="seg" role="radiogroup" aria-label="Filtrar por matéria">
-              <label><input type="radio" name="arv-materia" value="todas" checked><span>Todas</span></label>
-              <label><input type="radio" name="arv-materia" value="calc"><span>Cálculo</span></label>
-              <label><input type="radio" name="arv-materia" value="redes"><span>Redes</span></label>
-              <label><input type="radio" name="arv-materia" value="fil"><span>Filosofia</span></label>
-            </div>
+          <div class="mb-4 min-w-0 md:max-w-[560px]">
+            <h2 class="font-title text-2xl font-bold">Árvore</h2>
+            <p class="mt-1 text-sm text-muted">Mapa de pré-requisitos dos Ofícios, em leque por matéria. Cada Ofício é um disco com cinco satélites, um por dimensão.</p>
           </div>
-          <div class="relative">
-            <div class="card">
+          <div id="arv-area" class="arv-area relative">
+            <div class="card arv-cartao">
               <div class="mb-3 lg:max-w-[calc(100%-340px)]">
-                <p id="arv-dica" class="text-sm text-muted">Escolha um Ofício para ver o detalhe. Arraste para mover; Ctrl + roda do mouse ou os botões aproximam. Com o teclado: setas trocam de Ofício, Enter seleciona, + e − aproximam, 0 mostra tudo.</p>
-                <div class="mt-3 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Controles da Árvore">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+                <div class="seg seg-curto" role="radiogroup" aria-label="Filtrar por matéria">
+                  <label><input type="radio" name="arv-materia" value="todas" checked><span>Todas</span></label>
+                  <label><input type="radio" name="arv-materia" value="calc"><span>Cálculo</span></label>
+                  <label><input type="radio" name="arv-materia" value="redes"><span>Redes</span></label>
+                  <label><input type="radio" name="arv-materia" value="fil"><span>Filosofia</span></label>
+                </div>
+                <div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Controles da Árvore">
                   <button type="button" class="icon-btn" data-arv="mais" aria-label="Aproximar"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-mais"/></svg></button>
                   <button type="button" class="icon-btn" data-arv="menos" aria-label="Afastar"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-menos"/></svg></button>
                   <button type="button" class="icon-btn" data-arv="ajustar" aria-label="Mostrar a Árvore inteira"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-ajustar"/></svg></button>
@@ -673,12 +689,18 @@
                   <button type="button" class="icon-btn" data-arv="direita" aria-label="Mover para a direita"><svg class="ico h-5 w-5 rotate-90" aria-hidden="true"><use href="#i-seta"/></svg></button>
                   <span id="arv-zoom" class="ml-1 text-sm tabular-nums text-muted">100%</span>
                 </div>
+                <button type="button" class="btn btn-ghost" data-arv="tela-cheia" id="arv-tela-cheia"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-expandir"/></svg><span>Tela cheia</span></button>
+                </div>
+                <details class="mt-3">
+                  <summary class="cursor-pointer text-sm font-semibold text-muted">Como mexer na Árvore</summary>
+                  <p id="arv-dica" class="mt-2 text-sm text-muted">Escolha um Ofício para ver o detalhe. Arraste para mover; Ctrl + roda do mouse ou os botões aproximam. Com o teclado: setas trocam de Ofício, Enter seleciona, + e − aproximam, 0 mostra tudo, Esc fecha o detalhe e depois sai da tela cheia.</p>
+                </details>
               </div>
-              <svg id="arvore" class="arv block aspect-[4/5] w-full md:aspect-[16/10]" role="group" aria-label="Árvore de Ofícios" aria-describedby="arv-dica"></svg>
+              <svg id="arvore" class="arv block w-full" role="group" aria-label="Árvore de Ofícios" aria-describedby="arv-dica"></svg>
             </div>
             <aside id="arv-detalhe" class="arv-painel card mt-4 lg:absolute lg:right-4 lg:top-4 lg:z-10 lg:mt-0 lg:max-h-[calc(100%-2rem)] lg:w-[320px] lg:overflow-y-auto" aria-label="Detalhe do Ofício" hidden></aside>
+            <p id="arv-status" class="sr-only" role="status" aria-live="polite"></p>
           </div>
-          <p id="arv-status" class="sr-only" role="status" aria-live="polite"></p>
           <section class="card mt-6" aria-labelledby="t-arv-legenda">
             <h3 id="t-arv-legenda" class="font-title text-lg font-bold">Como ler a Árvore</h3>
             <div id="arv-legenda" class="mt-4 grid gap-6 md:grid-cols-3"></div>
@@ -869,6 +891,10 @@
         <div class="card"><p>${t.nota}</p><p class="mt-2 text-sm text-muted">O menu da seção mostra os itens da aba e some quando ela tem um item só, como no Painel.</p></div>`;
     }
     desenharMenu();
+    if (!ficha) {
+      $('#conteudo').classList.remove('largo');
+      if (cheia()) alternarTelaCheia(false);
+    }
     if (praticar) mostrarPraticar();
     if (ficha) mostrarFicha();
     document.title =`${t.nome} · Ateliê (protótipo)`;
@@ -1831,6 +1857,14 @@
     const w = Math.max(base.w, base.h / razao);
     fit = { w, h: w * razao, x: base.x + base.w / 2 - w / 2, y: base.y + base.h / 2 - (w * razao) / 2 };
   }
+  /* A área mudou de tamanho (janela, aba larga, tela cheia): se a Árvore estava inteira, continua inteira. */
+  function reajustar() {
+    const inteira = vista.w >= fit.w - 1;
+    calcularFit();
+    if (inteira) vista = { ...fit };
+    limitar();
+    aplicarVista();
+  }
   function limitar() {
     vista.w = Math.min(fit.w, Math.max(fit.w / ZMAX, vista.w));
     vista.h = vista.w * razao;
@@ -1878,13 +1912,19 @@
   }
   /* No PC o painel de detalhe cobre os 340 px da direita da Árvore. */
   const larguraPainel = () => (selecionado !== null && emTelaGrande() ? (340 * vista.w) / $('#arvore').getBoundingClientRect().width : 0);
-  /* Vendo a Árvore inteira, a seleção aproxima do Ofício (fica à esquerda do painel). */
+  /* No celular, em tela cheia, o painel vira uma folha na parte de baixo: mede quanto dela cobre a Árvore. */
+  function alturaPainel() {
+    if (selecionado === null || !cheia() || emTelaGrande()) return 0;
+    const s = $('#arvore').getBoundingClientRect(), p = $('#arv-detalhe').getBoundingClientRect();
+    return (Math.max(0, s.bottom - p.top) * vista.h) / s.height;
+  }
+  /* Vendo a Árvore inteira, a seleção aproxima do Ofício (fica livre do painel). */
   function focarOficio(id) {
     const p = posArv[id];
     vista.w = fit.w / ($('#arvore').getBoundingClientRect().width < 640 ? 3.5 : 2.2);
     vista.h = vista.w * razao;
     vista.x = p.x - (vista.w - larguraPainel()) / 2;
-    vista.y = p.y - vista.h / 2;
+    vista.y = p.y - (vista.h - alturaPainel()) / 2;
     limitar();
     aplicarVista();
   }
@@ -1892,11 +1932,11 @@
   function garantirVisivel(id) {
     const p = posArv[id];
     if (!p) return;
-    const painel = larguraPainel();
+    const painel = larguraPainel(), folha = alturaPainel();
     const m = 95;
-    if (p.x - m < vista.x || p.x + m > vista.x + vista.w - painel || p.y - m < vista.y || p.y + m > vista.y + vista.h) {
+    if (p.x - m < vista.x || p.x + m > vista.x + vista.w - painel || p.y - m < vista.y || p.y + m > vista.y + vista.h - folha) {
       vista.x = p.x - (vista.w - painel) / 2;
-      vista.y = p.y - vista.h / 2;
+      vista.y = p.y - (vista.h - folha) / 2;
       limitar();
       aplicarVista();
     }
@@ -1958,9 +1998,7 @@
   }, { passive: false });
   window.addEventListener('resize', () => {
     if ($('#ficha-arvore').hidden) return;
-    calcularFit();
-    limitar();
-    aplicarVista();
+    reajustar();
   });
 
   /* ----- Árvore: teclado, seleção e detalhe ----- */
@@ -2061,7 +2099,6 @@
     else if (e.key === '0') ajustarTudo();
     else if (g && (e.key === 'Enter' || e.key === ' ')) selecionar(g.dataset.id);
     else if (g && e.key.startsWith('Arrow')) moverFoco(g.dataset.id, e.key);
-    else if (e.key === 'Escape' && selecionado) fecharDetalhe();
     else return;
     e.preventDefault();
   });
@@ -2070,10 +2107,31 @@
     if (sel) selecionar(sel.dataset.sel, true);
     else if (e.target.closest('[data-det-fechar]')) fecharDetalhe();
   });
-  $('#arv-detalhe').addEventListener('keydown', (e) => {
+  /* Tela cheia: a área cobre a janela e, se o navegador deixar, usa também a tela cheia de verdade. */
+  const areaArv = $('#arv-area');
+  const cheia = () => areaArv.classList.contains('cheia');
+  function alternarTelaCheia(ligar = !cheia()) {
+    areaArv.classList.toggle('cheia', ligar);
+    const botao = $('#arv-tela-cheia');
+    botao.querySelector('span').textContent = ligar ? 'Sair da tela cheia' : 'Tela cheia';
+    botao.querySelector('use').setAttribute('href', ligar ? '#i-recolher' : '#i-expandir');
+    /* Se o navegador recusar a tela cheia de verdade, a área já cobre a janela: o erro não muda nada. */
+    if (ligar && areaArv.requestFullscreen && !document.fullscreenElement) areaArv.requestFullscreen().catch(() => {});
+    else if (!ligar && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    reajustar();
+    botao.focus({ preventScroll: true });
+  }
+  /* Esc fecha primeiro o detalhe e depois a tela cheia. */
+  areaArv.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    if (selecionado) fecharDetalhe();
+    else if (cheia()) alternarTelaCheia(false);
+    else return;
     e.preventDefault();
-    fecharDetalhe();
+  });
+  /* O navegador sai da tela cheia por conta própria (Esc dele): acompanha. */
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && cheia()) alternarTelaCheia(false);
   });
   $('#ficha-arvore').addEventListener('click', (e) => {
     const b = e.target.closest('[data-arv]');
@@ -2082,6 +2140,7 @@
     if (passo) mover(passo[0] * vista.w * 0.25, passo[1] * vista.h * 0.25);
     else if (b.dataset.arv === 'mais') zoomar(1.5);
     else if (b.dataset.arv === 'menos') zoomar(1 / 1.5);
+    else if (b.dataset.arv === 'tela-cheia') alternarTelaCheia();
     else ajustarTudo();
   });
   $('#ficha-arvore').addEventListener('change', (e) => {
@@ -2129,6 +2188,7 @@
     const resumo = itemAtual === 0;
     $('#ficha-resumo').hidden = !resumo;
     $('#ficha-arvore').hidden = resumo;
+    $('#conteudo').classList.toggle('largo', !resumo);
     if (resumo) desenharResumo();
     else desenharArvore();
   }
