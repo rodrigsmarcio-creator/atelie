@@ -29,11 +29,11 @@
   - Ficha (ATL-57): 20 Ofícios fictícios e fixos em 3 matérias. O estado vem de
     estadoDe() mais o Bloqueado do glossário. Domínio = dimensões provadas ÷ as
     que se aplicam, arredondado para baixo (hipótese), igual ao do Painel.
-    Os nomes da Árvore têm tamanho fixo em pixels e são reposicionados a cada
-    zoom sem encostar em disco, satélite, linha, título ou outro nome; o que não
-    cabe fica oculto até aproximar. Os raios crescem com a quantidade de Ofícios.
-    ?volume=N soma N Ofícios fictícios a cada matéria (teste de volume; os
-    números do Resumo mudam).
+    Na Árvore os Ofícios não têm nome fixo: o nome aparece numa etiqueta presa
+    ao disco (mouse, foco de teclado ou seleção), no card de detalhe e na busca
+    por nome. Só os títulos das matérias ficam fixos. Os raios crescem com a
+    quantidade de Ofícios. ?volume=N soma N Ofícios fictícios a cada matéria
+    (teste de volume; os números do Resumo mudam).
   - Tailwind v4 (build de navegador, pelo jsDelivr) com `integrity`: o
     cdn.tailwindcss.com não manda cabeçalho CORS, então não aceita a checagem de
     integridade que o SonarCloud exige (regra S5725). Ao trocar a versão, gerar o
@@ -289,9 +289,15 @@
   .arv-espera { fill: none; stroke: var(--xp); stroke-width: 1; stroke-dasharray: 1.5 1.5; }
   .arv-letra { fill: var(--muted); font-size: 9px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
   .arv-sat.on + .arv-letra { fill: var(--bg); }
-  /* Os nomes ficam num grupo que desfaz o zoom: aqui 1 unidade = 1 pixel, então o tamanho é o mesmo em qualquer zoom. */
+  /* Títulos e etiquetas ficam num grupo que desfaz o zoom: aqui 1 unidade = 1 pixel, então o tamanho é o mesmo em qualquer zoom. */
   .arv-rotulos { pointer-events: none; }
-  .arv-rotulo { fill: var(--text); font-weight: 600; stroke: var(--bg); stroke-width: 4px; paint-order: stroke; }
+  .arv-tag { fill: var(--surface-2); stroke: var(--hairline); stroke-width: 1.5; }
+  .arv-tag-lig { stroke: var(--hairline); stroke-width: 1.5; }
+  .arv-tag-texto { fill: var(--text); font-weight: 600; }
+  .arv-busca { width: 100%; min-height: 44px; padding: 0 16px; border: 1px solid var(--muted); border-radius: var(--r-pill);
+    background: var(--surface-2); color: var(--text); font: inherit; font-size: 14px; }
+  .arv-busca::placeholder { color: var(--muted); }
+  @media (min-width: 640px) { .arv-busca { width: 220px; } }
   .lod-medio .arv-letra, .lod-baixo .arv-num, .lod-baixo .arv-sat-linha { display: none; }
   .arv-selo { fill: var(--bad); stroke: var(--bg); stroke-width: 2; }
   .arv-mat-ponto { fill: var(--c); }
@@ -698,10 +704,15 @@
                   <span id="arv-zoom" class="ml-1 text-sm tabular-nums text-muted">100%</span>
                 </div>
                 <button type="button" class="btn btn-ghost" data-arv="tela-cheia" id="arv-tela-cheia"><svg class="ico h-5 w-5" aria-hidden="true"><use href="#i-expandir"/></svg><span>Tela cheia</span></button>
+                <div class="w-full sm:w-auto">
+                  <label for="arv-busca" class="sr-only">Buscar Ofício pelo nome</label>
+                  <input id="arv-busca" class="arv-busca" type="search" list="arv-nomes" autocomplete="off" placeholder="Buscar Ofício…">
+                  <datalist id="arv-nomes"></datalist>
+                </div>
                 </div>
                 <details class="mt-3">
                   <summary class="cursor-pointer text-sm font-semibold text-muted">Como mexer na Árvore</summary>
-                  <p id="arv-dica" class="mt-2 text-sm text-muted">Escolha um Ofício para ver o detalhe. Arraste para mover; a roda do mouse ou os botões aproximam e afastam. Com o teclado: setas trocam de Ofício, Enter seleciona, + e − aproximam, 0 mostra tudo, Esc fecha o detalhe e depois sai da tela cheia.</p>
+                  <p id="arv-dica" class="mt-2 text-sm text-muted">Passe o mouse (ou toque) num disco para ver o nome e clique para abrir o detalhe; ou busque o Ofício pelo nome. Arraste para mover; a roda do mouse ou os botões aproximam e afastam. Com o teclado: setas trocam de Ofício, Enter seleciona, + e − aproximam, 0 mostra tudo, Esc fecha o detalhe e depois sai da tela cheia.</p>
                 </details>
               </div>
               <svg id="arvore" class="arv block w-full" role="group" aria-label="Árvore de Ofícios" aria-describedby="arv-dica"></svg>
@@ -1738,7 +1749,8 @@
   let base = { x: 0, y: 0, w: 1, h: 1 }, fit = { ...base }, vista = { ...base }, razao = 0.6, posArv = {};
   /* Dados da Árvore desenhada, para posicionar os nomes: Ofícios (com posição), linhas e títulos das matérias. */
   let nosArv = [], arestasArv = [], titulosArv = [], rotulosAgendados = false;
-  let selecionado = null, focoId = null;
+  /* hoverId: Ofício sob o mouse. focoTeclado: Ofício com foco visível (teclado). Os dois mostram a etiqueta com o nome. */
+  let selecionado = null, focoId = null, hoverId = null, focoTeclado = null;
   const corDe = (id) => MATERIAS_FICHA.find((m) => m.id === id).cor;
   const f1 = (n) => n.toFixed(1);
   function polar(graus, r) {
@@ -1878,7 +1890,7 @@
       ? '<use href="#i-lock" x="-10" y="-10" width="20" height="20" class="ico" style="color: var(--muted)"/>'
       : `<text class="arv-num">${prov}/${apl.length}</text>`;
     return `<g class="arv-no est-${SLUG[est]}" id="arv-no-${o.id}" data-id="${o.id}" tabindex="${o.id === focoId ? 0 : -1}" transform="translate(${f1(p.x)} ${f1(p.y)})" style="--c: var(${corDe(o.mat)})" role="button" aria-pressed="${o.id === selecionado}" aria-label="${resumo}">
-      <title>${resumo}</title><circle class="arv-hit" r="52"/>${satelites(o)}${est === 'Dominado' ? '<circle class="arv-aro" r="31"/>' : ''}<circle class="arv-disco" r="25"/>${miolo}${selo}
+      <circle class="arv-hit" r="52"/>${satelites(o)}${est === 'Dominado' ? '<circle class="arv-aro" r="31"/>' : ''}<circle class="arv-disco" r="25"/>${miolo}${selo}
       <circle class="arv-anel-sel" r="55"/><circle class="arv-foco" r="58"/></g>`;
   }
   function desenharArvore() {
@@ -1912,8 +1924,7 @@
     desenharDetalhe();
   }
 
-  /* ----- Árvore: nomes na tela. Tamanho fixo em pixels; a posição é refeita a cada zoom, sem encostar em disco,
-     satélite, título ou outro nome. O que não cabe fica oculto até aproximar (e o contador avisa quantos). ----- */
+  /* ----- Árvore: títulos das matérias e etiqueta do Ofício (ver desenharRotulos) ----- */
   const medidor = document.createElement('canvas').getContext('2d');
   const larguras = new Map();
   function largura(texto, px, peso) {
@@ -1952,20 +1963,8 @@
     }
     return true;
   }
-  /* Oito posições em volta do disco: embaixo, direita, esquerda, em cima e as quatro diagonais. */
-  function candidatos(cx, cy, R, w, h, g) {
-    const d = R * 0.7071 + g;
-    return [
-      { x: cx - w / 2, y: cy + R + g, ancora: 'middle' },
-      { x: cx + R + g, y: cy - h / 2, ancora: 'start' },
-      { x: cx - R - g - w, y: cy - h / 2, ancora: 'end' },
-      { x: cx - w / 2, y: cy - R - g - h, ancora: 'middle' },
-      { x: cx + d, y: cy + d, ancora: 'start' },
-      { x: cx - d - w, y: cy + d, ancora: 'end' },
-      { x: cx + d, y: cy - d - h, ancora: 'start' },
-      { x: cx - d - w, y: cy - d - h, ancora: 'end' },
-    ].map((c, i) => ({ ...c, w, h, pref: i * 0.05 }));
-  }
+  /* Títulos das matérias (fixos, além do anel mais fundo de cada uma) e etiqueta com o nome do Ofício (só do que está
+     escolhido, sob o mouse ou com foco de teclado, presa ao disco). Tudo em pixels: o grupo desfaz o zoom. */
   function desenharRotulos() {
     const alvo = $('#arv-rotulos');
     const r = $('#arvore').getBoundingClientRect();
@@ -1973,71 +1972,69 @@
     rotulosAgendados = false;
     const k = r.width / vista.w;
     const tela = (p) => ({ x: (p.x - vista.x) * k, y: (p.y - vista.y) * k });
-    const px = r.width < 640 ? 12 : 13, LH = Math.round(px * 1.25), RN = ARV.RN * k;
+    const px = r.width < 640 ? 12 : 13, RN = ARV.RN * k;
     const perto = (s, m) => s.x > -m && s.x < r.width + m && s.y > -m && s.y < r.height + m;
-    /* Só entra na conta o que está perto da tela: com muitos Ofícios, o resto não custa nada. */
-    const hub = { ...tela({ x: 0, y: 0 }), r: 70 * k };
-    /* Obstáculos até 2 raios + a largura de um nome além da borda: um nome meio fora da tela ainda não pode encostar neles. */
-    const alcance = 2 * RN + 260;
-    const discos = nosArv.map((n) => ({ ...tela(n.p), r: RN })).filter((c) => perto(c, alcance));
-    const segs = arestasArv.map(([a, b]) => { const sa = tela(a), sb = tela(b); return [sa.x, sa.y, sb.x, sb.y]; })
-      .filter(([x1, y1, x2, y2]) => Math.max(x1, x2) > -alcance && Math.min(x1, x2) < r.width + alcance && Math.max(y1, y2) > -alcance && Math.min(y1, y2) < r.height + alcance);
-    const colocados = [];
-    const livre = (ret) => !discos.some((c) => cruzaCirculo(ret, c)) && !cruzaCirculo(ret, hub) && !colocados.some((o) => cruzaRetangulo(ret, o));
     let saida = '';
 
-    /* 1) Títulos das matérias, além do anel mais fundo de cada uma. */
-    titulosArv.forEach((t) => {
-      const pxT = px + 1, pxP = px - 1;
-      const nome = t.nome.toUpperCase();
-      const w = Math.max(largura(nome, pxT, 700) + nome.length * 0.12 * pxT, largura(`${t.pct}% dominado`, pxP, 400)) + 26;
-      const h = Math.round(pxT * 1.3 + pxP * 1.3) + 4;
-      const rad = (t.ang * Math.PI) / 180, base0 = tela(polar(t.ang, t.rFim));
-      for (let passo = 0; passo < 14; passo++) {
-        const dist = RN + 14 + h / 2 + passo * 16;
-        const cx = base0.x + Math.cos(rad) * dist, cy = base0.y - Math.sin(rad) * dist;
-        const ret = { x: cx - w / 2, y: cy - h / 2, w, h };
-        if (!livre(ret) || segs.some((sg) => cruzaSegmento(ret, sg))) continue;
-        colocados.push(ret);
-        saida += `<g style="--c: var(${t.cor})"><circle class="arv-mat-ponto" cx="${f1(ret.x + 7)}" cy="${f1(ret.y + pxT * 0.65)}" r="5"/>
-          <text class="arv-mat-nome" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT)}" font-size="${pxT}">${nome}</text>
-          <text class="arv-mat-pct" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT * 1.3 + pxP)}" font-size="${pxP}">${t.pct}% dominado</text></g>`;
-        break;
-      }
-    });
-
-    /* 2) Nomes dos Ofícios, do mais importante ao menos (escolhido, com foco, "precisa revisar", depois os mais perto do centro). */
-    const peso = (n) => (n.id === selecionado ? 100 : 0) + (n.id === focoId ? 50 : 0) + (n.revisar ? 10 : 0);
-    let ocultos = 0;
-    nosArv.map((n) => ({ n, s: tela(n.p) })).filter(({ s }) => perto(s, RN + 160))
-      .sort((a, b) => peso(b.n) - peso(a.n) || a.n.d - b.n.d)
-      .forEach(({ n, s }) => {
-        const linhas = quebrar(n.nome, px, 120);
-        const w = Math.max(...linhas.map((l) => largura(l, px, 600))) + 6, h = linhas.length * LH + 2;
-        let melhor = null, custo = Infinity;
-        candidatos(s.x, s.y, RN, w, h, 4).forEach((c) => {
-          const ret = { x: c.x, y: c.y, w: c.w, h: c.h };
-          if (!livre(ret) || segs.some((sg) => cruzaSegmento(ret, sg))) return;
-          /* A borda da tela não proíbe: o nome cortado ainda é melhor que nenhum, mas pesa na escolha. */
-          let cst = c.pref;
-          if (ret.x < 0 || ret.y < 0 || ret.x + ret.w > r.width || ret.y + ret.h > r.height) cst += 2;
-          if (cst < custo) { custo = cst; melhor = { ...c, ret }; }
-        });
-        if (!melhor) { if (perto(s, 0)) ocultos += 1; return; }
-        colocados.push(melhor.ret);
-        const x = melhor.ancora === 'middle' ? melhor.ret.x + w / 2 : melhor.ancora === 'start' ? melhor.ret.x + 3 : melhor.ret.x + w - 3;
-        saida += `<text class="arv-rotulo" text-anchor="${melhor.ancora}" font-size="${px}">${linhas.map((l, i) => `<tspan x="${f1(x)}" y="${f1(melhor.ret.y + 1 + i * LH + px * 0.95)}">${l}</tspan>`).join('')}</text>`;
+    /* 1) Títulos das matérias. Procuram um lugar livre além do anel mais fundo (sem encostar em disco, linha ou centro). */
+    if (titulosArv.length) {
+      const hub = { ...tela({ x: 0, y: 0 }), r: 70 * k };
+      const alcance = 2 * RN + 260;
+      const discos = nosArv.map((n) => ({ ...tela(n.p), r: RN })).filter((c) => perto(c, alcance));
+      const segs = arestasArv.map(([a, b]) => { const sa = tela(a), sb = tela(b); return [sa.x, sa.y, sb.x, sb.y]; })
+        .filter(([x1, y1, x2, y2]) => Math.max(x1, x2) > -alcance && Math.min(x1, x2) < r.width + alcance && Math.max(y1, y2) > -alcance && Math.min(y1, y2) < r.height + alcance);
+      const colocados = [];
+      titulosArv.forEach((t) => {
+        const pxT = px + 1, pxP = px - 1;
+        const nome = t.nome.toUpperCase();
+        const w = Math.max(largura(nome, pxT, 700) + nome.length * 0.12 * pxT, largura(`${t.pct}% dominado`, pxP, 400)) + 26;
+        const h = Math.round(pxT * 1.3 + pxP * 1.3) + 4;
+        const rad = (t.ang * Math.PI) / 180, base0 = tela(polar(t.ang, t.rFim));
+        for (let passo = 0; passo < 14; passo++) {
+          const dist = RN + 14 + h / 2 + passo * 16;
+          const cx = base0.x + Math.cos(rad) * dist, cy = base0.y - Math.sin(rad) * dist;
+          const ret = { x: cx - w / 2, y: cy - h / 2, w, h };
+          const livre = !discos.some((c) => cruzaCirculo(ret, c)) && !cruzaCirculo(ret, hub) && !colocados.some((o) => cruzaRetangulo(ret, o));
+          if (!livre || segs.some((sg) => cruzaSegmento(ret, sg))) continue;
+          colocados.push(ret);
+          saida += `<g style="--c: var(${t.cor})"><circle class="arv-mat-ponto" cx="${f1(ret.x + 7)}" cy="${f1(ret.y + pxT * 0.65)}" r="5"/>
+            <text class="arv-mat-nome" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT)}" font-size="${pxT}">${nome}</text>
+            <text class="arv-mat-pct" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT * 1.3 + pxP)}" font-size="${pxP}">${t.pct}% dominado</text></g>`;
+          break;
+        }
       });
+    }
+
+    /* 2) Etiquetas: o escolhido, o que tem foco de teclado e o que está sob o mouse (este por cima). Ficam coladas no
+       disco (embaixo, ou em cima se faltar espaço), com fundo próprio e uma ligação curta, e nunca saem da área. */
+    const LH = Math.round(px * 1.25);
+    [...new Set([selecionado, focoTeclado, hoverId].filter(Boolean))].forEach((id) => {
+      const n = nosArv.find((x) => x.id === id);
+      if (!n) return;
+      const s = tela(n.p);
+      if (!perto(s, 80)) return;
+      const linhas = quebrar(n.nome, px, 200);
+      const w = Math.max(...linhas.map((l) => largura(l, px, 600))) + 20, h = linhas.length * LH + 12;
+      const borda = 51 * k;
+      let y = s.y + borda + 8, cima = false;
+      if (y + h > r.height - 4) { y = s.y - borda - 8 - h; cima = true; }
+      const x = Math.max(4, Math.min(s.x - w / 2, r.width - w - 4));
+      const ligX = Math.max(x + 8, Math.min(s.x, x + w - 8));
+      saida += `<line class="arv-tag-lig" x1="${f1(s.x)}" y1="${f1(cima ? s.y - borda : s.y + borda)}" x2="${f1(ligX)}" y2="${f1(cima ? y + h : y)}"/>
+        <rect class="arv-tag" x="${f1(x)}" y="${f1(y)}" width="${f1(w)}" height="${f1(h)}" rx="8"/>
+        <text class="arv-tag-texto" font-size="${px}">${linhas.map((l, i) => `<tspan x="${f1(x + 10)}" y="${f1(y + 6 + i * LH + px * 0.95)}">${l}</tspan>`).join('')}</text>`;
+    });
     /* O grupo desfaz o zoom: dentro dele, 1 unidade = 1 pixel da tela. */
     alvo.setAttribute('transform', `translate(${f1(vista.x)} ${f1(vista.y)}) scale(${(1 / k).toFixed(5)})`);
     alvo.innerHTML = saida;
-    $('#arv-zoom').textContent = `${Math.round((fit.w / vista.w) * 100)}%${ocultos ? ` · ${ocultos} ${ocultos === 1 ? 'nome oculto' : 'nomes ocultos'}: aproxime` : ''}`;
   }
   /* Muitos eventos de zoom e arraste por quadro: o cálculo dos nomes roda uma vez por quadro. */
   function agendarRotulos() {
     if (rotulosAgendados) return;
     rotulosAgendados = true;
     requestAnimationFrame(desenharRotulos);
+    /* Se os quadros estiverem parados (aba em segundo plano), o desenho sai mesmo assim em até 100 ms. */
+    setTimeout(() => { if (rotulosAgendados) desenharRotulos(); }, 100);
   }
 
   /* ----- Árvore: pan e zoom pelo viewBox ----- */
@@ -2254,7 +2251,7 @@
     $$('#arvore .arv-no').forEach((g) => { g.tabIndex = g.dataset.id === id ? 0 : -1; });
     agendarRotulos();
   }
-  function selecionar(id, doPainel = false) {
+  function selecionar(id, doPainel = false, rolar = true) {
     selecionado = id;
     marcarFoco(id);
     $$('#arvore .arv-no').forEach((g) => g.setAttribute('aria-pressed', String(g.dataset.id === id)));
@@ -2264,7 +2261,7 @@
     const o = porId(id);
     $('#arv-status').textContent = `Selecionado: ${o.nome}, ${estadoFicha(o)}.`;
     if (doPainel) $('#arv-detalhe h3').focus();
-    else if (!emTelaGrande()) $('#arv-detalhe').scrollIntoView({ block: 'nearest' });
+    else if (rolar && !emTelaGrande()) $('#arv-detalhe').scrollIntoView({ block: 'nearest' });
   }
   function fecharDetalhe() {
     const id = selecionado;
@@ -2292,8 +2289,27 @@
   arv.addEventListener('focusin', (e) => {
     const g = e.target.closest('.arv-no');
     if (!g) return;
+    focoTeclado = g.matches(':focus-visible') ? g.dataset.id : null;
     marcarFoco(g.dataset.id);
-    if (g.matches(':focus-visible')) garantirVisivel(g.dataset.id);
+    if (focoTeclado) garantirVisivel(g.dataset.id);
+  });
+  arv.addEventListener('focusout', () => {
+    focoTeclado = null;
+    agendarRotulos();
+  });
+  /* Mouse: o nome aparece na etiqueta enquanto o ponteiro está sobre o disco (no toque, a seleção faz o mesmo). */
+  arv.addEventListener('pointerover', (e) => {
+    if (e.pointerType === 'touch') return;
+    const g = e.target.closest('.arv-no');
+    const id = g ? g.dataset.id : null;
+    if (id === hoverId) return;
+    hoverId = id;
+    agendarRotulos();
+  });
+  arv.addEventListener('pointerleave', () => {
+    if (!hoverId) return;
+    hoverId = null;
+    agendarRotulos();
   });
   arv.addEventListener('keydown', (e) => {
     const g = e.target.closest('.arv-no');
@@ -2304,6 +2320,35 @@
     else if (g && e.key.startsWith('Arrow')) moverFoco(g.dataset.id, e.key);
     else return;
     e.preventDefault();
+  });
+  /* Busca por nome: escolher na lista (ou digitar o nome inteiro) seleciona o Ofício e leva a Árvore até ele. */
+  const buscaCampo = $('#arv-busca');
+  $('#arv-nomes').innerHTML = OFICIOS_FICHA.map((o) => `<option value="${o.nome}">${MATERIAS_FICHA.find((m) => m.id === o.mat).nome}</option>`).join('');
+  function acharOficio(texto, exato) {
+    const t = texto.trim().toLowerCase();
+    if (!t) return null;
+    const nome = (o) => o.nome.toLowerCase();
+    return OFICIOS_FICHA.find((o) => nome(o) === t) || (exato ? null : OFICIOS_FICHA.find((o) => nome(o).startsWith(t)) || OFICIOS_FICHA.find((o) => nome(o).includes(t)) || null);
+  }
+  function irParaOficio(o, rolar) {
+    /* Se o Ofício é de uma matéria que o filtro esconde, o filtro volta para "Todas". */
+    if (filtroArvore !== 'todas' && filtroArvore !== o.mat) {
+      filtroArvore = 'todas';
+      $('input[name="arv-materia"][value="todas"]').checked = true;
+      desenharArvore();
+    }
+    selecionar(o.id, false, rolar);
+  }
+  buscaCampo.addEventListener('input', () => {
+    const o = acharOficio(buscaCampo.value, true);
+    if (o) irParaOficio(o, false);
+  });
+  buscaCampo.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const o = acharOficio(buscaCampo.value, false);
+    if (o) irParaOficio(o, true);
+    else $('#arv-status').textContent = `Nenhum Ofício encontrado para "${buscaCampo.value.trim()}".`;
   });
   $('#arv-detalhe').addEventListener('click', (e) => {
     const sel = e.target.closest('[data-sel]');
