@@ -13,7 +13,9 @@ Formato completo em `docs/09-schema-importacao.md` (cópia em
 `references/schema-importacao.md`). Leia antes de gerar. Nomes de domínio em
 `docs/07-glossario.md`: Ofício, item, cartão, prova, dimensão. O Ofício é
 dominado por 5 dimensões (conceitual, fluência, problemas, autonomia,
-explicação), então varie os itens para permitir provar cada uma.
+explicação), e nenhuma além da Autonomia se prova com um acerto só (D-043).
+Marque cada item com a dimensão que ele serve e gere itens em número suficiente
+para fechar cada uma (seção "Itens por dimensão").
 
 ## Matéria ampla: mapa do curso primeiro
 
@@ -113,13 +115,46 @@ Em múltipla escolha, exatamente 4 alternativas e os distratores representam
 equívocos reais (C-11). Alternativa obviamente absurda não testa nada e infla
 o acerto, o que corrompe o cálculo de domínio.
 
-Varie o tipo. Um Ofício só com cartão de definição produz quem recita e
-não aplica. Garanta ao menos 2 questões diferentes por Ofício: a prova de
-Resolução de problemas exige uma questão distinta da que conquistou a
-Autonomia. Inclua também itens que testem o conceito (por quê, não só como),
-marcados com `focus: "conceitual"`: ao menos um exercício (não cartão) por
-Ofício, senão ele nunca chega a Dominado (D-037). E ao menos um item que peça
-explicação com as próprias palavras.
+Varie o tipo. Um Ofício só com cartão de definição produz quem recita e não
+aplica.
+
+### Itens por dimensão
+
+Cada exercício (ME ou aberta) leva `dimension` (D-057); sem ela, ele conta só
+para a Autonomia. Cartão **nunca** leva `dimension`: não conquista prova. Mínimos
+por Ofício (D-058, hipótese; o validador avisa, sem recusar, quando faltam):
+
+| dimensão | mínimo | como escrever |
+|---|---|---|
+| Autonomia | 1 exercício | qualquer exercício serve; o acerto rápido demais pede raciocínio escrito (C-06) |
+| `conceitual` | 4, um de cada `evidence` | `reconhecimento` (identificar), `interpretacao` (ME: qual reformulação mantém o significado), `representacao` (passar de uma forma para outra: fórmula, gráfico, palavras) e `discriminacao` (distinguir do que parece igual: o item que o Márcio não pode errar). A prova pede 3 das 4, com a discriminação, em 2 dias |
+| `fluencia` | 12 | procedimento que se repete: precisão primeiro. `expected_seconds` só quando há tempo razoável para quem domina; sem ele, o item não tem relógio. Varie os números, não o procedimento |
+| `problemas` | 5 (2 `rotineira`, 2 `nao_rotineira`, 1 `transferencia`); ideal 8 a 10 | cada rodada usa 5 inéditos e quem reprova gasta os 5, então sobra pouco com menos de 8. Transferência = o mesmo conceito num contexto que o Ofício não mostrou |
+| `explicacao` | 1 `aberta` com `followup` e `rubric` | ver abaixo |
+
+**Explicação.** O item é `aberta`: o enunciado pede que o Márcio explique com as
+próprias palavras (não "defina"). `answer` é a explicação de referência que você
+mesma usa para avaliar. `followup` é uma pergunta complementar que testa o
+limite ("e se a função de dentro não for derivável?"). `rubric` tem as 5 chaves
+(`correcao`, `justificativa`, `coerencia`, `aplicacao`, `limitacoes`), cada uma
+dizendo, em uma frase, o que vale nota 2 **neste** item.
+
+**Não se aplica.** Se uma dimensão não faz sentido no Ofício (fluência em
+Filosofia, problemas em um conceito puramente histórico), marque em
+`not_applicable` (`fluencia`, `problemas` e/ou `explicacao`) e não gere itens
+dela. Conceitual e Autonomia sempre se aplicam. Na dúvida, não marque: marcar
+facilita o Dominado e esconde lacuna.
+
+**Cartões.** Gere cartões à parte dos exercícios. Com `options` (4
+alternativas, `answer` = índice) o Márcio responde antes de ver o verso e o
+sistema corrige; sem `options`, o cartão é dissertativo (`answer` = texto) e o
+Márcio escreve a resposta. Prefira alternativas quando a resposta é curta e
+verificável; dissertativo quando é uma frase de raciocínio.
+
+Depois da explicação, a avaliação das notas da rubrica é um segundo trabalho seu:
+`pnpm grades:export` lista as pendentes e você devolve o arquivo
+`notas-explicacao` (`docs/09`, seção "Notas da Jane para a Explicação"). Nunca
+repita o texto do Márcio no arquivo de notas.
 
 ## Honestidade sobre a fonte
 
@@ -133,9 +168,13 @@ explicação com as próprias palavras.
 
 ## Quantidade
 
-Padrão: 8 a 15 itens por Ofício. Mais que isso numa tanda só gera volume que o
-usuário nunca revisa e esconde os erros no meio.
+Um Ofício completo tem uns 22 exercícios (4 conceituais, 12 de fluência, 5 a 10
+de problemas, 1 de explicação) mais 8 a 15 cartões; o validador aceita até 60
+itens por Ofício, com aviso acima de 40 (D-058). Mais que isso numa tanda só
+gera volume que o usuário nunca revisa e esconde os erros no meio. Se o volume
+total da tanda estiver grande, gere menos Ofícios, não menos itens por Ofício: um
+Ofício sem os mínimos não chega a Dominado.
 
 Ao terminar, avise quantos itens você recomenda que ele confira por amostragem
 antes de usar. Sugestão: 20% dos itens, ou todos de um Ofício onde você teve
-dúvida.
+dúvida. Diga também quais dimensões ficaram abaixo do mínimo e por quê.
