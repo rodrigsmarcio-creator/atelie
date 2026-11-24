@@ -1751,11 +1751,13 @@
       $$('#f-dominio-lista .bar').forEach((b) => { b.style.setProperty('--v', `${b.dataset.alvo}%`); });
     }));
   }
-  /* ----- Árvore: leque radial por matéria. Geometria do protótipo antigo (R0, STEP, leque de 170°),
+  /* ----- Árvore: roda radial por matéria. Geometria do protótipo antigo (R0, STEP), agora em círculo completo (360°, ATL-154),
      estados e satélites pelo modelo das 5 dimensões (D-022, D-043). ----- */
   /* GAP_NOS: distância mínima entre dois discos da mesma profundidade (os raios crescem para respeitá-la).
      RN: raio que os nomes e os títulos nunca invadem (satélites + anel de seleção e de foco). */
-  const ARV = { R0: 180, STEP: 140, ORBIT: 42, SAT: 8, FAN: [175, 5], GAP_NOS: 118, RN: 60 };
+  /* FAN: [início, fim] da roda, em graus. Começa no topo (90°) e segue no sentido horário até dar a volta (-270°); a faixa
+     vazia entre a última e a primeira matéria fica em cima. */
+  const ARV = { R0: 180, STEP: 140, ORBIT: 42, SAT: 8, FAN: [90, -270], GAP_NOS: 118, RN: 60 };
   const LETRA = { conceitual: 'C', fluencia: 'F', problemas: 'R', autonomia: 'A', explicacao: 'E' };
   const SLUG = { Bloqueado: 'bloqueado', Disponível: 'disponivel', 'Em prática': 'pratica', Liberado: 'liberado', Dominado: 'dominado' };
   const ZMAX = 8;
@@ -1775,7 +1777,7 @@
     const a = (graus * Math.PI) / 180;
     return { x: Math.cos(a) * r, y: -Math.sin(a) * r };
   }
-  /* O leque de 170° é dividido entre as matérias pelo número de Ofícios. */
+  /* A roda de 360° é dividida entre as matérias pelo número de Ofícios. */
   function setores(ids) {
     const [inicio, fim] = ARV.FAN;
     if (ids.length === 1) return { [ids[0]]: [inicio, fim] };
@@ -1838,22 +1840,36 @@
     });
     return pos;
   }
+  /* Comando de arco SVG de a0 até a1 no raio r, a partir do ponto de a0 (horário se a1 < a0, anti-horário se não).
+     O SVG tem duas armadilhas: acima de 180° pede o flag de arco grande, e na volta inteira o fim é igual ao início
+     e o arco some. Por isso a volta inteira vira duas metades. */
+  function varredura(r, a0, a1) {
+    const rr = Number(r.toFixed(1)), sentido = a1 < a0 ? 1 : 0;
+    if (Math.abs(a0 - a1) >= 359.9) {
+      const pm = polar((a0 + a1) / 2, rr), pf = polar(a1, rr);
+      return `A${rr} ${rr} 0 0 ${sentido} ${f1(pm.x)} ${f1(pm.y)} A${rr} ${rr} 0 0 ${sentido} ${f1(pf.x)} ${f1(pf.y)}`;
+    }
+    const p = polar(a1, rr);
+    return `A${rr} ${rr} 0 ${Math.abs(a0 - a1) > 180 ? 1 : 0} ${sentido} ${f1(p.x)} ${f1(p.y)}`;
+  }
   function arco(r0, r1, a0, a1) {
-    const s0 = polar(a0, r1), s1 = polar(a1, r1), e1 = polar(a1, r0), e0 = polar(a0, r0);
-    return `M${f1(s0.x)} ${f1(s0.y)} A${r1} ${r1} 0 0 1 ${f1(s1.x)} ${f1(s1.y)} L${f1(e1.x)} ${f1(e1.y)} A${r0} ${r0} 0 0 0 ${f1(e0.x)} ${f1(e0.y)} Z`;
+    const s0 = polar(a0, r1), e1 = polar(a1, r0);
+    return `M${f1(s0.x)} ${f1(s0.y)} ${varredura(r1, a0, a1)} L${f1(e1.x)} ${f1(e1.y)} ${varredura(r0, a1, a0)} Z`;
   }
   function cunha(R, a0, a1) {
-    const p0 = polar(a0, R), p1 = polar(a1, R);
-    return `M0 0 L${f1(p0.x)} ${f1(p0.y)} A${R} ${R} 0 0 1 ${f1(p1.x)} ${f1(p1.y)} Z`;
+    const p0 = polar(a0, R);
+    return `M0 0 L${f1(p0.x)} ${f1(p0.y)} ${varredura(R, a0, a1)} Z`;
   }
   function fundoArvore(ids, sets, R) {
     const rMax = R[R.length - 1] + 60;
     const cunhas = ids.map((id) => `<path class="arv-cunha" style="--c: var(${corDe(id)})" opacity=".06" d="${cunha(rMax, ...sets[id])}"/>`).join('');
     const guias = R.map((r) => {
-      const p0 = polar(ARV.FAN[0], r), p1 = polar(ARV.FAN[1], r);
-      return `<path class="arv-guia" d="M${f1(p0.x)} ${f1(p0.y)} A${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${f1(p1.x)} ${f1(p1.y)}"/>`;
+      const p0 = polar(ARV.FAN[0], r);
+      return `<path class="arv-guia" d="M${f1(p0.x)} ${f1(p0.y)} ${varredura(r, ARV.FAN[0], ARV.FAN[1])}"/>`;
     }).join('');
-    const seps = ids.length > 1 ? [...new Set(ids.flatMap((id) => sets[id]))].map((a) => {
+    /* Divisas entre matérias. Na volta inteira a última termina onde a primeira começa: o ângulo (mod 360°) entra uma vez só. */
+    const divisas = new Map(ids.flatMap((id) => sets[id]).map((a) => [(((a % 360) + 360) % 360).toFixed(3), a]));
+    const seps = ids.length > 1 ? [...divisas.values()].map((a) => {
       const p = polar(a, rMax);
       return `<line class="arv-sep" x1="0" y1="0" x2="${f1(p.x)}" y2="${f1(p.y)}"/>`;
     }).join('') : '';
@@ -1869,10 +1885,12 @@
   }
   function hubArvore(ids, sets) {
     const unico = ids.length === 1, circ = 2 * Math.PI * 38;
+    /* Folga entre os trechos do aro; com uma matéria só o aro é a volta inteira, sem folga. */
+    const folga = unico ? 0 : 1.2;
     const segs = ids.map((id) => {
       const [a0, a1] = sets[id];
       const m = dominioDe(OFICIOS_FICHA.filter((o) => o.mat === id)).pct / 100;
-      return `<path class="arv-cunha" style="--c: var(${corDe(id)})" opacity="${(0.4 + 0.6 * m).toFixed(2)}" d="${arco(53, 67, a0 - 1.2, a1 + 1.2)}"/>`;
+      return `<path class="arv-cunha" style="--c: var(${corDe(id)})" opacity="${(0.4 + 0.6 * m).toFixed(2)}" d="${arco(53, 67, a0 - folga, a1 + folga)}"/>`;
     }).join('');
     const centro = unico
       ? `<text class="arv-hub-texto" y="2">${dominioDe(OFICIOS_FICHA.filter((o) => o.mat === ids[0])).pct}%</text><text class="arv-hub-sub" y="18">dominado</text>`
@@ -1980,6 +1998,10 @@
     const R = raios(lista, sets), pos = posicoes(lista, sets, R);
     const xs = [-90, 90], ys = [-90, 90];
     lista.forEach((o) => { const p = pos[o.id]; xs.push(p.x - 90, p.x + 90); ys.push(p.y - 90, p.y + 90); });
+    /* O aro de fora da roda (mesmo raio das cunhas, ver fundoArvore) também entra na caixa: com a volta inteira ele passa
+       dos Ofícios nos lados e embaixo e, sem isso, seria cortado. */
+    const rAro = R[R.length - 1] + 60;
+    xs.push(-rAro, rAro); ys.push(-rAro, rAro);
     /* Títulos das matérias: ficam além do anel mais fundo de cada setor (a posição exata sai do cálculo dos nomes). */
     titulosArv = ids.length > 1 ? ids.map((id) => {
       const m = MATERIAS_FICHA.find((x) => x.id === id);
@@ -2080,17 +2102,30 @@
         const w = Math.max(largura(nome, pxT, 700) + nome.length * 0.12 * pxT, largura(`${t.pct}% dominado`, pxP, 400)) + 26;
         const h = Math.round(pxT * 1.3 + pxP * 1.3) + 4;
         const rad = (t.ang * Math.PI) / 180, base0 = tela(polar(t.ang, t.rFim));
-        for (let passo = 0; passo < 14; passo++) {
-          const dist = RN + 14 + h / 2 + passo * 16;
-          const cx = base0.x + Math.cos(rad) * dist, cy = base0.y - Math.sin(rad) * dist;
-          const ret = { x: cx - w / 2, y: cy - h / 2, w, h };
-          const livre = !discos.some((c) => cruzaCirculo(ret, c)) && !cruzaCirculo(ret, hub) && !colocados.some((o) => cruzaRetangulo(ret, o));
-          if (!livre || segs.some((sg) => cruzaSegmento(ret, sg))) continue;
+        const emite = (ret) => {
           colocados.push(ret);
           saida += `<g style="--c: var(${t.cor})"><circle class="arv-mat-ponto" cx="${f1(ret.x + 7)}" cy="${f1(ret.y + pxT * 0.65)}" r="5"/>
             <text class="arv-mat-nome" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT)}" font-size="${pxT}">${nome}</text>
             <text class="arv-mat-pct" x="${f1(ret.x + 18)}" y="${f1(ret.y + pxT * 1.3 + pxP)}" font-size="${pxP}">${t.pct}% dominado</text></g>`;
-          break;
+        };
+        const candidato = (passo) => {
+          const dist = RN + 14 + h / 2 + passo * 16;
+          return { x: base0.x + Math.cos(rad) * dist - w / 2, y: base0.y - Math.sin(rad) * dist - h / 2, w, h };
+        };
+        const cabe = (q) => q.x >= 4 && q.y >= 4 && q.x + q.w <= r.width - 4 && q.y + q.h <= r.height - 4;
+        let posto = false;
+        for (let passo = 0; passo < 14 && !posto; passo++) {
+          const ret = candidato(passo);
+          const livre = !discos.some((c) => cruzaCirculo(ret, c)) && !cruzaCirculo(ret, hub) && !colocados.some((o) => cruzaRetangulo(ret, o));
+          if (!livre || !cabe(ret) || segs.some((sg) => cruzaSegmento(ret, sg))) continue;
+          emite(ret);
+          posto = true;
+        }
+        /* Visão geral de uma Árvore enorme (ATL-154): o título tem tamanho fixo em pixels e não cabe entre o aro e a borda.
+           Se a ponta da matéria está na tela, ele é encostado na borda em vez de cortado. */
+        if (!posto && perto(base0, 0)) {
+          const c = candidato(0);
+          emite({ ...c, x: Math.max(4, Math.min(c.x, r.width - w - 4)), y: Math.max(4, Math.min(c.y, r.height - h - 4)) });
         }
       });
     }
@@ -2164,7 +2199,8 @@
     if (precisaRenderizar(svg.getBoundingClientRect().width / vista.w)) renderizarNos();
     agendarRotulos();
   }
-  /* PC: a Árvore inteira. Celular: ampliada, começando pelo centro (o texto não cabe inteiro numa tela estreita). */
+  /* PC: a Árvore inteira. Celular: ampliada, com o centro (o hub) no meio da tela, já que a roda abre para todos os lados
+     (o texto não cabe inteiro numa tela estreita). */
   function vistaInicial() {
     calcularFit();
     vista = { ...fit };
@@ -2172,7 +2208,7 @@
       vista.w = fit.w / 3.5;
       vista.h = vista.w * razao;
       vista.x = -vista.w / 2;
-      vista.y = 110 - vista.h;
+      vista.y = -vista.h / 2;
     }
     limitar();
     aplicarVista();

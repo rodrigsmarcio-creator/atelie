@@ -192,7 +192,7 @@ que a API devolver.
 ### Ficha
 
 Resumo (nível, XP, ofensiva, domínio por matéria) e a **Árvore** em versão
-simples: SVG com leque radial por matéria. Cada Ofício é um nó com: disco
+simples: SVG com roda radial por matéria, em círculo completo (D-055). Cada Ofício é um nó com: disco
 (estado: Bloqueado, Disponível, Em prática, Liberado, Dominado), cinco
 satélites (um por dimensão), marcador "precisa revisar". **O nó não tem nome
 fixo** (D-041): o nome aparece numa etiqueta ao passar o mouse, focar ou
@@ -203,9 +203,15 @@ provas, materiais e o que desbloqueia. Filtro por matéria. Conquistas e
 Evolução ficam para depois.
 
 Geometria: a referência é a Árvore do `prototipo/index.html` (ATL-57), que parte
-do protótipo antigo: `R0 = 180`, `STEP = 140` por profundidade, leque de 170°
-dividido entre matérias por número de Ofícios, `lane` desloca lateralmente
-dentro do setor. Os raios crescem com a quantidade de Ofícios (`GAP_NOS = 118`).
+do protótipo antigo: `R0 = 180`, `STEP = 140` por profundidade, roda de **360°**
+(D-055; `FAN = [90, -270]`: começa no topo e segue no sentido horário, com a
+faixa vazia em cima) dividida entre matérias por número de Ofícios, `lane`
+desloca lateralmente dentro do setor. Os raios crescem com a quantidade de
+Ofícios (`GAP_NOS = 118`). Um arco SVG de 360° tem o fim igual ao início e some,
+e acima de 180° pede o flag de arco grande: a volta inteira se desenha em duas
+metades (função `varredura` do protótipo). O aro de fora (raio mais fundo + 60)
+entra na caixa da Árvore, e no celular a vista inicial centraliza o centro da
+roda. O filtro por matéria usa o círculo todo.
 Para aguentar volume, só se desenha o que está na tela (mais uma margem), em 4
 níveis de detalhe pelo zoom, com as linhas juntas em poucos traçados (D-041).
 
