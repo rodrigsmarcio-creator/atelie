@@ -330,8 +330,10 @@ ele fica é decidido no ticket do Google Agenda (A-007).
 
 ### `imports` — auditoria da importação
 
-`id`, `file_name`, `file_hash`, `ran_at`, `skills_inserted`, `items_inserted`,
-`skipped`, `errors_json`. Permite responder "de onde veio este item".
+`id`, `kind` (`CHECK IN ('conteudo','notas_explicacao')`, D-059), `file_name`,
+`file_hash`, `ran_at`, `skills_inserted`, `items_inserted`, `grades_inserted`,
+`skipped`, `errors_json`. Permite responder "de onde veio este item" e "de onde
+veio esta nota".
 
 ## Fora do MVP, não criar agora (D-009 em espírito)
 
@@ -352,7 +354,8 @@ ele fica é decidido no ticket do Google Agenda (A-007).
   D-057): `items.dimension`, `evidence`, `category`, `expected_seconds`,
   `followup`, `rubric_json` e as regras novas de `options_json`;
   `skills.not_applicable_json`; `review_logs.response`, `followup_answer`,
-  `attempt` e `round_id`; e a tabela `explanation_grades`. `items.focus` não
+  `attempt` e `round_id`; a tabela `explanation_grades`; e `imports.kind` e
+  `grades_inserted` (D-059). `items.focus` não
   existe mais.
 
 ## Seed (`pnpm db:seed`)

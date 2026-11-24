@@ -240,7 +240,9 @@ A importação faz **upsert por ID**:
 - Campo opcional omitido (`program`, `source`, `study` ou um campo dentro de
   `study`) **não apaga** o que já está no banco.
 - Nada é apagado. Para retirar um item, arquive pela UI (`archived_at`).
-- `review_logs`, `proofs` e `memory_states` nunca são tocados pela importação.
+- A importação de conteúdo nunca toca em `review_logs`, `proofs` e
+  `memory_states`. Só a importação de notas da Jane grava em `proofs` (ver
+  "Notas da Jane para a Explicação").
 
 Tudo numa transação. Qualquer erro reverte o arquivo inteiro. O resultado vai
 para a tabela `imports`.
@@ -388,6 +390,113 @@ encurtar; um arquivo real precisa de 3 a 20 itens por Ofício. O pré-requisito
 O mesmo PDF aparece em `source` e em `recommendations` e vira **uma** entrada
 na Biblioteca (`kind: "pdf"`, `path` igual ao nome); o link vira outra
 (`kind: "link"`).
+
+## Notas da Jane para a Explicação
+
+A prova Explicação só conta depois que a Jane avalia o texto do Márcio pela
+rubrica do item (D-043, D-057). A avaliação é feita fora do app, como o
+conteúdo (D-004), em dois arquivos (D-059). Os dois ficam em `imports/`, fora
+do Git (D-053), porque um deles leva o texto do Márcio.
+
+### 1. Exportar as pendentes: `pnpm grades:export`
+
+Gera `imports/explicacoes-pendentes-<AAAA-MM-DD>.json` com toda tentativa de
+item `dimension: "explicacao"` que ainda não tem linha em `explanation_grades`
+e não tem `viewed_solution` (C-05). Sem pendentes, o comando diz isso e não
+cria arquivo. O arquivo é só leitura para a Jane: o app não o importa.
+
+```jsonc
+{
+  "version": 1,
+  "type": "explicacoes_pendentes",
+  "exported_at": "2026-12-02T21:00:00Z",
+  "pending": [
+    {
+      "review_log_id": "...",   // a tentativa a avaliar
+      "reviewed_at": "...",
+      "skill_id": "...", "skill_name": "...",
+      "item_id": "...",
+      "prompt": "...",          // enunciado do item
+      "answer": "...",          // explicação de referência da Jane
+      "rubric": { ... },        // as 5 chaves, como na importação
+      "followup": "...",
+      "response": "...",        // o que o Márcio escreveu
+      "followup_answer": "..."  // a resposta dele à pergunta complementar
+    }
+  ]
+}
+```
+
+### 2. Importar as notas: `pnpm import:validate` e `pnpm import:run`
+
+A Jane lê o arquivo de pendentes, avalia cada texto e grava
+`imports/notas-explicacao-<AAAA-MM-DD>.json`. Os mesmos comandos da importação
+de conteúdo (e a tela Importar) leem os dois tipos de arquivo pelo campo
+`type`: arquivo sem `type` é de conteúdo, como sempre foi.
+
+| campo | tipo | regra |
+|---|---|---|
+| version | `1` | |
+| type | `"notas_explicacao"` | obrigatório |
+| generated_at | ISO datetime | vira o `graded_at` de cada nota |
+| generated_by | string | `"claude-code/atelie-conteudo"` |
+| grades | objeto[] | ao menos 1 |
+| grades[].id | ULID | gerado pela Jane, **estável**: ao regerar o arquivo, reutilize |
+| grades[].review_log_id | ULID | a tentativa avaliada |
+| grades[].correcao, justificativa, coerencia, aplicacao, limitacoes | int 0–2 | as 5 notas da rubrica |
+| grades[].feedback | string ≤ 1000 | opcional; o que o Márcio deve melhorar, em uma ou duas frases |
+
+O arquivo de notas **não** repete o texto do Márcio nem o enunciado: só IDs,
+notas e comentário. Se a nota aprova (8 de 10, Correção e Justificativa em 2)
+é conta do Gregor, não da Jane (`docs/03-gregor.md`, seção 9).
+
+**Recusa o arquivo:**
+
+1. `version` ≠ 1 ou `type` desconhecido.
+2. ULID inválido, `id` repetido ou `review_log_id` repetido no arquivo.
+3. `review_log_id` inexistente, de item que não é `explicacao`, ou de
+   tentativa com `viewed_solution`.
+4. Nota fora de 0–2, que não é inteiro, ou faltando; `feedback` acima de 1000.
+5. Tentativa que já tem nota com **outro** `id` (a nota é imutável: para
+   reavaliar, o Márcio faz outra tentativa).
+6. `id` já importado com outro `review_log_id` ou com outras notas.
+
+**Idempotência:** `id` já importado com o mesmo `review_log_id` e as mesmas
+notas é pulado sem erro. Rodar o mesmo arquivo duas vezes não muda nada; a
+segunda execução registra tudo como `skipped` em `imports`.
+
+**O que a importação grava**, numa transação só: as linhas novas de
+`explanation_grades` (com o `import_id` do arquivo); depois, para cada Ofício
+que recebeu nota, chama `evaluateProofs` e grava em `proofs` a prova que
+passou a valer (`earned_at` = momento da importação, D-057). Qualquer erro
+reverte o arquivo inteiro. O resultado vai para `imports` com
+`kind = 'notas_explicacao'`.
+
+### Exemplo de arquivo de notas
+
+```json
+{
+  "version": 1,
+  "type": "notas_explicacao",
+  "generated_at": "2026-12-02T21:30:00Z",
+  "generated_by": "claude-code/atelie-conteudo",
+  "grades": [
+    {
+      "id": "01JCXGRD000000000000GRD001",
+      "review_log_id": "01JCXLOG000000000000LOG001",
+      "correcao": 2,
+      "justificativa": 2,
+      "coerencia": 2,
+      "aplicacao": 1,
+      "limitacoes": 1,
+      "feedback": "Boa justificativa pela multiplicação das taxas. Faltou dizer quando a regra não se aplica (função de dentro não derivável)."
+    }
+  ]
+}
+```
+
+Soma 8 de 10, com Correção e Justificativa em 2: pelo critério da seção 9 do
+`docs/03-gregor.md`, essa nota conquista a prova Explicação.
 
 ## Fluxo com o Claude Code
 
