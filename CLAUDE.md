@@ -130,7 +130,8 @@ pnpm db:migrate          # aplica migrations
 pnpm db:seed             # cenário de desenvolvimento
 pnpm memory:rebuild      # reconstrói memory_states a partir de review_logs
 pnpm import:validate <arquivo.json>
-pnpm import:run <arquivo.json>
+pnpm import:run <arquivo.json>      # conteúdo ou notas da Jane (campo type)
+pnpm grades:export                  # explicações aguardando avaliação, para a Jane
 ```
 
 ## Modelo recomendado por tipo de tarefa
