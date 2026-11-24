@@ -27,6 +27,12 @@ Validação: Zod em `packages/db/src/import/schema.ts`. O que está escrito aqui
 Tudo o que o ATL-123 acrescentou (`program`, `source.material` e `study`) é
 opcional: arquivo sem esses campos funciona como antes, e `version` continua 1.
 
+Os campos das provas (ATL-153: `not_applicable` no Ofício; `dimension` e os
+campos dela no item; `options` no cartão) também são opcionais no formato, mas
+sem eles o Ofício não chega a Dominado e o validador avisa (ver "Mínimos por
+Ofício"). `focus` deixou de existir (D-057): arquivo antigo com `focus` é
+recusado e precisa ser regerado com `dimension`.
+
 ## `program` — curso (opcional)
 
 Curso da grade de referência de onde a matéria saiu (D-045, D-046). Sem tela
@@ -71,6 +77,7 @@ mantida.
 | reviewed_by_user | boolean | a Jane sempre escreve `false` |
 | source | `{ material_id: ULID \| material: string, page_from?: int, page_to?: int }` | opcional; obrigatório quando gerado de material do Acervo. `material_id` **ou** `material`, nunca os dois (ver "Materiais por nome"). As páginas vão para `material_skills` |
 | study | objeto | opcional; texto de estudo da fase Aprender (ver "Texto de estudo") |
+| not_applicable | `("fluencia" \| "problemas" \| "explicacao")[]` | opcional, padrão `[]`, sem repetir. Dimensões que não fazem sentido no Ofício (Fluência em Filosofia, por exemplo; D-043). `"conceitual"` e `"autonomia"` são recusados: sempre se aplicam. Vai para `skills.not_applicable_json` |
 
 Regras de decomposição (da skill): testável em 10–40 min; pré-requisito é
 dependência real, não ordem de apostila, e é criado **por padrão**, inclusive
@@ -121,18 +128,47 @@ para o banco nem para a nuvem (D-050). Vídeo está fora do MVP.
 | skill_id | ULID | precisa existir no arquivo ou no banco |
 | kind | `"multipla_escolha" \| "cartao" \| "aberta"` | |
 | prompt | string 1–1000 | enunciado ou frente do cartão |
-| options | string[4] | obrigatório se ME; exatamente 4; sem alternativa absurda |
-| answer | ME: int 0–3 · cartão/aberta: string | |
+| options | string[4] | obrigatório em ME; opcional em cartão (com alternativas = cartão de alternativas; sem = cartão dissertativo, D-043); proibido em aberta. Exatamente 4; sem alternativa absurda |
+| answer | ME e cartão de alternativas: int 0–3 · cartão dissertativo e aberta: string | |
 | explanation | string ≥ 20 | **obrigatório**. Diz por que a certa é certa e por que a tentadora é errada |
 | difficulty | int 1–3 | opcional |
-| focus | `"conceitual"` | opcional. Marca o item que testa o conceito (o porquê, não só o como); acerto nele conquista a prova Compreensão conceitual. Só vale em exercício (ME ou aberta); em cartão é aceito, mas não conquista prova (D-037) |
+| dimension | `"conceitual" \| "fluencia" \| "problemas" \| "explicacao"` | opcional; só em exercício (ME ou aberta), nunca em cartão. Diz que prova o item ajuda a conquistar (D-057). Sem `dimension`, o exercício conta só para a Autonomia |
+| evidence | `"reconhecimento" \| "interpretacao" \| "representacao" \| "discriminacao"` | obrigatório com `dimension: "conceitual"`, proibido nas outras. `interpretacao` só em ME ("qual reformulação mantém o significado?") |
+| category | `"rotineira" \| "nao_rotineira" \| "transferencia"` | obrigatório com `dimension: "problemas"`, proibido nas outras. Transferência = o mesmo conceito num contexto que o Ofício não mostrou |
+| expected_seconds | int 1–3600 | opcional, só com `dimension: "fluencia"`. Tempo de quem domina o procedimento; o acerto só conta até 2 vezes esse tempo (C-10). Sem ele, o item não tem relógio |
+| followup | string 1–500 | obrigatório com `dimension: "explicacao"`, proibido nas outras. Pergunta complementar, respondida depois da explicação |
+| rubric | objeto | obrigatório com `dimension: "explicacao"`, proibido nas outras. Exatamente as chaves `correcao`, `justificativa`, `coerencia`, `aplicacao` e `limitacoes`, cada uma com string 1–300 dizendo o que vale nota 2 **neste** item. Vai para `items.rubric_json` |
 | tags | string[] | opcional |
 | origin | `"manual" \| "ia"` | |
 | reviewed_by_user | boolean | |
 | source | `{ material_id \| material, page }` | opcional; `material_id` **ou** `material`, nunca os dois |
 
-Regras de conteúdo (da skill): 8–15 itens por Ofício; variar tipo; distratores
-são equívocos reais; sem certeza do fato, não gere o item e diga no chat.
+Item de explicação é sempre `kind: "aberta"`: o Márcio escreve a explicação, e
+a Jane avalia depois pela rubrica (D-043). O `answer` dele é a explicação de
+referência que a Jane usa para avaliar.
+
+Regras de conteúdo (da skill): os mínimos por dimensão abaixo mais cartões;
+variar tipo; distratores são equívocos reais; sem certeza do fato, não gere o
+item e diga no chat.
+
+### Mínimos por Ofício
+
+Quantos itens o Ofício precisa para que cada prova da seção 9 do
+`docs/03-gregor.md` seja possível (D-058, **hipótese**). Contam os itens do
+arquivo mais os já importados do Ofício, sem os arquivados. Dimensão marcada em
+`not_applicable` não é conferida. Faltar não recusa o arquivo: o validador
+**avisa** que o Ofício não fecha aquela dimensão.
+
+| dimensão | mínimo | por quê |
+|---|---|---|
+| Autonomia | 1 exercício (ME ou aberta), com ou sem `dimension` | um acerto válido basta |
+| Compreensão conceitual | 4 exercícios conceituais, um de cada `evidence` | 3 de 4 evidências, com a discriminação obrigatória |
+| Fluência procedimental | 12 exercícios de fluência | 9 certos nos últimos 10, em 2 dias, 4 por dia |
+| Resolução de problemas | 5 problemas: 2 `rotineira`, 2 `nao_rotineira`, 1 `transferencia`. Aviso à parte abaixo de 8 | a rodada usa 5 inéditos; quem reprova gasta os 5, e com menos de 8 sobra pouco para a próxima rodada (10 garantem uma repetição inteira) |
+| Explicação | 1 item com `followup` e `rubric` | avaliado pela Jane |
+
+Somando, um Ofício completo tem uns 22 exercícios mais os cartões (padrão da
+skill: 8 a 15). Por isso o limite de itens por Ofício subiu (validação 8).
 
 ## Validações que recusam o arquivo
 
@@ -142,11 +178,14 @@ são equívocos reais; sem certeza do fato, não gere o item e diga no chat.
 4. Ciclo no grafo (arquivo + banco).
 5. `depth` menor ou igual ao de um pré-requisito da mesma matéria.
 6. Item sem `explanation` ou com menos de 20 caracteres.
-7. ME sem exatamente 4 `options`, ou `answer` fora de 0–3.
-8. Ofício com menos de 3 itens ou mais de 20 (aviso, não erro, entre 3–7 e
-   16–20; erro fora disso).
+7. ME sem exatamente 4 `options`; cartão com `options` diferente de 4; aberta
+   com `options`; `answer` fora de 0–3 em ME ou cartão de alternativas, ou que
+   não é texto no cartão dissertativo e na aberta.
+8. Ofício com menos de 3 itens ou mais de 60 (aviso, não erro, entre 3–7 e
+   41–60; erro fora disso; D-058).
 9. `origin: "manual"` em arquivo com `generated_by` da Jane.
-10. `focus` com valor diferente de `"conceitual"`.
+10. Campo `focus` em qualquer item (substituído por `dimension`, D-057);
+    `dimension` em cartão.
 11. `source` ou recomendação com `material_id` e `material` juntos, ou sem
     nenhum dos dois.
 12. `material` que não é link `http(s)://` nem arquivo `.pdf` ou `.md`; nome de
@@ -156,12 +195,28 @@ são equívocos reais; sem certeza do fato, não gere o item e diga no chat.
 15. Matéria já ligada a outro curso no banco e `program` com outro ID (nada
     muda de curso em silêncio).
 16. `study` acima dos limites (tamanho de texto ou número de entradas).
+17. Campo de dimensão fora da dimensão dele: `evidence` sem
+    `dimension: "conceitual"`, `category` sem `"problemas"`, `expected_seconds`
+    sem `"fluencia"`, `followup` ou `rubric` sem `"explicacao"`; ou o campo
+    obrigatório faltando na dimensão que o exige.
+18. `evidence: "interpretacao"` fora de ME; item de explicação que não é
+    `aberta`.
+19. `rubric` sem as 5 chaves, com chave a mais ou com texto fora de 1–300.
+20. `not_applicable` com `"conceitual"`, `"autonomia"`, valor desconhecido ou
+    repetido.
 
 Avisos (não recusam): Ofício sem `description`; `lane` repetido no mesmo
 `depth` e matéria (vai sobrepor na Árvore); item com `prompt` igual a outro;
-Ofício sem nenhum exercício com `focus: "conceitual"` (ele não chega a
-Dominado, D-037); dois materiais cujo `material` só difere em maiúsculas
-(`Calculo.pdf` e `calculo.pdf` viram duas entradas).
+dois materiais cujo `material` só difere em maiúsculas (`Calculo.pdf` e
+`calculo.pdf` viram duas entradas). E, das provas (D-058):
+
+- Ofício abaixo de algum mínimo da tabela "Mínimos por Ofício", com a
+  dimensão que não fecha e o que falta ("Resolução: falta 1 de transferência").
+  O Ofício não chega a Dominado enquanto faltar.
+- Ofício com menos de 8 problemas (fecha a dimensão, mas sem folga para uma
+  nova rodada).
+- Ofício que marca uma dimensão em `not_applicable` e tem itens dela (os itens
+  ficam, mas não contam).
 
 ## Idempotência
 
@@ -169,8 +224,12 @@ A importação faz **upsert por ID**:
 
 - `skills` e `items` existentes com o mesmo ID são atualizados nos campos de
   conteúdo (`name`, `prompt`, `options`, `answer`, `explanation`, `description`,
-  `icon`, `depth`, `lane`, `estimated_minutes`, `focus` e os campos de `study`
-  presentes no arquivo). `reviewed_by_user` **não** é sobrescrito se já for
+  `icon`, `depth`, `lane`, `estimated_minutes`, `not_applicable`,
+  `dimension`, `evidence`, `category`, `expected_seconds`, `followup`,
+  `rubric` e os campos de `study` presentes no arquivo). Nos campos das
+  provas, o item do arquivo é a verdade inteira: campo ausente vira nulo, para
+  um item não ficar com a marcação de duas dimensões. `not_applicable` ausente
+  mantém o que o Ofício já tinha. `reviewed_by_user` **não** é sobrescrito se já for
   `true`.
 - `prereqs` são substituídos pelo conjunto do arquivo (para o Ofício presente
   no arquivo).
@@ -234,6 +293,8 @@ para a tabela `imports`.
       "id": "01JCXAM0000000000000IT0001",
       "skill_id": "01JCXAM0000000000000SK0002",
       "kind": "multipla_escolha",
+      "dimension": "fluencia",
+      "expected_seconds": 60,
       "prompt": "Calcule a derivada de f(x) = (3x² + 1)⁵.",
       "options": ["5(3x² + 1)⁴", "30x(3x² + 1)⁴", "15x(3x² + 1)⁴", "6x(3x² + 1)⁵"],
       "answer": 1,
@@ -247,7 +308,8 @@ para a tabela `imports`.
       "id": "01JCXAM0000000000000IT0003",
       "skill_id": "01JCXAM0000000000000SK0002",
       "kind": "multipla_escolha",
-      "focus": "conceitual",
+      "dimension": "conceitual",
+      "evidence": "discriminacao",
       "prompt": "Por que a regra da cadeia multiplica pela derivada da função de dentro?",
       "options": ["Porque a derivada de um produto é o produto das derivadas", "Porque taxas de variação encadeadas se multiplicam: dy/dx = dy/du · du/dx", "Porque a função de dentro é sempre linear", "Por convenção, para simplificar a conta"],
       "answer": 1,
