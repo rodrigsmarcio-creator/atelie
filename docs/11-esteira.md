@@ -118,6 +118,13 @@ Copiado do Zappi e adaptado depois:
 - O repositório é público (D-034), então o plano gratuito não tem o limite de
   linhas que vale para repositório privado (confirmar as condições ao criar a
   conta).
+- **`prototipo/` fica fora da duplicação** (ATL-155). Os protótipos HTML/JS são só
+  referência e repetem estrutura entre si (10,2% de duplicação no PR 25, limite
+  de 3%). Com a análise automática, o arquivo `sonar-project.properties` não vale:
+  a exclusão está no SonarCloud (*Administration → Analysis Scope → Duplication
+  Exclusions*, valor `prototipo/**`). Bugs e vulnerabilidades da pasta continuam
+  sendo checados. Se `prototipo/` virar código de verdade, tirar a exclusão. Ao
+  migrar para a análise pelo CI, levar a regra para `sonar.cpd.exclusions`.
 
 ## Docker
 
