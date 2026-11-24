@@ -361,6 +361,42 @@ Curta, 165. Uma semana com 5 Completas e 2 Curtas dá cerca de 2.000 XP: nível 
 na primeira semana, 13 no primeiro mês, 32 no semestre e 46 no ano. Rever com
 o XP real de `review_logs` depois de algumas semanas.
 
+**Re-estimativa com as provas da D-043** (D-060, conta de 2026-11-24, não
+medição; todas as premissas são hipótese). O XP de uma sessão é limitado pelo
+**tempo** dos blocos, não pelo número de provas: o que a D-043 muda é o bônus de
+prova (mais raro) e o XP do cartão (agora pela tentativa). Premissas, iguais nos
+três cenários, para a comparação ser justa:
+
+- **Tentativas por Completa:** 27 exercícios (blocos 1 a 3, 95 min a ~3,5 min
+  cada) e 16 cartões (bloco 4, 20 min a ~1,25 min). A Curta é a metade.
+- **Cartão:** na D-038, média de 5 XP (Difícil, Bom e Fácil). Na D-043, metade
+  de alternativas (70% de acerto na 1ª tentativa = 7, 20% na 2ª = 5, 5% na 3ª =
+  3, 5% esgotam = 0; média 6,05) e metade dissertativos (3 fixos): média de 4,5.
+- **Bônus de prova:** cada Ofício rende 5 provas de 40 XP. Antes: 1 prova por
+  sessão, em média. Agora, um Ofício típico leva 2 a 3 semanas até Dominado
+  (D-043): com 3 Ofícios andando juntos, são 1,2 Ofícios por semana e 1 prova
+  por sessão (base); com 2, são 0,8 e 0,67 (pessimista).
+- **Acerto:** 75% (D-038) no cenário base; 60% no pessimista, porque os itens
+  não rotineiros, de transferência e de discriminação são mais difíceis.
+- Semana: 5 Completas e 2 Curtas. Semestre: 25 semanas.
+
+| Cenário | Completa | Curta | Semana | 1ª semana | 1 mês | semestre | ano |
+|---|---|---|---|---|---|---|---|
+| D-038 refeita com este modelo | 322 | 161 | 1.935 | nível 6 | 13 | 31 | 45 |
+| D-043, base | 314 | 157 | 1.887 | nível 6 | 13 | 31 | 44 |
+| D-043, pessimista | 261 | 130 | 1.565 | nível 6 | 12 | 28 | 40 |
+
+A D-038 refeita dá 322 por Completa contra os cerca de 330 da conta original, e
+níveis 31 e 45 contra 32 e 46: a diferença é arredondamento, então o modelo
+reproduz a conta anterior. **Resultado:** os valores da D-038 (`XP_CORRECT`,
+`XP_PROOF_BONUS`, `XP_CARD_*`, `LEVEL_COST_STEP`) **ficam como estão**: a
+projeção base perde 2% por sessão e o pior caso perde 19%, e em todos os cenários
+o Márcio chega ao nível 6 na primeira semana. Dois pontos que a conta não pega:
+na primeira semana as provas fáceis (a Autonomia) saem rápido e o bônus pode ser
+maior do que na média; e o bônus da Explicação só chega quando a Jane avalia, ou
+seja, atrasa, mas não se perde. Rever com o XP real de `review_logs` depois de
+algumas semanas, como já estava previsto.
+
 Benefícios por nível ficam para depois. O XP total é derivado de
 `review_logs` e `proofs`; não há tabela de XP (`docs/04-dados.md`).
 
