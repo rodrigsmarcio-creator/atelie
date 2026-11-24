@@ -43,6 +43,10 @@ nível e XP, revisões vencidas, mini evolução.
 
 ## Conteúdo
 
+**Curso** (`program`) — grade de um curso superior usada como referência para
+quebrar matéria ampla em matérias (Direito, USP, grade 2025). Só no backend no
+MVP; uma matéria pode não ter curso.
+
 **Matéria** (`subject`) — área de estudo: Cálculo I, Redes, A República. Tem
 cor, peso e, opcionalmente, prazo de prova.
 
@@ -55,6 +59,10 @@ fazer B sem A. Não é ordem de apostila. O grafo é acíclico.
 
 **Item** (`item`) — questão de múltipla escolha, cartão ou questão aberta,
 ligado a um Ofício. Sempre tem explicação.
+
+**Texto de estudo** (`study`) — explicação, recomendações de leitura,
+orientações e dúvidas comuns de um Ofício, lidos na fase Aprender antes da
+primeira tentativa. Ler não conta como tentativa.
 
 **Cartão** (`kind: 'cartao'`) — item de frente e verso, usado em revisões.
 

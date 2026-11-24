@@ -16,6 +16,7 @@ Convenções:
 ## Mapa
 
 ```
+programs ──< subjects (program_id opcional)
 subjects ──< skills ──< items ──< review_logs
               │  │        │
               │  │        └──< memory_states (1:1, cache)
@@ -28,12 +29,29 @@ settings, imports (independentes)
 
 ## Tabelas
 
+### `programs` — cursos
+
+Nível **curso** acima da matéria, só no backend: sem tela no MVP (D-046). Vem
+da grade de referência que a Jane usa para quebrar matéria ampla (D-045).
+
+| coluna | tipo | regra |
+|---|---|---|
+| id | text PK | ULID |
+| name | text NOT NULL UNIQUE | "Direito" |
+| reference | text NOT NULL | grade de referência em texto livre: curso, instituição e ano ("Direito, USP, grade 2025") |
+| archived_at | text | soft delete: curso encerrado continua ligado às matérias |
+| created_at, updated_at | text NOT NULL | |
+
+`reference` é texto livre de propósito (D-056): separar em colunas só quando o
+mini curso (ATL-120) precisar.
+
 ### `subjects` — matérias
 
 | coluna | tipo | regra |
 |---|---|---|
 | id | text PK | ULID |
 | name | text NOT NULL UNIQUE | "Cálculo I" |
+| program_id | text FK → programs | ON DELETE RESTRICT; nulo permitido (matéria avulsa, sem curso) |
 | short_name | text | "Cálculo", para chips |
 | color | text NOT NULL | hex, `CHECK (length = 7)` |
 | icon | text NOT NULL | id do ícone na UI |
@@ -58,9 +76,24 @@ settings, imports (independentes)
 | origin | text NOT NULL | `CHECK (origin IN ('manual','ia','import'))` |
 | reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1 |
 | source_material_id | text FK → materials | capítulo de livro que virou Ofício |
+| study_explanation | text | texto de estudo: explicação em markdown |
+| study_recommendations_json | text | texto de estudo: JSON `{ material_id, page_from?, page_to?, note? }[]`, `CHECK (study_recommendations_json IS NULL OR json_valid(study_recommendations_json))` |
+| study_guidance | text | texto de estudo: orientações em markdown (como estudar, o que observar) |
+| study_faq_json | text | texto de estudo: JSON `{ question, answer }[]`, `CHECK (study_faq_json IS NULL OR json_valid(study_faq_json))` |
 | created_at, updated_at | | |
 
 `UNIQUE (subject_id, name)`.
+
+As páginas do material de origem (`source.page_from` e `source.page_to` na
+importação) ficam em `material_skills`, não em `skills`.
+
+**Texto de estudo** (`study_*`, D-052, D-056): tudo opcional, lido na fase
+Aprender do Ofício sem nenhuma tentativa. Ler esse texto **não grava
+tentativa** (nenhuma linha em `review_logs`): não dá XP, não conta para a
+ofensiva e não sobe domínio (D-013). As recomendações apontam para `materials`
+pelo `material_id`, resolvido na importação a partir do nome ou do link; não
+são copiadas para `material_skills`. Limites de tamanho no
+`docs/09-schema-importacao.md`.
 
 ### `skill_prereqs` — arestas do grafo
 
@@ -177,6 +210,26 @@ url/body. O `markdown` é o `.md` guardado até a Jane transformá-lo em JSON
 (D-028). Detalhes no ticket da Biblioteca. Extração de PDF e de link: fora do
 MVP.
 
+`UNIQUE (path)` e `UNIQUE (url)`. No SQLite, `NULL` não colide com `NULL`, então
+o UNIQUE só vale onde a coluna está preenchida. São a chave do **material
+citado por nome** (D-049): a importação procura o material por `path` ou `url`
+e, se não existir, cria a entrada com ULID novo, título igual ao nome do
+arquivo sem extensão (ou ao link) e tipo deduzido:
+
+| citado como | `kind` | coluna |
+|---|---|---|
+| nome terminado em `.pdf` | `pdf` | `path` |
+| nome terminado em `.md` | `markdown` | `path` |
+| link `http://` ou `https://` | `link` | `url` |
+
+Outra extensão é erro na importação. O `UNIQUE` diferencia maiúsculas
+(`Calculo.pdf` e `calculo.pdf` são dois materiais); o validador avisa quando
+isso acontece, sem normalizar.
+
+**PDF e markdown citados por nome são só referência** (D-050, D-056): o arquivo
+fica no PC em `data/acervo/` e não vai para o banco nem para a nuvem; a linha
+guarda só o `path`, sem `body`. O Márcio abre o arquivo fora do app.
+
 ### `material_skills`
 
 `material_id` FK, `skill_id` FK, `page_from`, `page_to`, PK composta. Um
@@ -228,7 +281,9 @@ ele fica é decidido no ticket do Google Agenda (A-007).
 - Uma migration por mudança lógica, com `down` testado.
 - Nunca editar migration aplicada.
 - Migration inicial (`0000_schema_v1`) cria tudo acima exceto o que a seção
-  "Fora do MVP" lista.
+  "Fora do MVP" lista, inclusive `programs`, `subjects.program_id`, os
+  `UNIQUE` de `materials` e as colunas `study_*` de `skills` (ATL-123): não há
+  migration 0001 para isso.
 
 ## Seed (`pnpm db:seed`)
 
