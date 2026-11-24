@@ -84,9 +84,12 @@ que o resultado esteja correto. Bloco pulado também tem motivo.
 ## Domínio: 5 dimensões, sem perder prova
 
 Domínio é a cobertura das 5 dimensões (conceitual, fluência, problemas,
-autonomia, explicação). **Liberado** = 2 dimensões diferentes (abre os
-dependentes). **Dominado** = as 5. Confiança = dimensões ÷ 5, menos uma
-penalidade temporária por erro recente.
+autonomia, explicação). **Liberado** = 2 dimensões diferentes, **uma delas a
+Compreensão conceitual** (abre os dependentes). **Dominado** = todas as que se
+aplicam: as 5, salvo as que a Jane marcou em `not_applicable` (fluência,
+problemas ou explicação; conceitual e autonomia sempre se aplicam; D-043).
+Confiança = dimensões ÷ as que se aplicam, menos uma penalidade temporária por
+erro recente.
 
 - Erro **baixa a confiança**, nunca as dimensões, e põe o Ofício na fila de
   reforço (bloco 3). Só exercício errado conta; cartão "Errei" não (D-038).
@@ -110,8 +113,10 @@ sessão).
 - **Ofensiva:** qualquer tentativa registrada conta como um dia (certa, errada
   ou com solução vista); ler não conta; dia do fuso `America/Sao_Paulo`; sem
   proteção de dia perdido no MVP.
-- **XP:** só acerto válido, prova conquistada e cartão Difícil/Bom/Fácil. Erro,
-  cartão "Errei", solução vista e leitura não dão XP.
+- **XP:** só acerto válido em exercício, prova conquistada e cartão respondido.
+  No cartão de alternativas o XP vem da **tentativa** (7, 5 e 3; esgotou, 0) e
+  no dissertativo é fixo (3) com o mínimo escrito; nunca da nota que o Márcio se
+  dá (D-043). Erro, solução vista e leitura não dão XP.
 
 ## Provas
 
