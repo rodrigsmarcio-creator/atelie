@@ -20,6 +20,8 @@ export default defineConfig([
     '**/coverage/',
     '**/next-env.d.ts',
     '_arquivos-originais/',
+    // Protótipos HTML/JS soltos (sem build); mesma regra do .prettierignore.
+    'prototipo/',
   ]),
   js.configs.recommended,
   tseslint.configs.strict,

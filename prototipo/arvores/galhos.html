@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="borgonha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galhos · Árvore do Ateliê (protótipo)</title>
+<meta name="color-scheme" content="dark">
+<!--
+  Galhos (ATL-57): Árvore inspirada na árvore de habilidades do Diablo 4. Só a ideia, nada copiado.
+  - Galhos laterais saindo de um tronco ("Você"): cada Matéria é um galho, a profundidade anda para a direita.
+  - Os nomes ficam sempre ao lado do Ofício (o jogo mostra o texto de cada nó). É a única variante que traz o nome de volta
+    sem etiqueta: de longe só os Ofícios principais (peças quadradas) mostram o nome; perto, todos. Sem sobrepor: o desenho
+    corta o nome que não cabe e pula o que colidiria com outro.
+  - Densidade por revelação progressiva (igual aos Troncos): ramos fechados mostram "+N"; clique abre. ?abrir=N muda o padrão.
+  - Leveza: canvas único; só os Ofícios abertos e visíveis entram no desenho.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('tema');
+    if (t === 'tokyo' || t === 'borgonha' || t === 'verde') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div id="app" style="display:contents"></div>
+<noscript><p style="padding:24px">Este protótipo precisa de JavaScript.</p></noscript>
+<script src="dados.js"></script>
+<script src="motor.js"></script>
+<script src="comum.js"></script>
+<script>
+(function () {
+  'use strict';
+  const A = window.Atl;
+  const TAU = Math.PI * 2;
+  const COLW = 230, LINHA = 36;
+  const profInicial = Number.parseInt(A.params.get('abrir') || '', 10) || (A.OFICIOS.length <= 60 ? 99 : 2);
+  let abertos = A.abrirAte(profInicial);
+  let zonas = [], voce = { x: 0, y: 0 };
+
+  /* ----- Layout: uma árvore deitada por matéria, uma em cima da outra ----- */
+  function montar() {
+    const nos = [], porId = new Map();
+    let y = 0, xMax = 0;
+    zonas = [];
+    A.MATERIAS.forEach((m) => {
+      const vis = A.visivel(m.id, abertos, false);
+      vis.pre.forEach((o) => {
+        const d = vis.prof.get(o.id), chave = d === 1 || A.tamanho.get(o.id) >= 5;
+        const n = { id: o.id, o, x: (d - 1) * COLW, y: y + (vis.slot.get(o.id) + 0.5) * LINHA, r: chave ? 15 : 8, chave, hit: 1.4,
+          oculto: !abertos.has(o.id) && A.filhosDe.get(o.id).length ? A.tamanho.get(o.id) - 1 : 0 };
+        nos.push(n); porId.set(o.id, n);
+        xMax = Math.max(xMax, n.x);
+      });
+      zonas.push({ m, raiz: porId.get(A.raizesDe(m.id)[0].id) });
+      y += Math.max(1, vis.folhas) * LINHA + 150;
+    });
+    voce = { x: -COLW * 0.95, y: zonas.reduce((s, z) => s + z.raiz.y, 0) / zonas.length };
+    const ligs = A.ligacoes.filter((l) => porId.has(l.a.id) && porId.has(l.b.id))
+      .map((l) => ({ a: porId.get(l.a.id), b: porId.get(l.b.id), tipo: l.tipo, extra: l.extra }));
+    return { nos, ligs, lim: { x0: voce.x - 140, x1: xMax + COLW + 140, y0: -90, y1: y - 100 } };
+  }
+  function atualizar(manter) {
+    const d = montar();
+    v.setDados(d.nos, d.ligs, d.lim, manter);
+    if (manter && v.sel) { v.cx = v.sel.x; v.cy = v.sel.y; }
+    casca.detalhe(v.sel ? v.sel.o : null);
+    v.pedir();
+  }
+  function abrirAteOficio(id) { for (let p = A.pai.get(id); p; p = A.pai.get(p.id)) abertos.add(p.id); }
+
+  const casca = A.montar({ id: 'galhos', titulo: 'Galhos · nomes sempre à vista',
+    irPara: (id) => {
+      if (!v.porId(id)) { abrirAteOficio(id); atualizar(true); }
+      const n = v.porId(id);
+      if (n) v.escolher(n, true);
+    },
+    aoTema: () => { v.tema(); estilos = A.estilos(v.c); },
+    detalheAcao: (o) => (A.filhosDe.get(o.id).length ? { rotulo: abertos.has(o.id) ? 'Recolher ramo' : 'Expandir ramo',
+      fn: () => { if (abertos.has(o.id)) abertos.delete(o.id); else abertos.add(o.id); atualizar(true); } } : null),
+    acoes: [
+      { rotulo: 'Expandir tudo', fn: () => { abertos = A.abrirAte(99); atualizar(false); } },
+      { rotulo: 'Recolher', fn: () => { abertos = A.abrirAte(2); atualizar(false); } },
+    ],
+    legenda: '<li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="3" y="3" width="16" height="16" rx="5" class="g" style="stroke:var(--muted)"/></svg>Peça quadrada: Ofício principal (nome de longe)</li>'
+      + '<li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="2" y="5" width="18" height="12" rx="6" fill="var(--surface-2)" stroke="var(--xp)"/><text x="11" y="14" text-anchor="middle" font-size="8" font-weight="700" fill="var(--xp)">+N</text></svg>Ramo fechado: clique para abrir</li>' });
+  let estilos;
+  const v = A.palco({ canvas: casca.canvas, kFoco: 1.2, kMax: 3, ligacoes, nos: desenharNos, rotulos, aoEscolher });
+  estilos = A.estilos(v.c);
+  const inicial = montar();
+  v.setDados(inicial.nos, inicial.ligs, inicial.lim);
+  casca.ligar(v);
+  function aoEscolher(n) {
+    if (n && n.oculto) { abertos.add(n.id); atualizar(true); return; }
+    casca.detalhe(n ? n.o : null);
+  }
+
+  /* ----- Desenho ----- */
+  const larg = (vv, mn, w) => Math.max(mn / vv.k, w);
+  function ligacoes(ctx, lista, vv) {
+    const c = vv.c, grupos = new Map();
+    for (const l of lista) {
+      const chave = `${l.tipo}|${l.a.o.mat}|${l.extra ? 'x' : ''}`;
+      let p = grupos.get(chave);
+      if (!p) { p = new Path2D(); grupos.set(chave, p); }
+      const m = (l.a.x + l.b.x) / 2;
+      p.moveTo(l.a.x, l.a.y); p.bezierCurveTo(m, l.a.y, m, l.b.y, l.b.x, l.b.y);
+    }
+    /* Do tronco ("Você") até a raiz de cada matéria: curva grossa na cor da matéria. */
+    const tronco = new Map();
+    zonas.forEach((z) => {
+      const p = new Path2D(), m = (voce.x + z.raiz.x) / 2;
+      p.moveTo(voce.x, voce.y); p.bezierCurveTo(m, voce.y, m, z.raiz.y, z.raiz.x, z.raiz.y);
+      tronco.set(z.m.id, p);
+    });
+    ['apagada', 'aberta', 'acesa'].forEach((tipo) => grupos.forEach((p, chave) => {
+      const [t, mat, extra] = chave.split('|');
+      if (t !== tipo) return;
+      if (t === 'acesa') { ctx.strokeStyle = c.mat[mat]; ctx.lineWidth = larg(vv, 1.8, extra ? 2.5 : 5); }
+      else if (t === 'aberta') { ctx.strokeStyle = A.rgba(c.muted, 0.85); ctx.lineWidth = larg(vv, 1.4, extra ? 1.8 : 3); }
+      else { ctx.strokeStyle = A.rgba(c.muted, 0.35); ctx.lineWidth = larg(vv, 1, extra ? 1.2 : 2); }
+      ctx.stroke(p);
+    }));
+    tronco.forEach((p, id) => { ctx.strokeStyle = c.mat[id]; ctx.lineWidth = larg(vv, 3, 9); ctx.stroke(p); });
+  }
+  function desenharNos(ctx, lista, vv) {
+    const c = vv.c, tiny = new Map(), medios = new Map(), perto = [], selos = [], fechados = [];
+    for (const n of lista) {
+      const i = A.info.get(n.id), rpx = n.r * vv.k, chave = `${i.est}|${n.o.mat}`;
+      if (i.revisar && rpx >= 3) selos.push(n);
+      if (rpx < 2.5) (tiny.get(chave) || tiny.set(chave, []).get(chave)).push(n);
+      else if (rpx < 8) { (medios.get(chave) || medios.set(chave, []).get(chave)).push(n); if (n.oculto) fechados.push(n); }
+      else perto.push(n);
+    }
+    const s = 3 / vv.k;
+    tiny.forEach((ns, chave) => {
+      const [est, mat] = chave.split('|'), st = estilos[est][mat], p = new Path2D();
+      ns.forEach((n) => p.rect(n.x - s / 2, n.y - s / 2, s, s));
+      ctx.fillStyle = est === 'Bloqueado' ? A.rgba(c.muted, 0.55) : est === 'Disponível' ? A.rgba(st.cor, 0.6) : st.cor; ctx.fill(p);
+    });
+    medios.forEach((ns, chave) => {
+      const [est, mat] = chave.split('|'), st = estilos[est][mat], p = new Path2D();
+      ns.forEach((n) => { if (n.chave) p.rect(n.x - n.r, n.y - n.r, n.r * 2, n.r * 2); else { p.moveTo(n.x + n.r, n.y); p.arc(n.x, n.y, n.r, 0, TAU); } });
+      ctx.fillStyle = st.fill; ctx.fill(p); ctx.strokeStyle = st.stroke; ctx.lineWidth = 2 / vv.k; ctx.stroke(p);
+    });
+    if (fechados.length) {
+      const p = new Path2D(), rr = 5 / vv.k;
+      fechados.forEach((n) => { p.moveTo(n.x + n.r + rr + 2, n.y); p.arc(n.x + n.r + 2, n.y, rr, 0, TAU); });
+      ctx.fillStyle = c.xp; ctx.fill(p);
+    }
+    for (const n of perto) {
+      const i = A.info.get(n.id), st = estilos[i.est][n.o.mat], r = n.r, rpx = r * vv.k;
+      if (st.aro) { ctx.beginPath(); if (n.chave) ctx.roundRect(n.x - r * 1.25, n.y - r * 1.25, r * 2.5, r * 2.5, r * 0.55); else ctx.arc(n.x, n.y, r * 1.35, 0, TAU); ctx.strokeStyle = st.cor; ctx.lineWidth = 1.5 / vv.k; ctx.stroke(); }
+      ctx.beginPath();
+      if (n.chave) ctx.roundRect(n.x - r, n.y - r, r * 2, r * 2, r * 0.34); else ctx.arc(n.x, n.y, r, 0, TAU);
+      ctx.fillStyle = st.fill; ctx.fill();
+      ctx.setLineDash(st.dash ? [4 / vv.k * 1.5, 3 / vv.k * 1.5] : []); ctx.strokeStyle = st.stroke; ctx.lineWidth = st.lw / vv.k; ctx.stroke(); ctx.setLineDash([]);
+      if (n.chave && rpx >= 14) {
+        if (i.est === 'Bloqueado') cadeado(ctx, n.x, n.y, r * 0.5, c.muted);
+        else { ctx.fillStyle = i.est === 'Dominado' ? c.bg : c.text; ctx.font = `700 ${r * 0.72}px ${c.fText}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`${i.prov}/${i.total}`, n.x, n.y + r * 0.05); }
+      } else if (!n.chave && rpx >= 18) {
+        A.dimsDe(n.o).forEach((d, k) => {
+          ctx.beginPath(); ctx.arc(n.x + (k - 2) * r * 0.62, n.y + r * 1.75, r * 0.2, 0, TAU);
+          if (d.na) { ctx.strokeStyle = A.rgba(c.muted, 0.7); ctx.lineWidth = 1 / vv.k; ctx.stroke(); } else { ctx.fillStyle = d.on ? st.cor : A.rgba(c.muted, 0.6); ctx.fill(); }
+        });
+      }
+      if (n.oculto) {
+        const w = 34, x = n.x + r + 24, y = n.y;
+        ctx.beginPath(); ctx.roundRect(x - w / 2, y - 9, w, 18, 9); ctx.fillStyle = c.surface2; ctx.fill(); ctx.strokeStyle = c.xp; ctx.lineWidth = 1.5 / vv.k; ctx.stroke();
+        ctx.fillStyle = c.xp; ctx.font = `700 11px ${c.fText}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`+${n.oculto > 999 ? '999' : n.oculto}`, x, y + 0.5);
+      }
+    }
+    if (selos.length) {
+      const p = new Path2D();
+      selos.forEach((n) => { const r = Math.max(n.r * 0.34, 3 / vv.k); p.moveTo(n.x + n.r * 0.9 + r, n.y - n.r * 0.9); p.arc(n.x + n.r * 0.9, n.y - n.r * 0.9, r, 0, TAU); });
+      ctx.fillStyle = c.bad; ctx.fill(p); ctx.strokeStyle = c.bg; ctx.lineWidth = 1.5 / vv.k; ctx.stroke(p);
+    }
+  }
+  function cadeado(ctx, x, y, r, cor) {
+    ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = r * 0.28;
+    ctx.beginPath(); ctx.arc(x, y - r * 0.2, r * 0.55, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(x - r * 0.85, y - r * 0.1, r * 1.7, r * 1.2, r * 0.2); ctx.fill();
+  }
+  /* Nomes ao lado dos Ofícios, em pixels de tela. Linha a linha: todos quando há espaço, só os principais quando não há,
+     e nenhum de muito longe. Um nome que colidiria com outro da mesma coluna é pulado; o que não cabe na coluna é cortado. */
+  function rotulos(ctx, lista, vv) {
+    const c = vv.c, linhaPx = LINHA * vv.k, todos = linhaPx >= 15, principais = linhaPx >= 6.5;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = c.bg;
+    if (principais) {
+      const ocupados = new Set(), colPx = COLW * vv.k, ordem = lista.filter((n) => todos || n.chave).sort((a, b) => Number(b.chave) - Number(a.chave));
+      for (const n of ordem) {
+        const sx = vv.sx(n.x), sy = vv.sy(n.y);
+        if (sx < -60 || sx > vv.W + 60 || sy < -10 || sy > vv.H + 10) continue;
+        const px = n.chave ? 13 : 12, passo = Math.max(px + 3, 14), chave = Math.round(n.x / COLW) * 1e6 + Math.round(sy / passo);
+        if (ocupados.has(chave)) continue;
+        ocupados.add(chave);
+        const i = A.info.get(n.id), x = sx + n.r * vv.k + (n.oculto ? 46 : 9), max = Math.max(40, colPx - n.r * vv.k - (n.oculto ? 56 : 22));
+        ctx.font = `${n.chave ? 700 : 500} ${px}px ${c.fText}`;
+        let t = n.o.nome;
+        if (ctx.measureText(t).width > max) { while (t.length > 4 && ctx.measureText(`${t}…`).width > max) t = t.slice(0, -1); t = `${t.trimEnd()}…`; }
+        ctx.fillStyle = i.est === 'Bloqueado' ? A.rgba(c.muted, 0.85) : n.chave || i.est === 'Dominado' || i.est === 'Liberado' ? c.text : c.muted;
+        ctx.strokeText(t, x, sy); ctx.fillText(t, x, sy);
+      }
+    }
+    /* Título de cada matéria, acima da raiz, e o tronco ("Você"). */
+    zonas.forEach((z) => {
+      const x = vv.sx(z.raiz.x - 16), y = vv.sy(z.raiz.y) - Math.max(34, 44 * Math.min(1, vv.k * 2));
+      if (x < -300 || x > vv.W + 300 || y < -60 || y > vv.H + 60) return;
+      const dom = A.dominioDe(A.deMateria(z.m.id)).pct;
+      ctx.textBaseline = 'alphabetic'; ctx.font = `700 14px ${c.fText}`; ctx.letterSpacing = '3px'; ctx.fillStyle = c.mat[z.m.id];
+      const nome = A.nomeCurto(z.m, vv.W).toUpperCase();
+      ctx.strokeText(nome, x, y); ctx.fillText(nome, x, y);
+      ctx.letterSpacing = '0px'; ctx.font = `600 12px ${c.fText}`; ctx.fillStyle = c.muted; ctx.strokeText(`${dom}% dominado`, x, y + 17); ctx.fillText(`${dom}% dominado`, x, y + 17);
+    });
+    const ox = vv.sx(voce.x), oy = vv.sy(voce.y), r = Math.max(14, 42 * Math.min(vv.k * 1.6, 1.2));
+    if (ox > -r && ox < vv.W + r && oy > -r && oy < vv.H + r) {
+      ctx.beginPath(); ctx.arc(ox, oy, r, 0, TAU); ctx.fillStyle = c.surface; ctx.fill(); ctx.strokeStyle = c.xp; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(ox, oy, r * 0.8, -Math.PI / 2, -Math.PI / 2 + TAU * 0.6); ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = c.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.max(10, r * 0.34)}px ${c.fText}`; ctx.fillText('Você', ox, oy - 1);
+      ctx.fillStyle = c.xp; ctx.font = `600 ${Math.max(9, r * 0.26)}px ${c.fText}`; ctx.fillText('Nv 7', ox, oy + r * 0.4);
+    }
+  }
+})();
+</script>
+</body>
+</html>

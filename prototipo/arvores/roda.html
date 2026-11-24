@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="borgonha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roda · Árvore do Ateliê (protótipo)</title>
+<meta name="color-scheme" content="dark">
+<!--
+  Roda (ATL-57): Árvore inspirada no quadro de destino do Albion Online. Só a ideia, nada copiado.
+  - Uma roda inteira: cada Matéria ocupa uma fatia (largura pela quantidade de Ofícios), a profundidade vira anel.
+  - O eixo vertical no topo tem 5 medalhões, um por dimensão, com o quanto delas já foi provado em todos os Ofícios.
+  - Os raios dos anéis crescem para os Ofícios nunca se encostarem; o círculo ganha área com o quadrado do raio,
+    por isso é a forma que mais cabe: 6000 Ofícios ficam legíveis com zoom.
+  - Leveza: canvas único; de longe os Ofícios são quadradinhos agrupados por cor.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('tema');
+    if (t === 'tokyo' || t === 'borgonha' || t === 'verde') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div id="app" style="display:contents"></div>
+<noscript><p style="padding:24px">Este protótipo precisa de JavaScript.</p></noscript>
+<script src="dados.js"></script>
+<script src="motor.js"></script>
+<script src="comum.js"></script>
+<script>
+(function () {
+  'use strict';
+  const A = window.Atl;
+  const TAU = Math.PI * 2, RAD = Math.PI / 180;
+  const RN = 9, PASSO = 30, R1 = 140, ENTRE = 78, GAP_TOPO = 18 * RAD, SEP = 3 * RAD;
+
+  /* ----- Layout: fatias por matéria, anéis por profundidade. Ângulo medido do topo, no sentido horário. ----- */
+  const mats = A.MATERIAS;
+  const pesos = mats.map((m) => Math.sqrt(A.deMateria(m.id).length) + 2);
+  const util = TAU - GAP_TOPO - SEP * mats.length;
+  const soma = pesos.reduce((s, p) => s + p, 0);
+  let ang = GAP_TOPO / 2 + SEP / 2;
+  const fatias = mats.map((m, i) => {
+    const tam = (util * pesos[i]) / soma, f = { m, a0: ang, a1: ang + tam, ord: A.ordem(m.id), rings: new Map() };
+    ang += tam + SEP;
+    f.ord.pre.forEach((o) => { const d = f.ord.prof.get(o.id); (f.rings.get(d) || f.rings.set(d, []).get(d)).push(o); });
+    f.rings.forEach((lista) => lista.sort((a, b) => f.ord.slot.get(a.id) - f.ord.slot.get(b.id)));
+    return f;
+  });
+  const profMax = Math.max(...fatias.map((f) => Math.max(...f.rings.keys())));
+  const raios = [0, R1];
+  for (let d = 2; d <= profMax; d++) {
+    let r = raios[d - 1] + ENTRE;
+    fatias.forEach((f) => {
+      const n = (f.rings.get(d) || []).length, larguraAng = f.a1 - f.a0 - 0.06;
+      r = Math.max(r, (n * PASSO) / larguraAng);
+    });
+    raios[d] = r;
+  }
+  const Rfora = raios[profMax] + 70;
+  const nos = [];
+  fatias.forEach((f) => {
+    f.rings.forEach((lista, d) => {
+      const a0 = f.a0 + 0.03, a1 = f.a1 - 0.03;
+      lista.forEach((o, i) => {
+        const a = a0 + ((i + 0.5) / lista.length) * (a1 - a0);
+        nos.push({ id: o.id, o, x: Math.sin(a) * raios[d], y: -Math.cos(a) * raios[d], r: RN, hit: 1.6 });
+      });
+    });
+  });
+  const porId = new Map(nos.map((n) => [n.id, n]));
+  const ligs = A.ligacoes.map((l) => ({ a: porId.get(l.a.id), b: porId.get(l.b.id), tipo: l.tipo, extra: l.extra }));
+  const lim = { x0: -Rfora - 40, x1: Rfora + 40, y0: -Rfora - 80, y1: Rfora + 40 };
+  /* Medalhões do eixo: uma dimensão cada, nos anéis 1 a 5 (ou espalhados, se a Árvore tiver menos anéis). */
+  const medalhoes = A.DIMS.map((d, i) => {
+    let tot = 0, prov = 0;
+    A.OFICIOS.forEach((o) => { if (!o.naoSeAplica.includes(d.id)) { tot++; if (o.provas.has(d.id)) prov++; } });
+    return { d, y: -(profMax >= 5 ? raios[i + 1] : R1 + i * ENTRE), pct: Math.floor((prov / tot) * 100), frac: prov / tot };
+  });
+
+  /* ----- Casca e motor ----- */
+  const casca = A.montar({ id: 'roda', titulo: 'Roda · uma fatia por matéria', irPara: (id) => { const n = v.porId(id); if (n) v.escolher(n, true); },
+    aoTema: () => { v.tema(); estilos = A.estilos(v.c); },
+    legenda: '<li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8" fill="none" stroke="var(--xp)" stroke-width="2"/></svg>Medalhão no eixo: uma dimensão, em todos os Ofícios</li>' });
+  let estilos;
+  const v = A.palco({ canvas: casca.canvas, kFoco: 1.8, kMax: 5, fundo, ligacoes, nos: desenharNos, rotulos, aoEscolher: (n) => casca.detalhe(n ? n.o : null) });
+  estilos = A.estilos(v.c);
+  v.setDados(nos, ligs, lim);
+  casca.ligar(v);
+
+  /* ----- Desenho ----- */
+  const phi = (a) => a - Math.PI / 2; // do "topo, horário" para o ângulo do canvas
+  function fundo(ctx, vv) {
+    const c = vv.c;
+    const g = ctx.createRadialGradient(vv.W / 2, vv.H / 2, 0, vv.W / 2, vv.H / 2, Math.max(vv.W, vv.H) * 0.7);
+    g.addColorStop(0, c.halo); g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, vv.W, vv.H);
+    ctx.save(); vv.mundo(ctx);
+    const px = 1 / vv.k;
+    fatias.forEach((f) => {
+      const cor = c.mat[f.m.id];
+      ctx.beginPath(); ctx.arc(0, 0, Rfora, phi(f.a0), phi(f.a1)); ctx.arc(0, 0, 60, phi(f.a1), phi(f.a0), true); ctx.closePath();
+      ctx.fillStyle = A.rgba(cor, 0.1); ctx.fill();
+      ctx.strokeStyle = A.rgba(cor, 0.4); ctx.lineWidth = Math.max(1 * px, 1.5); ctx.stroke();
+      /* Anéis: um arco por profundidade, só dentro da fatia. */
+      ctx.beginPath();
+      f.rings.forEach((l, d) => { ctx.moveTo(Math.sin(f.a0) * raios[d], -Math.cos(f.a0) * raios[d]); ctx.arc(0, 0, raios[d], phi(f.a0), phi(f.a1)); });
+      ctx.strokeStyle = A.rgba(c.muted, 0.22); ctx.lineWidth = Math.max(1 * px, 1); ctx.stroke();
+    });
+    /* Eixo do topo, com os medalhões. */
+    ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(0, -Rfora); ctx.strokeStyle = A.rgba(c.xp, 0.5); ctx.lineWidth = Math.max(1.5 * px, 3); ctx.stroke();
+    medalhoes.forEach((m) => {
+      ctx.beginPath(); ctx.arc(0, m.y, 18, 0, TAU); ctx.fillStyle = c.surface; ctx.fill(); ctx.strokeStyle = A.rgba(c.xp, 0.35); ctx.lineWidth = 3; ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, m.y, 18, -Math.PI / 2, -Math.PI / 2 + TAU * m.frac); ctx.strokeStyle = c.xp; ctx.lineWidth = 3; ctx.stroke();
+      if (vv.k * 18 >= 7) { ctx.fillStyle = c.text; ctx.font = `700 15px ${c.fText}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.d.letra, 0, m.y + 1); }
+    });
+    /* Centro. */
+    ctx.beginPath(); ctx.arc(0, 0, 54, 0, TAU); ctx.fillStyle = c.surface; ctx.fill(); ctx.strokeStyle = c.xp; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.restore();
+  }
+  const larg = (vv, mn, w) => Math.max(mn / vv.k, w);
+  function ligacoes(ctx, lista, vv) {
+    const c = vv.c, grupos = new Map();
+    for (const l of lista) {
+      const chave = `${l.tipo}|${l.a.o.mat}|${l.extra ? 'x' : ''}`;
+      let p = grupos.get(chave);
+      if (!p) { p = new Path2D(); grupos.set(chave, p); }
+      p.moveTo(l.a.x, l.a.y); p.lineTo(l.b.x, l.b.y);
+    }
+    const perto = vv.k > 0.5;
+    grupos.forEach((p, chave) => {
+      const [t, mat, extra] = chave.split('|');
+      ctx.setLineDash(t === 'apagada' && perto ? [3, 6] : extra && perto ? [2, 5] : []);
+      if (t === 'acesa') { ctx.strokeStyle = c.mat[mat]; ctx.lineWidth = larg(vv, 1.5, extra ? 1.4 : 2.6); }
+      else if (t === 'aberta') { ctx.strokeStyle = A.rgba(c.muted, 0.75); ctx.lineWidth = larg(vv, 1.2, 1.6); }
+      else { ctx.strokeStyle = A.rgba(c.muted, 0.35); ctx.lineWidth = larg(vv, 1, 1.2); }
+      ctx.stroke(p);
+    });
+    ctx.setLineDash([]);
+  }
+  function desenharNos(ctx, lista, vv) {
+    const c = vv.c, tiny = new Map(), medios = new Map(), perto = [], selos = [];
+    for (const n of lista) {
+      const i = A.info.get(n.id), rpx = n.r * vv.k, chave = `${i.est}|${n.o.mat}`;
+      if (i.revisar && rpx >= 3) selos.push(n);
+      if (rpx < 2) (tiny.get(chave) || tiny.set(chave, []).get(chave)).push(n);
+      else if (rpx < 8) (medios.get(chave) || medios.set(chave, []).get(chave)).push(n);
+      else perto.push(n);
+    }
+    const s = 2.6 / vv.k;
+    tiny.forEach((ns, chave) => {
+      const [est, mat] = chave.split('|'), st = estilos[est][mat], p = new Path2D();
+      ns.forEach((n) => p.rect(n.x - s / 2, n.y - s / 2, s, s));
+      ctx.fillStyle = est === 'Bloqueado' ? A.rgba(c.muted, 0.55) : est === 'Disponível' ? A.rgba(st.cor, 0.6) : st.cor; ctx.fill(p);
+    });
+    medios.forEach((ns, chave) => {
+      const [est, mat] = chave.split('|'), st = estilos[est][mat], p = new Path2D();
+      ns.forEach((n) => p.rect(n.x - n.r, n.y - n.r, n.r * 2, n.r * 2));
+      ctx.fillStyle = st.fill; ctx.fill(p); ctx.strokeStyle = st.stroke; ctx.lineWidth = 2 / vv.k; ctx.stroke(p);
+    });
+    for (const n of perto) {
+      const i = A.info.get(n.id), st = estilos[i.est][n.o.mat], r = n.r, rpx = r * vv.k;
+      if (st.aro) { ctx.beginPath(); ctx.roundRect(n.x - r * 1.3, n.y - r * 1.3, r * 2.6, r * 2.6, r * 0.5); ctx.strokeStyle = st.cor; ctx.lineWidth = 1.5 / vv.k; ctx.stroke(); }
+      ctx.beginPath(); ctx.roundRect(n.x - r, n.y - r, r * 2, r * 2, r * 0.32); ctx.fillStyle = st.fill; ctx.fill();
+      ctx.setLineDash(st.dash ? [4 / vv.k * 1.5, 3 / vv.k * 1.5] : []); ctx.strokeStyle = st.stroke; ctx.lineWidth = st.lw / vv.k; ctx.stroke(); ctx.setLineDash([]);
+      if (rpx >= 14) {
+        if (i.est === 'Bloqueado') cadeado(ctx, n.x, n.y, r * 0.5, c.muted);
+        else { ctx.fillStyle = i.est === 'Dominado' ? c.bg : c.text; ctx.font = `700 ${r * 0.74}px ${c.fText}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`${i.prov}/${i.total}`, n.x, n.y + r * 0.05); }
+      }
+      if (rpx >= 22) {
+        /* Cinco pontinhos embaixo: as dimensões. */
+        A.dimsDe(n.o).forEach((d, k) => {
+          ctx.beginPath(); ctx.arc(n.x + (k - 2) * r * 0.5, n.y + r * 1.55, r * 0.15, 0, TAU);
+          if (d.na) { ctx.strokeStyle = A.rgba(c.muted, 0.7); ctx.lineWidth = 1 / vv.k; ctx.stroke(); } else { ctx.fillStyle = d.on ? st.cor : A.rgba(c.muted, 0.6); ctx.fill(); }
+        });
+      }
+    }
+    if (selos.length) {
+      const p = new Path2D();
+      selos.forEach((n) => { const r = Math.max(n.r * 0.36, 3 / vv.k); p.moveTo(n.x + n.r + r, n.y - n.r); p.arc(n.x + n.r, n.y - n.r, r, 0, TAU); });
+      ctx.fillStyle = c.bad; ctx.fill(p); ctx.strokeStyle = c.bg; ctx.lineWidth = 1.5 / vv.k; ctx.stroke(p);
+    }
+  }
+  function cadeado(ctx, x, y, r, cor) {
+    ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = r * 0.28;
+    ctx.beginPath(); ctx.arc(x, y - r * 0.2, r * 0.55, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(x - r * 0.85, y - r * 0.1, r * 1.7, r * 1.2, r * 0.2); ctx.fill();
+  }
+  function rotulos(ctx, lista, vv) {
+    const c = vv.c;
+    fatias.forEach((f) => {
+      const a = (f.a0 + f.a1) / 2, x = vv.sx(Math.sin(a) * (Rfora + 36)), y = vv.sy(-Math.cos(a) * (Rfora + 36));
+      if (x < -200 || x > vv.W + 200 || y < -40 || y > vv.H + 60) return;
+      const dom = A.dominioDe(A.deMateria(f.m.id)).pct;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+      ctx.font = `700 ${Math.min(24, Math.max(13, Rfora * vv.k * 0.035))}px ${c.fTitle}`; ctx.letterSpacing = '3px';
+      ctx.strokeStyle = c.bg; ctx.lineWidth = 5; ctx.fillStyle = c.text;
+      const t = A.nomeCurto(f.m, vv.W).toUpperCase(); ctx.strokeText(t, x, y); ctx.fillText(t, x, y);
+      ctx.letterSpacing = '0px'; ctx.font = `600 12px ${c.fText}`; ctx.fillStyle = c.muted; ctx.strokeText(`${dom}% dominado`, x, y + 16); ctx.fillText(`${dom}% dominado`, x, y + 16);
+    });
+    const ox = vv.sx(0), oy = vv.sy(0), r = Math.max(10, 54 * vv.k);
+    if (ox > -r && ox < vv.W + r && oy > -r && oy < vv.H + r) {
+      ctx.fillStyle = c.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.max(10, r * 0.3)}px ${c.fText}`; ctx.fillText('Você', ox, oy - 1);
+      ctx.fillStyle = c.xp; ctx.font = `600 ${Math.max(9, r * 0.22)}px ${c.fText}`; ctx.fillText('Nv 7', ox, oy + r * 0.34);
+    }
+  }
+})();
+</script>
+</body>
+</html>
