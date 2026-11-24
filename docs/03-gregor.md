@@ -50,13 +50,14 @@ export interface SkillState {
 }
 
 export type ItemKind = 'multipla_escolha' | 'cartao' | 'aberta';
-export type ItemFocus = 'conceitual'; // marcado pela Jane (D-037)
+// Marcado pela Jane (D-057); null = exercício geral, só vale para a Autonomia.
+export type ItemDimension = 'conceitual' | 'fluencia' | 'problemas' | 'explicacao';
 
 export interface MemoryItem {   // um item de prática com revisão agendada
   itemId: ULID;
   skillId: ULID;
   kind: ItemKind;
-  focus: ItemFocus | null;      // null = item sem foco marcado
+  dimension: ItemDimension | null; // cartão é sempre null
   dueAt: ISODate | null;        // null = nunca visto
   card: MemoryCard;             // estado FSRS (tipo opaco do adaptador)
 }
@@ -375,11 +376,15 @@ recordReview(log: ReviewLog) ->
 ```
 
 O `core` expõe `evaluateProofs(skill, history, now) -> ProofKind[]`, que olha
-o **histórico** do Ofício (`review_logs` do Ofício, mais as avaliações da Jane) e
-devolve as provas que passaram a estar conquistadas (D-043). A prova deixou de
-ser decidida por uma tentativa: quase todas pedem várias, em dias diferentes. O
-resultado continua derivado do log, então `pnpm memory:rebuild` e o recálculo
-das provas dão o mesmo resultado.
+o **histórico** do Ofício (`review_logs` do Ofício, mais as avaliações da Jane
+em `explanation_grades`) e devolve as provas que passaram a estar conquistadas
+(D-043). A prova deixou de ser decidida por uma tentativa: quase todas pedem
+várias, em dias diferentes. O resultado continua derivado do log, então
+`pnpm memory:rebuild` e o recálculo das provas dão o mesmo resultado.
+
+A importação das notas da Jane também chama `evaluateProofs`, na mesma
+transação, porque a prova Explicação nasce ali e não na tentativa
+(`docs/04-dados.md`, D-057).
 
 ## 9. Critérios de prova
 
@@ -402,18 +407,22 @@ Pontos de desenho:
   também pode ser a Autonomia). A regra antiga "uma tentativa conquista no
   máximo uma prova" foi retirada junto com a exceção do `focus`.
 - **O Gregor monta o conjunto da Resolução:** escolhe 5 itens inéditos com a
-  composição pedida e só avalia quando os 5 foram respondidos. Quantos itens o
-  Ofício precisa ter está em `docs/09-schema-importacao.md` (ticket de schema).
+  composição pedida (pela `category` do item) e só avalia quando os 5 foram
+  respondidos. As 5 tentativas levam o mesmo `review_logs.round_id`, gerado
+  pelo app quando o conjunto é montado (D-057). Quantos itens o Ofício precisa
+  ter está em `docs/09-schema-importacao.md` (ATL-165).
 - **Explicação sem IA no Gregor:** o core recebe as notas da rubrica já
   prontas (`graded: true` e os 5 valores). O app exporta as explicações
   pendentes, a Jane avalia fora dele e o JSON de notas entra pela importação.
 - **"Não se aplica":** a Jane marca no Ofício as dimensões que não fazem
   sentido (Fluência em Filosofia, por exemplo). Dominado exige todas as que se
   aplicam; a Compreensão conceitual e a Autonomia sempre se aplicam.
-- **Marcação dos itens:** os campos novos (`dimension`, `evidence`, `category`,
-  `expected_seconds`, `followup`, `rubric`, `not_applicable`) e o tamanho mínimo
-  do banco por Ofício ficam no ticket de schema e conteúdo. O validador avisa
-  quando um Ofício não tem itens para fechar alguma dimensão, sem recusar.
+- **Marcação dos itens:** os campos (`items.dimension`, `evidence`,
+  `category`, `expected_seconds`, `followup`, `rubric_json` e
+  `skills.not_applicable_json`) estão no `docs/04-dados.md` (D-057). O tamanho
+  mínimo do banco por Ofício fica no `docs/09-schema-importacao.md` (ATL-165).
+  O validador avisa quando um Ofício não tem itens para fechar alguma dimensão,
+  sem recusar.
 
 Só exercício (`multipla_escolha` ou `aberta`) conquista prova. Cartão nunca
 conquista, porque a nota do cartão é autoavaliação (D-037). Cartão continua

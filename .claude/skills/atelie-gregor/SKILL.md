@@ -21,7 +21,7 @@ planSession(state: StateSnapshot, mode: 'completa' | 'curta', rng?: Rng) -> DayS
 mastery(skill: SkillState, now: ISODate) -> { dimensions: 0..5; confidence: 0..1; missing: ProofKind[] }
 isUnlocked(skill: SkillState, all: SkillState[]) -> boolean
 needsReview(skill: SkillState, memory: MemoryItem[], now: ISODate) -> boolean
-evaluateProof(skill: SkillState, log: ReviewLog, now: ISODate) -> ProofKind | null
+evaluateProofs(skill: SkillState, history: ReviewHistory, now: ISODate) -> ProofKind[]
 streak(attempts: Attempt[], now: ISODate, timezone: string) -> { current: number; best: number; activeToday: boolean }
 xpOf(attempt: Attempt) -> number
 level(totalXp: number) -> { level: number; xpInLevel: number; xpToNext: number }
@@ -115,10 +115,12 @@ sessão).
 
 ## Provas
 
-Os critérios das cinco provas estão em `docs/03-gregor.md`, seção 9. Uma
-tentativa conquista no máximo uma prova. Compreensão conceitual = acerto válido
-em item com `focus = 'conceitual'`, verificada antes das outras quando o item é
-conceitual. Cartão nunca conquista prova (D-037).
+Os critérios das cinco provas estão em `docs/03-gregor.md`, seção 9. A prova é
+calculada sobre o **histórico** do Ofício (`review_logs` e as notas da Jane em
+`explanation_grades`), não sobre uma tentativa (D-043); só a Autonomia sai de
+um acerto isolado. O item diz a que prova serve por `items.dimension` e pelos
+campos dela (`evidence`, `category`, `expected_seconds`, `rubric_json`; D-057).
+Cartão nunca conquista prova (D-037).
 
 ## Testes
 
