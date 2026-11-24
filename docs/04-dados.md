@@ -17,14 +17,14 @@ Convenções:
 
 ```
 programs ──< subjects (program_id opcional)
-subjects ──< skills ──< items ──< review_logs
+subjects ──< skills ──< items ──< review_logs ──< explanation_grades (1:1)
               │  │        │
               │  │        └──< memory_states (1:1, cache)
               │  └──< proofs
               └──< skill_prereqs (auto-relação)
 skills >──< materials (via material_skills)
 plans ──< plan_items >── skills
-settings, imports (independentes)
+settings (independente); imports (auditoria, citada por explanation_grades)
 ```
 
 ## Tabelas
@@ -80,6 +80,7 @@ mini curso (ATL-120) precisar.
 | study_recommendations_json | text | texto de estudo: JSON `{ material_id, page_from?, page_to?, note? }[]`, `CHECK (study_recommendations_json IS NULL OR json_valid(study_recommendations_json))` |
 | study_guidance | text | texto de estudo: orientações em markdown (como estudar, o que observar) |
 | study_faq_json | text | texto de estudo: JSON `{ question, answer }[]`, `CHECK (study_faq_json IS NULL OR json_valid(study_faq_json))` |
+| not_applicable_json | text NOT NULL DEFAULT '[]' | dimensões que **não se aplicam** ao Ofício, marcadas pela Jane (D-043): JSON com zero ou mais de `"fluencia"`, `"problemas"`, `"explicacao"`, sem repetir. `CHECK (json_valid(not_applicable_json))` |
 | created_at, updated_at | | |
 
 `UNIQUE (subject_id, name)`.
@@ -94,6 +95,13 @@ ofensiva e não sobe domínio (D-013). As recomendações apontam para `material
 pelo `material_id`, resolvido na importação a partir do nome ou do link; não
 são copiadas para `material_skills`. Limites de tamanho no
 `docs/09-schema-importacao.md`.
+
+**"Não se aplica"** (`not_applicable_json`, D-043, D-057): Compreensão
+conceitual e Autonomia sempre se aplicam, então `"conceitual"` e `"autonomia"`
+são recusados. O SQLite não deixa conferir os valores de uma lista num `CHECK`
+(seria uma subconsulta), então a lista é validada pelo Zod na importação e na
+API, os dois únicos caminhos que escrevem aqui. Lista vazia: as 5 dimensões se
+aplicam.
 
 ### `skill_prereqs` — arestas do grafo
 
@@ -115,11 +123,16 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 | skill_id | text NOT NULL FK → skills ON DELETE CASCADE | |
 | kind | text NOT NULL | `CHECK (kind IN ('multipla_escolha','cartao','aberta'))` |
 | prompt | text NOT NULL | enunciado / frente |
-| options_json | text | JSON `string[]`, obrigatório se `multipla_escolha` |
-| answer | text NOT NULL | índice (ME) ou texto (cartão/aberta) |
+| options_json | text | JSON `string[]` com exatamente 4 alternativas. Obrigatório em `multipla_escolha`; opcional em `cartao` (com alternativas = cartão de alternativas, sem = cartão dissertativo, D-043); nulo em `aberta`. `CHECK (options_json IS NULL OR (json_valid(options_json) AND json_array_length(options_json) = 4))`, `CHECK ((kind = 'multipla_escolha' AND options_json IS NOT NULL) OR kind = 'cartao' OR (kind = 'aberta' AND options_json IS NULL))` |
+| answer | text NOT NULL | índice 0–3 (ME e cartão de alternativas) ou texto (cartão dissertativo e aberta) |
 | explanation | text NOT NULL | `CHECK (length(explanation) >= 20)` — C-04 |
 | difficulty | integer | 1–3, opcional |
-| focus | text | `CHECK (focus IS NULL OR focus = 'conceitual')`. Marcado pela Jane; item conceitual conquista a prova Compreensão conceitual (D-037) |
+| dimension | text | dimensão que o item ajuda a provar, marcada pela Jane (D-057). `CHECK (dimension IS NULL OR dimension IN ('conceitual','fluencia','problemas','explicacao'))`, `CHECK (kind <> 'cartao' OR dimension IS NULL)`. Nulo = exercício geral, que conta só para a Autonomia |
+| evidence | text | só em item conceitual: `CHECK (evidence IS NULL OR evidence IN ('reconhecimento','interpretacao','representacao','discriminacao'))`, `CHECK ((evidence IS NOT NULL) = (COALESCE(dimension, '') = 'conceitual'))`, `CHECK (COALESCE(evidence, '') <> 'interpretacao' OR kind = 'multipla_escolha')` |
+| category | text | só em item de problemas: `CHECK (category IS NULL OR category IN ('rotineira','nao_rotineira','transferencia'))`, `CHECK ((category IS NOT NULL) = (COALESCE(dimension, '') = 'problemas'))` |
+| expected_seconds | integer | tempo esperado, só em item de fluência e opcional; sem ele, o item não tem relógio (C-10). `CHECK (expected_seconds IS NULL OR (COALESCE(dimension, '') = 'fluencia' AND expected_seconds BETWEEN 1 AND 3600))` |
+| followup | text | pergunta complementar, só em item de explicação: `CHECK ((followup IS NOT NULL) = (COALESCE(dimension, '') = 'explicacao'))` |
+| rubric_json | text | rubrica do item de explicação: objeto JSON com as chaves `correcao`, `justificativa`, `coerencia`, `aplicacao` e `limitacoes`, cada uma com o texto do que vale nota 2 neste item. `CHECK ((rubric_json IS NOT NULL) = (COALESCE(dimension, '') = 'explicacao'))`, `CHECK (rubric_json IS NULL OR json_valid(rubric_json))`, `CHECK (COALESCE(dimension, '') <> 'explicacao' OR kind = 'aberta')` |
 | origin | text NOT NULL | `CHECK IN ('manual','ia','import')` |
 | reviewed_by_user | integer NOT NULL DEFAULT 0 | |
 | source_material_id | text FK → materials | |
@@ -129,9 +142,21 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 
 Índice: `items(skill_id)`.
 
-`focus` fecha a A-006 (D-037). Hoje só aceita `'conceitual'`; outro valor
-entra só com decisão nova. Cartão com `focus` é aceito, mas não conquista prova
-(`docs/03-gregor.md`, seção 9).
+**Marcação para as provas** (D-043, D-057). `dimension` substitui o antigo
+`focus` da D-037, que só aceitava `'conceitual'`. Cada campo extra só existe na
+dimensão que o usa, e os `CHECK` acima recusam a combinação errada:
+
+| `dimension` | campos do item | para quê (`docs/03-gregor.md`, seção 9) |
+|---|---|---|
+| `conceitual` | `evidence` obrigatório (`interpretacao` só em ME) | 3 de 4 evidências, discriminação obrigatória |
+| `fluencia` | `expected_seconds` opcional | 9 de 10, relógio só com tempo esperado |
+| `problemas` | `category` obrigatório | rodada de 5: 2 rotineiros, 2 não rotineiros, 1 de transferência |
+| `explicacao` | `followup` e `rubric_json` obrigatórios; `kind = 'aberta'` | rubrica avaliada pela Jane |
+| nulo | nenhum | exercício geral: só a Autonomia |
+
+Qualquer exercício (ME ou aberta) com acerto válido pode conquistar a
+Autonomia, com ou sem `dimension`. Cartão nunca tem `dimension`, porque nunca
+conquista prova (D-037).
 
 ### `review_logs` — o registro bruto. Append-only.
 
@@ -146,15 +171,52 @@ entra só com decisão nova. Cartão com `focus` é aceito, mas não conquista p
 | grade | integer | 1–4 para cartões (Errei, Difícil, Bom, Fácil), NULL para questões (o Gregor deriva a nota) |
 | answer_ms | integer NOT NULL | tempo até responder |
 | viewed_solution | integer NOT NULL DEFAULT 0 | C-05 |
-| reasoning | text | raciocínio escrito, se houver |
+| reasoning | text | raciocínio escrito, se houver (C-06) |
+| response | text | resposta escrita: aberta, cartão dissertativo e o texto da Explicação. O XP do cartão dissertativo depende do mínimo escrito (D-043) |
+| followup_answer | text | resposta à pergunta complementar, só em item de explicação |
+| attempt | integer | cartão de alternativas: tentativas usadas, `CHECK (attempt IS NULL OR attempt BETWEEN 1 AND 3)`. Com `correct = 1`, acertou nessa tentativa; com `correct = 0`, esgotou. O XP vem daqui (D-043) |
+| round_id | text | ULID da **rodada** da Resolução de problemas: o app gera quando o Gregor monta o conjunto de 5 itens e grava nas 5 tentativas. Nulo fora da rodada |
 | timed | integer NOT NULL DEFAULT 0 | modo cronometrado |
 | session_id | text | agrupa tentativas de uma sessão do dia |
 | created_at | text NOT NULL | |
 
 **Sem `updated_at`. Sem UPDATE. Sem DELETE.** Índice: `review_logs(item_id, reviewed_at)` e `review_logs(skill_id, reviewed_at)`.
 
+Os **2 dias diferentes** das provas Compreensão conceitual e Fluência não têm
+coluna: o Gregor tira o dia de calendário de `reviewed_at` com o fuso de
+`settings`, como na ofensiva. O `round_id` não ganha índice: o Gregor recebe o
+histórico inteiro do Ofício pelo `review_logs(skill_id, reviewed_at)`.
+
 É daqui que saem a **ofensiva** (qualquer linha conta como dia) e o **XP**
 (derivados pelo Gregor; ver "O que não está no banco").
+
+### `explanation_grades` — notas da Jane para a Explicação. Append-only.
+
+A prova Explicação depende da avaliação da Jane, feita fora do app e trazida
+pela importação (D-043). Enquanto a tentativa não tem linha aqui, ela fica
+"aguardando avaliação" e não conta.
+
+| coluna | tipo | regra |
+|---|---|---|
+| id | text PK | ULID vindo do arquivo de notas da Jane (idempotência) |
+| review_log_id | text NOT NULL UNIQUE FK → review_logs ON DELETE RESTRICT | a tentativa avaliada; uma nota por tentativa |
+| skill_id | text NOT NULL FK → skills | desnormalizado, como em `review_logs` |
+| correcao | integer NOT NULL | `CHECK (correcao BETWEEN 0 AND 2)` |
+| justificativa | integer NOT NULL | idem |
+| coerencia | integer NOT NULL | idem |
+| aplicacao | integer NOT NULL | idem |
+| limitacoes | integer NOT NULL | idem |
+| feedback | text | comentário da Jane para o Márcio |
+| graded_at | text NOT NULL | quando a Jane avaliou |
+| import_id | text NOT NULL FK → imports | arquivo de onde veio |
+| created_at | text NOT NULL | |
+
+**Sem UPDATE. Sem DELETE**, como `review_logs`: a nota é um fato do histórico.
+Para reavaliar, o Márcio faz outra tentativa. A tabela guarda só as notas; se
+elas aprovam ou não (8 de 10, Correção e Justificativa em 2) é conta do Gregor,
+com os números de `params.ts`. Para o `core`, "`graded: true` e os 5 valores"
+(seção 9 do `docs/03-gregor.md`) é a existência desta linha. Formato do arquivo
+de notas no `docs/09-schema-importacao.md` (ATL-166).
 
 ### `proofs` — provas conquistadas por Ofício
 
@@ -162,12 +224,15 @@ entra só com decisão nova. Cartão com `focus` é aceito, mas não conquista p
 |---|---|
 | skill_id | FK → skills ON DELETE CASCADE |
 | kind | `CHECK IN ('conceitual','fluencia','problemas','autonomia','explicacao')` |
-| review_log_id | FK → review_logs, a tentativa que conquistou |
+| review_log_id | FK → review_logs, a tentativa que completou o critério (na Explicação, a tentativa avaliada) |
 | earned_at | text NOT NULL |
 | PK (skill_id, kind) | uma prova de cada dimensão por Ofício |
 
-Derivável de `review_logs` + `core/evaluateProof`, mas materializada porque a
-Árvore lê isso a cada render. `memory:rebuild` também reconstrói esta tabela.
+Derivável de `review_logs` + `explanation_grades` + `core/evaluateProofs`, mas
+materializada porque a Árvore lê isso a cada render. `memory:rebuild` também
+reconstrói esta tabela. A prova Explicação nasce na importação das notas, não
+na tentativa: a importação chama `evaluateProofs` na mesma transação. Nesse
+caso o `earned_at` é o momento da importação.
 
 ### `memory_states` — cache do escalonador (FSRS)
 
@@ -283,7 +348,12 @@ ele fica é decidido no ticket do Google Agenda (A-007).
 - Migration inicial (`0000_schema_v1`) cria tudo acima exceto o que a seção
   "Fora do MVP" lista, inclusive `programs`, `subjects.program_id`, os
   `UNIQUE` de `materials` e as colunas `study_*` de `skills` (ATL-123): não há
-  migration 0001 para isso.
+  migration 0001 para isso. O mesmo vale para as colunas das provas (ATL-153,
+  D-057): `items.dimension`, `evidence`, `category`, `expected_seconds`,
+  `followup`, `rubric_json` e as regras novas de `options_json`;
+  `skills.not_applicable_json`; `review_logs.response`, `followup_answer`,
+  `attempt` e `round_id`; e a tabela `explanation_grades`. `items.focus` não
+  existe mais.
 
 ## Seed (`pnpm db:seed`)
 
@@ -291,7 +361,10 @@ Cenário de desenvolvimento, nunca dado real:
 
 - 2 matérias (Cálculo I, Redes), pesos 60/40.
 - 8 Ofícios com grafo de pré-requisitos (dois ramos, uma junção).
-- 10 itens por Ofício, mistura de ME e cartão, todos com explicação.
+- 10 itens por Ofício, mistura de ME e cartão, todos com explicação. No
+  Ofício Dominado, itens marcados com `dimension` em número suficiente para
+  cada critério da seção 9 do `docs/03-gregor.md`, uma rodada de problemas e
+  uma nota da Jane em `explanation_grades`.
 - `review_logs` simulando 3 semanas: um Ofício Dominado (as 5 dimensões), dois
   Liberados, um com erro recente (reforço), um "precisa revisar", itens e
   cartões vencidos hoje, e uma ofensiva em andamento.
@@ -309,6 +382,7 @@ estado.
 | histórico de um item | `review_logs(item_id, reviewed_at)` |
 | histórico de um Ofício (domínio) | `review_logs(skill_id, reviewed_at)` |
 | sessão do dia | `plan_items(plan_id, scheduled_start)` |
+| explicações aguardando avaliação: `review_logs` de item `explicacao` sem linha em `explanation_grades` | `explanation_grades(review_log_id)` (o `UNIQUE`) |
 
 Índice novo só com a consulta que o justifica.
 
@@ -316,6 +390,8 @@ estado.
 
 - Recuperabilidade (calculada pelo FSRS a partir do tempo decorrido).
 - Domínio em si (calculado de `proofs`; `proofs` é cache reconstruível).
+- Dia de calendário de cada tentativa (para os 2 dias das provas) e se a
+  rubrica aprova: calculados pelo Gregor.
 - **Ofensiva, XP e nível:** derivados de `review_logs` e `proofs` pelo Gregor,
   com os parâmetros em vigor. Sem tabela no MVP; se ficar lento, vira cache
   reconstruível.

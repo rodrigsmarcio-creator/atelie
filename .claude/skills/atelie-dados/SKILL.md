@@ -37,7 +37,8 @@ perdeu a possibilidade de o sistema ficar bom.
 
 São derivadas de `review_logs`. Mantenha o comando `pnpm run memory:rebuild`
 funcionando, que reconstrói as duas tabelas inteiras a partir dos logs usando
-`core` (`evaluateProof` e o adaptador de memória). É o que torna seguro trocar
+`core` (`evaluateProofs`, que também lê `explanation_grades`, e o adaptador de
+memória). É o que torna seguro trocar
 a versão do algoritmo depois. `proofs.kind` são as 5 dimensões: `conceitual`,
 `fluencia`, `problemas`, `autonomia`, `explicacao` (D-022). Ofensiva, XP e nível
 são **derivados** de `review_logs` e `proofs`: não crie tabela para eles sem
