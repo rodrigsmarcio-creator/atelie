@@ -97,8 +97,8 @@ foi conquistada: envia o log a `/api/review` e mostra o que a API devolver
 Jane converter). Mostre as instruções do fluxo. A tela Livros não existe no MVP.
 
 **Ficha.** Resumo (nível, XP, ofensiva, domínio por matéria) e a **Árvore**
-(`components/arvore`): SVG com leque radial por matéria, geometria `R0 180`,
-`STEP 140`, leque de 170°, `lane`. Cinco satélites por Ofício (um por
+(`components/arvore`): SVG com roda radial por matéria, geometria `R0 180`,
+`STEP 140`, círculo de 360° (começa no topo, sentido horário, D-055), `lane`. Cinco satélites por Ofício (um por
 dimensão), estados Bloqueado/Disponível/Em prática/Liberado/Dominado e o
 marcador "Precisa revisar". Pan, zoom, teclado, painel de detalhe. Dados vêm de
 `/api/skills` já com `mastery`, `confidence`, `status`, `needsReview` calculados
