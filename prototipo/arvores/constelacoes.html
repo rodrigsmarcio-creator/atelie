@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="borgonha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Constelações · Árvore do Ateliê (protótipo)</title>
+<meta name="color-scheme" content="dark">
+<!--
+  Constelações (ATL-57): Árvore inspirada nas constelações de habilidades do Skyrim. Só a ideia, nada copiado.
+  - Dois níveis (revelação progressiva): a entrada mostra uma constelação por Matéria (com o domínio em número grande);
+    ao escolher uma, só ela é desenhada. Ou seja: o canvas nunca carrega mais que uma Matéria.
+  - Os Ofícios viram estrelas (brilho = estado; Bloqueado é um ponto apagado) e as linhas são as ligações de pré-requisito.
+  - Posição em espiral dourada (sunflower): sem sobreposição por construção, cabe qualquer volume e cresce com a raiz do número de Ofícios.
+  - Fundo de nebulosa com a cor da Matéria e céu estrelado que anda mais devagar que a Árvore (paralaxe). reduced-motion não muda nada,
+    porque nada se anima sozinho.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('tema');
+    if (t === 'tokyo' || t === 'borgonha' || t === 'verde') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  .geral { position: absolute; inset: 0; overflow: auto; padding: 20px 16px 28px; }
+  .geral h2 { margin: 0 auto 16px; max-width: 1200px; font-family: var(--f-title); font-size: 20px; }
+  .geral h2 small { display: block; margin-top: 4px; font-family: var(--f-text); font-size: 14px; font-weight: 500; color: var(--muted); }
+  .grade { list-style: none; margin: 0 auto; padding: 0; max-width: 1200px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .const { display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface);
+    color: var(--text); font: inherit; text-align: left; cursor: pointer; overflow: hidden; }
+  .const:hover, .const:focus-visible { border-color: var(--c); }
+  .const .ceu { display: block; background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 32%, transparent), transparent 62%), var(--bg); }
+  .palco .const canvas.mini { position: static; width: 100%; height: 190px; display: block; cursor: pointer; touch-action: auto; }
+  .const .info { display: grid; gap: 4px; padding: 14px 18px 18px; }
+  .const .nome { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .const .pct { font-family: var(--f-title); font-size: 40px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .const .sub { font-size: 13px; color: var(--muted); }
+  .const .bar { height: 6px; margin-top: 6px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+  .const .bar i { display: block; height: 100%; width: var(--v); background: var(--c); }
+</style>
+</head>
+<body>
+<div id="app" style="display:contents"></div>
+<noscript><p style="padding:24px">Este protótipo precisa de JavaScript.</p></noscript>
+<script src="dados.js"></script>
+<script src="motor.js"></script>
+<script src="comum.js"></script>
+<script>
+(function () {
+  'use strict';
+  const A = window.Atl;
+  const TAU = Math.PI * 2, PASSO = 40;
+  let materia = A.params.get('materia');
+  if (!A.matDe(materia || '')) materia = null;
+
+  /* ----- Layout: parte de um desenho radial (ângulo pela ordem das folhas, raio pela profundidade) e relaxa por
+     forças: os Ofícios se repelem, as ligações puxam. Resultado: cachos naturais, como constelações. O sorteio é
+     fixo (não há aleatoriedade), então a forma é sempre a mesma. Roda uma vez por matéria e fica guardada. ----- */
+  const raioEstrela = { Dominado: 9, Liberado: 8, 'Em prática': 7, Disponível: 6, Bloqueado: 4.5 };
+  const nivelAtual = (o) => A.info.get(o.id).est;
+  const cacheLayout = new Map();
+  function relaxar(matId, nos, ligs) {
+    const ord = A.ordem(matId), n = nos.length, L = PASSO;
+    const x = new Float64Array(n), y = new Float64Array(n), fx = new Float64Array(n), fy = new Float64Array(n);
+    nos.forEach((p, i) => {
+      const a = ((ord.slot.get(p.id) + 0.5) / ord.folhas) * TAU, r = L * 0.9 * ord.prof.get(p.id) + (i % 7);
+      x[i] = Math.cos(a) * r; y[i] = Math.sin(a) * r;
+    });
+    const idx = new Map(nos.map((p, i) => [p.id, i]));
+    const pares = ligs.map((l) => [idx.get(l.a.id), idx.get(l.b.id)]);
+    const iters = n > 1500 ? 70 : n > 600 ? 110 : 220, celula = L * 2.5, corte = celula * celula;
+    for (let it = 0; it < iters; it++) {
+      fx.fill(0); fy.fill(0);
+      const grade = new Map();
+      for (let i = 0; i < n; i++) {
+        const k = Math.floor(x[i] / celula) * 100003 + Math.floor(y[i] / celula);
+        const g = grade.get(k);
+        if (g) g.push(i); else grade.set(k, [i]);
+      }
+      for (let i = 0; i < n; i++) {
+        const cx = Math.floor(x[i] / celula), cy = Math.floor(y[i] / celula);
+        for (let gx = cx - 1; gx <= cx + 1; gx++) {
+          for (let gy = cy - 1; gy <= cy + 1; gy++) {
+            const g = grade.get(gx * 100003 + gy);
+            if (!g) continue;
+            for (const j of g) {
+              if (j <= i) continue;
+              let dx = x[i] - x[j], dy = y[i] - y[j], d2 = dx * dx + dy * dy;
+              if (d2 > corte) continue;
+              if (d2 < 0.01) { dx = 0.1 * ((i % 3) - 1); dy = 0.1; d2 = 0.02; }
+              const f = (L * L) / d2;
+              fx[i] += dx * f; fy[i] += dy * f; fx[j] -= dx * f; fy[j] -= dy * f;
+            }
+          }
+        }
+      }
+      pares.forEach(([a, b]) => {
+        const dx = x[b] - x[a], dy = y[b] - y[a], d = Math.hypot(dx, dy) || 1, f = (d - L) * 0.18 / d;
+        fx[a] += dx * f; fy[a] += dy * f; fx[b] -= dx * f; fy[b] -= dy * f;
+      });
+      const passo = L * 0.5 * (1 - it / iters) + 1;
+      for (let i = 0; i < n; i++) {
+        fx[i] -= x[i] * 0.004; fy[i] -= y[i] * 0.004; // gravidade fraca: mantém tudo junto
+        const m = Math.hypot(fx[i], fy[i]) || 1, s = Math.min(passo, m) / m;
+        x[i] += fx[i] * s; y[i] += fy[i] * s;
+      }
+    }
+    nos.forEach((p, i) => { p.x = x[i]; p.y = y[i]; });
+  }
+  function posicoes(matId) {
+    if (cacheLayout.has(matId)) return cacheLayout.get(matId);
+    const nos = A.ordem(matId).pre.map((o) => ({ id: o.id, o, x: 0, y: 0, r: raioEstrela[nivelAtual(o)], hit: 2.2 }));
+    const porId = new Map(nos.map((n) => [n.id, n]));
+    const ligs = A.ligacoes.filter((l) => l.a.mat === matId).map((l) => ({ a: porId.get(l.a.id), b: porId.get(l.b.id), tipo: l.tipo, extra: l.extra }));
+    relaxar(matId, nos, ligs);
+    const xs = nos.map((p) => p.x), ys = nos.map((p) => p.y), m = 60;
+    const r = { nos, ligs, lim: { x0: Math.min(...xs) - m, x1: Math.max(...xs) + m, y0: Math.min(...ys) - m, y1: Math.max(...ys) + m } };
+    cacheLayout.set(matId, r);
+    return r;
+  }
+
+  /* ----- Casca ----- */
+  const casca = A.montar({ id: 'constelacoes', titulo: 'Constelações · uma por matéria',
+    irPara: (id) => {
+      const o = A.indice.get(id);
+      if (materia !== o.mat) entrar(o.mat);
+      const n = v.porId(id);
+      if (n) v.escolher(n, true);
+    },
+    aoTema: () => { v.tema(); estilos = A.estilos(v.c); desenharCartoes(); },
+    acoes: [{ rotulo: '‹ Constelações', fn: () => voltar() }] });
+  let estilos;
+  const v = A.palco({ canvas: casca.canvas, kFoco: 1.6, kMax: 5, fundo, ligacoes, nos: desenharNos, rotulos, aoEscolher: (n) => casca.detalhe(n ? n.o : null) });
+  estilos = A.estilos(v.c);
+  casca.ligar(v);
+
+  /* ----- Entrada: um cartão por matéria, com a constelação em miniatura ----- */
+  const geral = document.createElement('section');
+  geral.className = 'geral'; geral.setAttribute('aria-label', 'Constelações');
+  geral.innerHTML = `<h2>Escolha uma constelação<small>Cada Matéria é uma constelação; cada Ofício, uma estrela. Só a escolhida é desenhada.</small></h2><ul class="grade">${A.MATERIAS.map((m) => {
+    const lista = A.deMateria(m.id), d = A.dominioDe(lista), dom = lista.filter((o) => A.info.get(o.id).est === 'Dominado').length;
+    return `<li><button class="const" type="button" data-mat="${m.id}" style="--c: var(${m.cor})" aria-label="Abrir a constelação ${m.nome}: ${d.pct}% dominado">
+      <span class="ceu"><canvas class="mini" aria-hidden="true"></canvas></span>
+      <span class="info"><span class="nome"><i class="dot"></i>${m.nome}</span><span class="pct">${d.pct}%</span>
+      <span class="sub">${dom} de ${lista.length} Ofícios Dominados · ${d.prov} de ${d.total} dimensões provadas</span>
+      <span class="bar" aria-hidden="true" style="--v: ${d.pct}%"><i></i></span></span></button></li>`;
+  }).join('')}</ul>`;
+  casca.palco.append(geral);
+  geral.addEventListener('click', (e) => { const b = e.target.closest('.const'); if (b) entrar(b.dataset.mat); });
+  const legenda = casca.palco.querySelector('.legenda'), controles = casca.palco.querySelector('.controles');
+
+  function desenharCartoes() {
+    const c = v.c, dpr = Math.min(2, window.devicePixelRatio || 1);
+    geral.querySelectorAll('.const').forEach((b) => {
+      const cv = b.querySelector('canvas'), r = cv.getBoundingClientRect();
+      if (!r.width) return;
+      cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+      const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const matId = b.dataset.mat, { nos, ligs, lim } = posicoes(matId), cor = c.mat[matId];
+      const k = Math.min((r.width - 28) / (lim.x1 - lim.x0), (r.height - 28) / (lim.y1 - lim.y0));
+      const X = (x) => r.width / 2 + x * k, Y = (y) => r.height / 2 + y * k;
+      g.lineWidth = 1; g.strokeStyle = A.rgba(cor, 0.4); g.beginPath();
+      ligs.forEach((l) => { g.moveTo(X(l.a.x), Y(l.a.y)); g.lineTo(X(l.b.x), Y(l.b.y)); });
+      g.stroke();
+      nos.forEach((n) => {
+        const est = nivelAtual(n.o), brilho = est === 'Dominado' ? 1 : est === 'Liberado' ? 0.9 : est === 'Em prática' ? 0.7 : est === 'Disponível' ? 0.45 : 0.3;
+        g.fillStyle = est === 'Bloqueado' ? A.rgba(c.muted, 0.5) : est === 'Dominado' ? c.text : A.rgba(cor, brilho);
+        const rr = Math.max(1, n.r * k * (est === 'Bloqueado' ? 0.6 : 0.9));
+        g.beginPath(); g.arc(X(n.x), Y(n.y), rr, 0, TAU); g.fill();
+      });
+    });
+  }
+  new ResizeObserver(() => { if (!geral.hidden) desenharCartoes(); }).observe(geral);
+
+  function entrar(matId) {
+    materia = matId;
+    const d = posicoes(matId);
+    geral.hidden = true; casca.canvas.hidden = false; controles.hidden = false; legenda.hidden = false;
+    v.sel = null; v.foco = null;
+    v.setDados(d.nos, d.ligs, d.lim);
+    casca.detalhe(null);
+    history.replaceState(null, '', `${location.pathname}${A.consulta({ materia: matId })}`);
+    casca.canvas.focus({ preventScroll: true });
+    A.anunciar(`Constelação ${A.matDe(matId).nome}`);
+  }
+  function voltar() {
+    materia = null; casca.detalhe(null); v.sel = null; v.foco = null;
+    geral.hidden = false; casca.canvas.hidden = true; controles.hidden = true; legenda.hidden = true;
+    history.replaceState(null, '', `${location.pathname}${A.consulta()}`);
+    desenharCartoes();
+    A.anunciar('Constelações');
+  }
+  if (materia) entrar(materia); else voltar();
+
+  /* ----- Desenho da constelação ----- */
+  /* Céu estrelado: pontos fixos que andam a 12% da velocidade da Árvore (paralaxe). */
+  let sem = 11;
+  const rnd = () => { sem = (sem * 16807) % 2147483647; return sem / 2147483647; };
+  const ceu = Array.from({ length: 150 }, () => ({ x: rnd(), y: rnd(), r: 0.5 + rnd() * 1.1, a: 0.15 + rnd() * 0.45 }));
+  function fundo(ctx, vv) {
+    if (!materia) return;
+    const c = vv.c, cor = c.mat[materia];
+    [[0.25, 0.3, 0.7, 0.26], [0.8, 0.75, 0.6, 0.16]].forEach(([fx, fy, fr, al]) => {
+      const x = vv.W * fx - vv.cx * vv.k * 0.05, y = vv.H * fy - vv.cy * vv.k * 0.05, r = Math.max(vv.W, vv.H) * fr;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, A.rgba(cor, al)); g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, vv.W, vv.H);
+    });
+    const g = ctx.createRadialGradient(vv.W * 0.5, vv.H, 0, vv.W * 0.5, vv.H, vv.H);
+    g.addColorStop(0, c.halo); g.addColorStop(1, 'transparent'); ctx.fillStyle = g; ctx.fillRect(0, 0, vv.W, vv.H);
+    ctx.fillStyle = c.text;
+    ceu.forEach((s) => {
+      const x = (((s.x * vv.W - vv.cx * vv.k * 0.12) % vv.W) + vv.W) % vv.W, y = (((s.y * vv.H - vv.cy * vv.k * 0.12) % vv.H) + vv.H) % vv.H;
+      ctx.globalAlpha = s.a; ctx.beginPath(); ctx.arc(x, y, s.r, 0, TAU); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+  const larg = (vv, mn, w) => Math.max(mn / vv.k, w);
+  function ligacoes(ctx, lista, vv) {
+    const c = vv.c, cor = c.mat[materia], acesas = new Path2D(), abertas = new Path2D(), apagadas = new Path2D();
+    for (const l of lista) {
+      const p = l.tipo === 'acesa' ? acesas : l.tipo === 'aberta' ? abertas : apagadas;
+      p.moveTo(l.a.x, l.a.y); p.lineTo(l.b.x, l.b.y);
+    }
+    ctx.strokeStyle = A.rgba(c.muted, 0.18); ctx.lineWidth = larg(vv, 1, 1); ctx.stroke(apagadas);
+    ctx.strokeStyle = A.rgba(c.text, 0.4); ctx.lineWidth = larg(vv, 1, 1.2); ctx.stroke(abertas);
+    ctx.strokeStyle = A.rgba(cor, 0.16); ctx.lineWidth = larg(vv, 5, 5); ctx.stroke(acesas);
+    ctx.strokeStyle = A.rgba(cor, 0.95); ctx.lineWidth = larg(vv, 1.4, 1.6); ctx.stroke(acesas);
+  }
+  /* Estrela de 4 pontas (cometa côncavo): os pontos de controle ficam no centro. */
+  function estrela(p, x, y, r) {
+    p.moveTo(x, y - r); p.quadraticCurveTo(x, y, x + r, y); p.quadraticCurveTo(x, y, x, y + r); p.quadraticCurveTo(x, y, x - r, y); p.quadraticCurveTo(x, y, x, y - r);
+  }
+  function desenharNos(ctx, lista, vv) {
+    const c = vv.c, cor = c.mat[materia], g = { Dominado: [], Liberado: [], 'Em prática': [], Disponível: [], Bloqueado: [] }, selos = [];
+    for (const n of lista) {
+      const i = A.info.get(n.id);
+      g[i.est].push(n);
+      if (i.revisar && n.r * vv.k >= 2) selos.push(n);
+    }
+    const tiny = (n) => n.r * vv.k < 1.8;
+    const brilho = { Dominado: 1, Liberado: 0.95, 'Em prática': 0.8, Disponível: 0.5 };
+    /* Halos suaves nas estrelas acesas (dois discos translúcidos por grupo, em vez de gradiente por estrela). */
+    ['Dominado', 'Liberado'].forEach((est) => {
+      const p1 = new Path2D(), p2 = new Path2D();
+      g[est].forEach((n) => { if (tiny(n)) return; p1.moveTo(n.x + n.r * 2.8, n.y); p1.arc(n.x, n.y, n.r * 2.8, 0, TAU); p2.moveTo(n.x + n.r * 1.7, n.y); p2.arc(n.x, n.y, n.r * 1.7, 0, TAU); });
+      ctx.fillStyle = A.rgba(cor, est === 'Dominado' ? 0.14 : 0.1); ctx.fill(p1);
+      ctx.fillStyle = A.rgba(cor, est === 'Dominado' ? 0.22 : 0.16); ctx.fill(p2);
+    });
+    Object.keys(brilho).forEach((est) => {
+      const p = new Path2D(), t = new Path2D(), s = 2.4 / vv.k;
+      g[est].forEach((n) => { if (tiny(n)) t.rect(n.x - s / 2, n.y - s / 2, s, s); else estrela(p, n.x, n.y, n.r * 2); });
+      ctx.fillStyle = est === 'Dominado' ? c.text : A.rgba(cor, brilho[est]); ctx.fill(p); ctx.fill(t);
+      if (est !== 'Disponível') {
+        const core = new Path2D();
+        g[est].forEach((n) => { if (!tiny(n)) { core.moveTo(n.x + n.r * 0.5, n.y); core.arc(n.x, n.y, n.r * 0.5, 0, TAU); } });
+        ctx.fillStyle = est === 'Dominado' ? '#ffffff' : c.text; ctx.globalAlpha = 0.9; ctx.fill(core); ctx.globalAlpha = 1;
+      }
+    });
+    /* Bloqueado: ponto apagado com contorno tracejado (a forma também diz o estado). */
+    const pb = new Path2D();
+    g.Bloqueado.forEach((n) => { pb.moveTo(n.x + n.r, n.y); pb.arc(n.x, n.y, n.r, 0, TAU); });
+    ctx.fillStyle = A.rgba(c.muted, 0.35); ctx.fill(pb);
+    ctx.setLineDash(vv.k > 0.6 ? [3 / vv.k, 3 / vv.k] : []); ctx.strokeStyle = A.rgba(c.muted, 0.8); ctx.lineWidth = 1.2 / vv.k; ctx.stroke(pb); ctx.setLineDash([]);
+    if (selos.length) {
+      const p = new Path2D();
+      selos.forEach((n) => { const r = Math.max(n.r * 0.55, 2.6 / vv.k); p.moveTo(n.x + n.r * 1.7 + r, n.y - n.r * 1.7); p.arc(n.x + n.r * 1.7, n.y - n.r * 1.7, r, 0, TAU); });
+      ctx.fillStyle = c.bad; ctx.fill(p); ctx.strokeStyle = c.bg; ctx.lineWidth = 1.2 / vv.k; ctx.stroke(p);
+    }
+    /* Muito perto: o contador e o nome da estrela. */
+    if (vv.k >= 2.2) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      for (const n of lista) {
+        const i = A.info.get(n.id);
+        ctx.font = `600 ${11 / vv.k}px ${c.fText}`; ctx.fillStyle = i.est === 'Bloqueado' ? A.rgba(c.muted, 0.9) : c.text;
+        ctx.fillText(n.o.nome, n.x, n.y + n.r * 2 + 15 / vv.k);
+      }
+    }
+  }
+  /* Título da constelação embaixo, como na tela de habilidades: nome espaçado e o domínio em número grande. */
+  function rotulos(ctx, lista, vv) {
+    if (!materia) return;
+    const c = vv.c, m = A.matDe(materia), dom = A.dominioDe(A.deMateria(materia)).pct;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = `700 14px ${c.fText}`; ctx.letterSpacing = '3px'; ctx.fillStyle = c.mat[materia]; ctx.strokeStyle = c.bg; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+    ctx.strokeText(m.nome.toUpperCase(), vv.W / 2, vv.H - 58); ctx.fillText(m.nome.toUpperCase(), vv.W / 2, vv.H - 58);
+    ctx.letterSpacing = '0px'; ctx.font = `700 40px ${c.fTitle}`; ctx.fillStyle = c.text;
+    ctx.strokeText(String(dom), vv.W / 2, vv.H - 18); ctx.fillText(String(dom), vv.W / 2, vv.H - 18);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="borgonha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Árvores · Ateliê (protótipos)</title>
+<meta name="color-scheme" content="dark">
+<!--
+  Cinco protótipos de Árvore para a Ficha (ATL-57), cada um inspirado num jogo. Dados fictícios, só a ideia (nada copiado).
+  Arquivos: dados.js (Ofícios e estados), motor.js (canvas, zoom, teclado), comum.js (topo, busca, card), base.css (tokens das 3 paletas).
+  ?tema=tokyo|borgonha|verde e ?volume=N (até 2000 por matéria) valem em todas as páginas; ?medir mostra o custo do desenho.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('tema');
+    if (t === 'tokyo' || t === 'borgonha' || t === 'verde') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+  body { overflow: auto; display: block; }
+  .pagina { max-width: 1120px; margin: 0 auto; padding: 28px 16px 56px; }
+  .pagina h1 { margin: 6px 0 10px; font-family: var(--f-title); font-size: 30px; line-height: 1.2; }
+  .pagina p { margin: 0 0 12px; max-width: 70ch; color: var(--muted); }
+  .grade { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grade .card { display: flex; flex-direction: column; gap: 10px; height: 100%; padding: 22px; }
+  .grade h2 { margin: 0; font-family: var(--f-title); font-size: 22px; }
+  .grade dl { margin: 0; display: grid; gap: 8px; font-size: 14px; }
+  .grade dt { color: var(--xp); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+  .grade dd { margin: 2px 0 0; color: var(--text); }
+  .grade .acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 8px; }
+  .btn-pill.principal { background: var(--accent); border-color: transparent; color: var(--on-accent); box-shadow: 0 0 28px var(--glow); text-decoration: none; }
+  a.btn-pill { text-decoration: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--xp); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .rolagem { overflow-x: auto; }
+  h2.secao { margin: 40px 0 6px; font-family: var(--f-title); font-size: 22px; }
+  .topo-index { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }
+</style>
+</head>
+<body>
+<main class="pagina" id="conteudo">
+  <div class="topo-index">
+    <div><span class="eyebrow">Ficha · ATL-57 · protótipos</span></div>
+    <fieldset class="seg" style="margin:0"><legend class="sr">Paleta</legend>
+      <label><input type="radio" name="paleta" value="borgonha" checked><span>Borgonha</span></label>
+      <label><input type="radio" name="paleta" value="tokyo"><span>Tokyo</span></label>
+      <label><input type="radio" name="paleta" value="verde"><span>Verde</span></label>
+    </fieldset>
+  </div>
+  <h1>Cinco jeitos de desenhar a Árvore</h1>
+  <p>Cada protótipo pega uma ideia de um jogo (só a ideia, nada copiado) e a aplica aos mesmos 20 Ofícios fictícios do protótipo da Ficha, com os mesmos estados
+    (Bloqueado, Disponível, Em prática, Liberado, Dominado), as cinco dimensões e as três paletas escuras. Compare com a mesma paleta e o mesmo volume:
+    o seletor "Ofícios a mais por matéria" (no topo de cada página) soma até 2000 Ofícios fictícios a cada matéria, ou seja, 6000 no total.</p>
+  <hr class="hairline" style="margin:20px 0 0">
+
+  <ul class="grade">
+    <li><article class="card">
+      <span class="eyebrow">Path of Exile 2</span><h2>Atlas</h2>
+      <dl>
+        <div><dt>Ideia</dt><dd>Aglomerados: um Ofício que abre outros vira o centro de um cacho, com os filhos em volta. Linhas douradas finas, brilho de cada matéria ao fundo.</dd></div>
+        <div><dt>Densidade</dt><dd>Os cachos se encaixam sem sobrepor, então a Árvore cresce em todas as direções. De longe os Ofícios viram pontos; perto aparecem número, cadeado e os 5 satélites.</dd></div>
+        <div><dt>Melhor para</dt><dd>Ver tudo de uma vez e ter sensação de mapa grande.</dd></div>
+      </dl>
+      <div class="acoes"><a class="btn-pill principal" data-v="atlas.html">Abrir</a><a class="btn-pill" data-v="atlas.html" data-extra="volume=2000&medir">Teste com 6000</a></div>
+    </article></li>
+    <li><article class="card">
+      <span class="eyebrow">Arc Raiders</span><h2>Troncos</h2>
+      <dl>
+        <div><dt>Ideia</dt><dd>Um tronco colorido por matéria, curvas grossas, contador "3/5" e um pentágono com as 5 dimensões em cada disco. Domínio em número grande embaixo.</dd></div>
+        <div><dt>Densidade</dt><dd>Só os ramos principais ficam abertos; o resto mostra "+N". Clicar abre o ramo. O desenho inicial é pequeno mesmo com 6000 Ofícios.</dd></div>
+        <div><dt>Melhor para</dt><dd>Ler o progresso de relance e dar vontade de "desbloquear o próximo".</dd></div>
+      </dl>
+      <div class="acoes"><a class="btn-pill principal" data-v="troncos.html">Abrir</a><a class="btn-pill" data-v="troncos.html" data-extra="volume=2000&medir">Teste com 6000</a></div>
+    </article></li>
+    <li><article class="card">
+      <span class="eyebrow">Albion Online</span><h2>Roda</h2>
+      <dl>
+        <div><dt>Ideia</dt><dd>Uma roda inteira: uma fatia por matéria, anéis por profundidade e, no eixo do topo, 5 medalhões (um por dimensão) com o quanto você já provou em tudo.</dd></div>
+        <div><dt>Densidade</dt><dd>O círculo é a forma que mais cabe: a área cresce com o quadrado do raio. Os anéis se alargam para os Ofícios nunca se encostarem.</dd></div>
+        <div><dt>Melhor para</dt><dd>Volume muito grande, comparar matérias lado a lado e ver o progresso por dimensão.</dd></div>
+      </dl>
+      <div class="acoes"><a class="btn-pill principal" data-v="roda.html">Abrir</a><a class="btn-pill" data-v="roda.html" data-extra="volume=2000&medir">Teste com 6000</a></div>
+    </article></li>
+    <li><article class="card">
+      <span class="eyebrow">Skyrim</span><h2>Constelações</h2>
+      <dl>
+        <div><dt>Ideia</dt><dd>A entrada mostra uma constelação por matéria. Ao escolher, só ela é desenhada: cada Ofício vira uma estrela e o brilho conta o estado.</dd></div>
+        <div><dt>Densidade</dt><dd>Dois níveis (revelação progressiva): nunca carrega mais que uma matéria. As estrelas se espalham por forças, formando cachos naturais.</dd></div>
+        <div><dt>Melhor para</dt><dd>Dar identidade a cada matéria e motivar ("acender a constelação"). É a mais bonita e a mais calma.</dd></div>
+      </dl>
+      <div class="acoes"><a class="btn-pill principal" data-v="constelacoes.html">Abrir</a><a class="btn-pill" data-v="constelacoes.html" data-extra="volume=2000&medir&materia=calc">Teste com 2000</a></div>
+    </article></li>
+    <li><article class="card">
+      <span class="eyebrow">Diablo 4</span><h2>Galhos</h2>
+      <dl>
+        <div><dt>Ideia</dt><dd>Galhos deitados saindo do tronco ("Você"), com o nome de cada Ofício sempre ao lado. Peças quadradas para os Ofícios principais.</dd></div>
+        <div><dt>Densidade</dt><dd>Ramos fechados mostram "+N", como nos Troncos. De longe só os nomes principais; perto, todos. O nome que não cabe é cortado ou pulado.</dd></div>
+        <div><dt>Melhor para</dt><dd>Estudar com a Árvore aberta: é a única que dispensa a etiqueta para saber o que cada ponto é.</dd></div>
+      </dl>
+      <div class="acoes"><a class="btn-pill principal" data-v="galhos.html">Abrir</a><a class="btn-pill" data-v="galhos.html" data-extra="volume=2000&medir">Teste com 6000</a></div>
+    </article></li>
+  </ul>
+
+  <h2 class="secao">O que todas têm em comum</h2>
+  <div class="rolagem"><table>
+    <thead><tr><th>Requisito</th><th>Como foi atendido</th></tr></thead>
+    <tbody>
+      <tr><td>Leveza</td><td>Um único desenho na tela (canvas), sem um elemento de página por Ofício. Só o que aparece na tela é desenhado; de longe os Ofícios são agrupados por cor. Nada de biblioteca nova: só arquivos locais, sem build.</td></tr>
+      <tr><td>Densidade</td><td>Níveis de detalhe pelo zoom (ponto, disco, número, 5 satélites), ramos fechados (Troncos e Galhos), uma matéria por vez (Constelações) e raios que crescem com o volume (Roda e Atlas). Busca pelo nome em todas.</td></tr>
+      <tr><td>Estética</td><td>Só os tokens das três paletas (bg, surface, text, accent, xp...), a cor de matéria só identifica a matéria, o estado também aparece na forma (tracejado, preenchimento, aro) e no card. Cantos, filetes e fontes do docs/05-atelie.md.</td></tr>
+      <tr><td>Acessibilidade</td><td>Teclado: Tab entra na Árvore, setas andam entre Ofícios ligados, Enter escolhe, + e − dão zoom, 0 ajusta, Esc limpa. O nome e o estado do Ofício em foco são anunciados; o card de detalhe é HTML comum.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 class="secao">Medido neste computador (6020 Ofícios)</h2>
+  <p>Tempo de um desenho na tela inteira e quantidade de elementos da página, lidos pelo medidor (?medir). Os valores variam com a máquina.</p>
+  <div class="rolagem"><table>
+    <thead><tr><th>Protótipo</th><th>Ofícios desenhados</th><th>Tempo por desenho</th><th>Elementos na página</th></tr></thead>
+    <tbody>
+      <tr><td>Atlas</td><td>6020 (todos)</td><td>cerca de 5 ms (pior 10 ms)</td><td>91</td></tr>
+      <tr><td>Roda</td><td>6020 (todos)</td><td>cerca de 5 ms (pior 10 ms)</td><td>91</td></tr>
+      <tr><td>Constelações</td><td>2008 (uma matéria)</td><td>cerca de 3 ms; o posicionamento leva 0,17 s uma vez</td><td>127</td></tr>
+      <tr><td>Troncos</td><td>120 abertos (de 6020)</td><td>menos de 1 ms (pior 4,5 ms)</td><td>102</td></tr>
+      <tr><td>Galhos</td><td>120 abertos (de 6020)</td><td>cerca de 1,4 ms (pior 4,3 ms)</td><td>97</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:16px">Dados fictícios e fixos; nada aqui fala com o Gregor nem com o banco. O protótipo atual da Ficha (prototipo/index.html) não foi alterado.</p>
+</main>
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    function montar() {
+      document.querySelectorAll('a[data-v]').forEach(function (a) {
+        var p = new URLSearchParams(location.search);
+        p.delete('materia');
+        if (a.dataset.extra) new URLSearchParams(a.dataset.extra).forEach(function (val, k) { p.set(k, val); });
+        var s = p.toString();
+        a.href = a.dataset.v + (s ? '?' + s : '');
+      });
+    }
+    montar();
+    var atual = document.documentElement.dataset.theme;
+    document.querySelectorAll('input[name="paleta"]').forEach(function (r) {
+      r.checked = r.value === atual;
+      r.addEventListener('change', function () {
+        document.documentElement.dataset.theme = r.value;
+        q.set('tema', r.value);
+        history.replaceState(null, '', location.pathname + '?' + q.toString());
+        montar();
+      });
+    });
+  })();
+</script>
+</body>
+</html>

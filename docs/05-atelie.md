@@ -215,6 +215,13 @@ roda. O filtro por matéria usa o círculo todo.
 Para aguentar volume, só se desenha o que está na tela (mais uma margem), em 4
 níveis de detalhe pelo zoom, com as linhas juntas em poucos traçados (D-041).
 
+Evolução pós-MVP: `prototipo/arvores/` guarda cinco jeitos de desenhar a Árvore
+em canvas, com dados fictícios (abrir `index.html` por duplo clique, sem
+servidor). A referência da evolução é `prototipo/arvores/constelacoes.html`: uma
+constelação por matéria, cada Ofício uma estrela, só a matéria escolhida é
+desenhada. Fica para o épico ATL-156, só depois de 2 semanas de uso real do MVP
+(D-055). O MVP segue com a roda em SVG descrita acima.
+
 ## Fora do MVP nesta camada
 
 Painel da Jane (chat), sessão em etapas com relógio, botão Fases, captura rápida,

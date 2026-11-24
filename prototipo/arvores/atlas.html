@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="borgonha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas · Árvore do Ateliê (protótipo)</title>
+<meta name="color-scheme" content="dark">
+<!--
+  Atlas (ATL-57): Árvore inspirada no Path of Exile 2. Só a ideia, nada copiado.
+  - Aglomerados: cada Ofício que abre outros vira um centro, e os filhos giram em volta dele (anel de guia),
+    como os "cachos" da árvore do jogo. Os cachos se encaixam sem sobrepor (layout em balões), então cabe
+    qualquer volume sem a Árvore virar uma tira estreita.
+  - Linhas finas douradas entre os cachos, brilho de cada Matéria ao fundo, ponto de partida embaixo (o "Você").
+  - Leveza: um canvas só; de longe os Ofícios são pontos agrupados por cor (poucas chamadas de desenho);
+    perto, aparecem número, cadeado, selo de revisão e os 5 satélites (as dimensões).
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('tema');
+    if (t === 'tokyo' || t === 'borgonha' || t === 'verde') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&amp;family=Montserrat:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div id="app" style="display:contents"></div>
+<noscript><p style="padding:24px">Este protótipo precisa de JavaScript.</p></noscript>
+<script src="dados.js"></script>
+<script src="motor.js"></script>
+<script src="comum.js"></script>
+<script>
+(function () {
+  'use strict';
+  const A = window.Atl;
+  const TAU = Math.PI * 2;
+
+  /* ----- Layout em balões: cada Ofício é o centro de um círculo; os filhos ficam num anel em volta ----- */
+  const B = new Map(); // id -> { R: raio do balão inteiro, r: raio do disco, L: raio do anel dos filhos, Rs: raios dos filhos }
+  const raioDisco = (o, raiz) => { const t = A.tamanho.get(o.id); return raiz ? 22 : t >= 8 ? 16 : t >= 3 ? 13 : 9; };
+  function balao(o, raiz) {
+    const f = A.filhosDe.get(o.id), r = raioDisco(o, raiz);
+    f.forEach((c) => balao(c, false));
+    if (!f.length) { B.set(o.id, { R: r + 4, r, L: 0, Rs: [] }); return; }
+    const Rs = f.map((c) => B.get(c.id).R + 4), Rmax = Math.max(...Rs);
+    /* O anel só precisa afastar os discos (e o anel do filho mais fundo); os irmãos se afastam pelo teste de ângulo abaixo.
+       Sem isso, uma cadeia de um filho só dobraria de tamanho a cada nível. */
+    let L = Math.max(r + Math.max(...f.map((c) => B.get(c.id).r)) + 8, 0.85 * Math.max(...f.map((c) => B.get(c.id).L)));
+    const soma = (x) => Rs.reduce((s, R) => s + 2 * Math.asin(Math.min(1, R / x)), 0);
+    while (soma(L) > TAU * 0.86) L *= 1.06;
+    B.set(o.id, { R: L + Rmax + 4, r, L, Rs });
+  }
+
+  const nos = [], guias = [], zonas = [];
+  function colocar(o, x, y, dir) {
+    const b = B.get(o.id), f = A.filhosDe.get(o.id);
+    nos.push({ id: o.id, o, x, y, r: b.r, hit: 1.5 });
+    if (!f.length) return;
+    if (f.length >= 5) guias.push({ x, y, L: b.L });
+    const spans = b.Rs.map((R) => 2 * Math.asin(Math.min(1, R / b.L))), S = spans.reduce((s, n) => s + n, 0);
+    const extra = Math.min(((TAU - S) * 0.8) / f.length, 0.35);
+    let a = dir - (S + extra * (f.length - 1)) / 2;
+    f.forEach((c, i) => {
+      a += spans[i] / 2;
+      colocar(c, x + Math.cos(a) * b.L, y + Math.sin(a) * b.L, a);
+      a += spans[i] / 2 + extra;
+    });
+  }
+  /* Três zonas lado a lado, o ponto de partida embaixo ao centro e uma linha dourada até cada raiz. */
+  const raizes = A.MATERIAS.map((m) => ({ m, o: A.raizesDe(m.id)[0] }));
+  raizes.forEach(({ o }) => balao(o, true));
+  const maxR = Math.max(...raizes.map(({ o }) => B.get(o.id).R));
+  const larg = raizes.reduce((s, { o }) => s + B.get(o.id).R * 2, 0) + 90 * (raizes.length - 1);
+  let xi = -larg / 2;
+  const yZona = -(maxR + 200);
+  const origem = { x: 0, y: 0, r: 46 };
+  raizes.forEach(({ m, o }) => {
+    const R = B.get(o.id).R;
+    colocar(o, xi + R, yZona, -Math.PI / 2);
+    zonas.push({ m, cx: xi + R, cy: yZona, R, raiz: o });
+    xi += R * 2 + 90;
+  });
+  const porId = new Map(nos.map((n) => [n.id, n]));
+  const ligs = A.ligacoes.map((l) => ({ a: porId.get(l.a.id), b: porId.get(l.b.id), tipo: l.tipo, extra: l.extra }));
+  const lim = { x0: -larg / 2 - 80, x1: larg / 2 + 80, y0: yZona - maxR - 120, y1: origem.y + 120 };
+
+  /* ----- Casca e motor ----- */
+  const casca = A.montar({ id: 'atlas', titulo: 'Atlas · aglomerados de Ofícios', irPara: (id) => { const n = v.porId(id); if (n) v.escolher(n, true); },
+    aoTema: () => { v.tema(); estilos = A.estilos(v.c); },
+    legenda: '<li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="9" fill="none" stroke="var(--xp)" stroke-opacity=".4" stroke-width="1.5"/></svg>Anel: um cacho de Ofícios</li>' });
+  let estilos;
+  const v = A.palco({ canvas: casca.canvas, kFoco: 1.6, kMax: 4, fundo, ligacoes, nos: desenharNos, rotulos, aoEscolher: (n) => casca.detalhe(n ? n.o : null) });
+  estilos = A.estilos(v.c);
+  v.setDados(nos, ligs, lim);
+  casca.ligar(v);
+
+  /* ----- Desenho ----- */
+  function fundo(ctx, vv) {
+    const c = vv.c;
+    const g = ctx.createRadialGradient(vv.W * 0.5, 0, 0, vv.W * 0.5, 0, vv.H * 0.9);
+    g.addColorStop(0, c.halo); g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, vv.W, vv.H);
+    zonas.forEach((z) => {
+      const x = vv.sx(z.cx), y = vv.sy(z.cy), r = z.R * vv.k * 1.25;
+      if (x + r < 0 || x - r > vv.W || y + r < 0 || y - r > vv.H) return;
+      const gz = ctx.createRadialGradient(x, y, 0, x, y, r);
+      gz.addColorStop(0, A.rgba(c.mat[z.m.id], 0.2)); gz.addColorStop(0.6, A.rgba(c.mat[z.m.id], 0.07)); gz.addColorStop(1, 'transparent');
+      ctx.fillStyle = gz; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    });
+  }
+  const largura = (vv, mn, w) => Math.max(mn / vv.k, w);
+  function ligacoes(ctx, lista, vv) {
+    const c = vv.c, grupos = new Map();
+    for (const l of lista) {
+      const chave = `${l.tipo}|${l.a.o.mat}|${l.extra ? 'x' : ''}`;
+      let p = grupos.get(chave);
+      if (!p) { p = new Path2D(); grupos.set(chave, p); }
+      p.moveTo(l.a.x, l.a.y); p.lineTo(l.b.x, l.b.y);
+    }
+    const perto = vv.k > 0.45;
+    grupos.forEach((p, chave) => {
+      const [tipo, mat, extra] = chave.split('|');
+      ctx.setLineDash(tipo === 'apagada' && perto ? [5, 8] : extra && perto ? [2, 6] : []);
+      if (tipo === 'acesa') { ctx.strokeStyle = c.mat[mat]; ctx.lineWidth = largura(vv, 1.8, extra ? 1.6 : 3); }
+      else if (tipo === 'aberta') { ctx.strokeStyle = A.rgba(c.muted, 0.8); ctx.lineWidth = largura(vv, 1.4, extra ? 1.2 : 2); }
+      else { ctx.strokeStyle = A.rgba(c.muted, 0.4); ctx.lineWidth = largura(vv, 1, 1.5); }
+      ctx.stroke(p);
+    });
+    ctx.setLineDash([]);
+    /* Anéis de guia dos cachos (só quando dá para ver o cacho) e linhas douradas do ponto de partida. */
+    const p = new Path2D();
+    for (const gd of guias) {
+      const rr = gd.L * vv.k;
+      if (rr < 24 || rr > 3000) continue;
+      const gx = vv.sx(gd.x), gy = vv.sy(gd.y);
+      if (gx + rr < 0 || gx - rr > vv.W || gy + rr < 0 || gy - rr > vv.H) continue;
+      p.moveTo(gd.x + gd.L, gd.y); p.arc(gd.x, gd.y, gd.L, 0, TAU);
+    }
+    ctx.strokeStyle = A.rgba(c.xp, 0.2); ctx.lineWidth = 1 / vv.k; ctx.stroke(p);
+    ctx.strokeStyle = c.hairline; ctx.lineWidth = largura(vv, 1.4, 2);
+    ctx.beginPath();
+    zonas.forEach((z) => { ctx.moveTo(origem.x, origem.y); ctx.lineTo(z.cx + 0, z.cy + B.get(z.raiz.id).r); });
+    ctx.stroke();
+  }
+
+  function desenharNos(ctx, lista, vv) {
+    const c = vv.c, tiny = new Map(), medios = new Map(), perto = [], selos = [];
+    for (const n of lista) {
+      const i = A.info.get(n.id), rpx = n.r * vv.k, chave = `${i.est}|${n.o.mat}`;
+      if (i.revisar && rpx >= 3) selos.push(n);
+      if (rpx < 2.2) { (tiny.get(chave) || tiny.set(chave, []).get(chave)).push(n); }
+      else if (rpx < 9) { (medios.get(chave) || medios.set(chave, []).get(chave)).push(n); }
+      else perto.push(n);
+    }
+    /* De longe: quadradinhos, um traço de preenchimento por estado e matéria. */
+    const s = 2.8 / vv.k;
+    tiny.forEach((ns, chave) => {
+      const [est, mat] = chave.split('|'), st = estilos[est][mat];
+      const p = new Path2D();
+      ns.forEach((n) => p.rect(n.x - s / 2, n.y - s / 2, s, s));
+      ctx.fillStyle = est === 'Bloqueado' ? A.rgba(c.muted, 0.55) : est === 'Disponível' ? A.rgba(st.cor, 0.6) : st.cor; ctx.fill(p);
+    });
+    /* No meio: discos, um traço por estado e matéria. */
+    medios.forEach((ns, chave) => {
+      const [est, mat] = chave.split('|'), st = estilos[est][mat];
+      const p = new Path2D();
+      ns.forEach((n) => { p.moveTo(n.x + n.r, n.y); p.arc(n.x, n.y, n.r, 0, TAU); });
+      ctx.fillStyle = st.fill; ctx.fill(p);
+      ctx.strokeStyle = st.stroke; ctx.lineWidth = Math.min(st.lw, 2) / vv.k; ctx.stroke(p);
+    });
+    /* De perto: um a um, com número, cadeado e satélites. */
+    for (const n of perto) {
+      const i = A.info.get(n.id), st = estilos[i.est][n.o.mat], rpx = n.r * vv.k;
+      if (rpx >= 34) satelites(ctx, n, vv);
+      if (st.aro) { ctx.beginPath(); ctx.arc(n.x, n.y, n.r * 1.28, 0, TAU); ctx.strokeStyle = st.cor; ctx.lineWidth = 1.5 / vv.k; ctx.stroke(); }
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, TAU);
+      ctx.fillStyle = st.fill; ctx.fill();
+      ctx.setLineDash(st.dash ? [4 / vv.k * 2, 4 / vv.k * 2] : []); ctx.strokeStyle = st.stroke; ctx.lineWidth = st.lw / vv.k; ctx.stroke(); ctx.setLineDash([]);
+      if (rpx >= 16) {
+        if (i.est === 'Bloqueado') cadeado(ctx, n.x, n.y, n.r * 0.5, c.muted);
+        else { ctx.fillStyle = i.est === 'Dominado' ? c.bg : c.text; ctx.font = `700 ${n.r * 0.78}px ${c.fText}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`${i.prov}/${i.total}`, n.x, n.y + n.r * 0.04); }
+      }
+    }
+    if (selos.length) {
+      const p = new Path2D();
+      selos.forEach((n) => { const r = Math.max(n.r * 0.38, 3 / vv.k); p.moveTo(n.x + n.r * 0.85 + r, n.y - n.r * 0.85); p.arc(n.x + n.r * 0.85, n.y - n.r * 0.85, r, 0, TAU); });
+      ctx.fillStyle = c.bad; ctx.fill(p); ctx.strokeStyle = c.bg; ctx.lineWidth = 1.5 / vv.k; ctx.stroke(p);
+    }
+  }
+  function cadeado(ctx, x, y, r, cor) {
+    ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = r * 0.28;
+    ctx.beginPath(); ctx.arc(x, y - r * 0.2, r * 0.55, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(x - r * 0.85, y - r * 0.1, r * 1.7, r * 1.2, r * 0.2); ctx.fill();
+  }
+  /* Os 5 satélites (um por dimensão), do topo no sentido horário, como na Ficha atual. */
+  function satelites(ctx, n, vv) {
+    const c = vv.c, o = n.o, st = estilos[A.info.get(n.id).est][o.mat], orbita = n.r * 1.95, sr = n.r * 0.3;
+    A.dimsDe(o).forEach((d, i) => {
+      const a = -Math.PI / 2 + (TAU / 5) * i, x = n.x + Math.cos(a) * orbita, y = n.y + Math.sin(a) * orbita;
+      ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(x, y); ctx.strokeStyle = d.on ? st.cor : A.rgba(c.muted, 0.5); ctx.lineWidth = 1 / vv.k; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, sr, 0, TAU);
+      ctx.fillStyle = d.on ? st.cor : c.surface; ctx.fill();
+      ctx.setLineDash(d.na ? [2 / vv.k, 2 / vv.k] : []); ctx.strokeStyle = d.espera ? c.xp : d.on ? st.cor : c.muted; ctx.lineWidth = 1.5 / vv.k; ctx.stroke(); ctx.setLineDash([]);
+      if (vv.k * sr >= 6) { ctx.fillStyle = d.on ? c.bg : c.muted; ctx.font = `700 ${sr * 1.1}px ${c.fText}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.na ? '–' : d.letra, x, y + sr * 0.05); }
+    });
+  }
+  /* Títulos das zonas e o ponto de partida: em pixels de tela, o tamanho não muda com o zoom. */
+  function rotulos(ctx, lista, vv) {
+    const c = vv.c;
+    zonas.forEach((z) => {
+      const x = vv.sx(z.cx), y = vv.sy(z.cy - z.R) - 12;
+      if (x < -200 || x > vv.W + 200 || y < -40 || y > vv.H + 60) return;
+      const dom = A.dominioDe(A.deMateria(z.m.id)).pct;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+      ctx.font = `700 ${Math.min(24, Math.max(13, z.R * vv.k * 0.1))}px ${c.fTitle}`; ctx.letterSpacing = '3px';
+      ctx.strokeStyle = c.bg; ctx.lineWidth = 5; ctx.fillStyle = c.text;
+      const t = A.nomeCurto(z.m, vv.W).toUpperCase(); ctx.strokeText(t, x, y); ctx.fillText(t, x, y);
+      ctx.letterSpacing = '0px'; ctx.font = `600 12px ${c.fText}`; ctx.fillStyle = c.muted; ctx.strokeText(`${dom}% dominado`, x, y + 16); ctx.fillText(`${dom}% dominado`, x, y + 16);
+    });
+    const ox = vv.sx(origem.x), oy = vv.sy(origem.y), r = Math.max(12, origem.r * vv.k);
+    if (ox > -r && ox < vv.W + r && oy > -r && oy < vv.H + r) {
+      ctx.beginPath(); ctx.arc(ox, oy, r, 0, TAU); ctx.fillStyle = c.surface; ctx.fill(); ctx.strokeStyle = c.xp; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(ox, oy, r * 0.8, -Math.PI / 2, -Math.PI / 2 + TAU * 0.6); ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = c.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.max(10, r * 0.34)}px ${c.fText}`; ctx.fillText('Você', ox, oy - 1);
+      ctx.fillStyle = c.xp; ctx.font = `600 ${Math.max(9, r * 0.26)}px ${c.fText}`; ctx.fillText('Nv 7', ox, oy + r * 0.38);
+    }
+  }
+})();
+</script>
+</body>
+</html>
