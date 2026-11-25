@@ -14,7 +14,7 @@ export async function openMigratedDb(): Promise<Client> {
   return db.$client;
 }
 
-type Row = Record<string, InValue>;
+export type Row = Record<string, InValue>;
 
 const AT = '2026-01-01T12:00:00.000Z';
 const EXPLANATION = 'Explicação de teste com mais de vinte caracteres.';
