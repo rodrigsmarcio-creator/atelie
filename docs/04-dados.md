@@ -367,9 +367,15 @@ Contadores `NOT NULL DEFAULT 0` e `>= 0`; arquivo de conteúdo tem
 
 ## Migrations
 
-- `drizzle-kit generate` gera; você **lê o SQL** antes de aplicar. SQLite
-  recria tabela para alterar coluna; é onde se perde dado.
-- Uma migration por mudança lógica, com `down` testado.
+- `pnpm --filter @atelie/db db:generate` (o `drizzle-kit generate`, com
+  `packages/db/drizzle.config.ts`) gera em `packages/db/drizzle/`; você **lê o
+  SQL** antes de aplicar. SQLite recria tabela para alterar coluna; é onde se
+  perde dado.
+- `pnpm db:migrate` aplica (`packages/db/src/migrate.ts`, migrator do
+  `drizzle-orm` sobre o `@libsql/client`), lendo `DATABASE_URL` e, no Turso,
+  `DATABASE_AUTH_TOKEN` (D-064).
+- Uma migration por mudança lógica, com `down` testado. O `down` é escrito à
+  mão em `NNNN_nome.down.sql`, ao lado do `up` (D-064).
 - Nunca editar migration aplicada.
 - Migration inicial (`0000_schema_v1`) cria tudo acima exceto o que a seção
   "Fora do MVP" lista, inclusive `programs`, `subjects.program_id`, os

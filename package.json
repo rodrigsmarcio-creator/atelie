@@ -11,7 +11,7 @@
     "build": "pnpm -r build",
     "test": "vitest run",
     "lint": "eslint . && prettier --check .",
-    "db:migrate": "echo a implementar",
+    "db:migrate": "node --env-file-if-exists=.env packages/db/src/migrate.ts",
     "db:seed": "echo a implementar",
     "memory:rebuild": "echo a implementar",
     "import:validate": "echo a implementar",

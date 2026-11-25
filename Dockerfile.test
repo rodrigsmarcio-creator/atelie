@@ -29,6 +29,8 @@ COPY --chown=node:node packages/core/tsconfig.json packages/core/
 COPY --chown=node:node packages/core/src packages/core/src
 COPY --chown=node:node packages/db/tsconfig.json packages/db/
 COPY --chown=node:node packages/db/src packages/db/src
+# As migrations: o teste do migrate.ts aplica a 0000 num banco temporário (ATL-71).
+COPY --chown=node:node packages/db/drizzle packages/db/drizzle
 
 # A cobertura já é sempre ligada pelo vitest.config.ts (D-031), por isso não há --coverage aqui.
 CMD ["pnpm", "test"]
