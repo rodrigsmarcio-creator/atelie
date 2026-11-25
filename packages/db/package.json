@@ -10,9 +10,13 @@
     "build": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "~24.19.2",
+    "drizzle-kit": "~0.31.11",
     "typescript": "~6.0.3"
   },
   "dependencies": {
-    "@atelie/core": "workspace:*"
+    "@atelie/core": "workspace:*",
+    "@libsql/client": "~0.18.0",
+    "drizzle-orm": "~0.45.4"
   }
 }
