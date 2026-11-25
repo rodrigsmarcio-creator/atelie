@@ -78,7 +78,7 @@ mini curso (ATL-120) precisar.
 | estimated_minutes | integer NOT NULL | `CHECK (estimated_minutes BETWEEN 10 AND 40)` |
 | origin | text NOT NULL | `CHECK (origin IN ('manual','ia','import'))` |
 | reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1, `CHECK (reviewed_by_user IN (0,1))` |
-| source_material_id | text FK → materials | capítulo de livro que virou Ofício |
+| source_material_id | text FK → materials ON DELETE SET NULL | capítulo de livro que virou Ofício |
 | study_explanation | text | texto de estudo: explicação em markdown |
 | study_recommendations_json | text | texto de estudo: JSON `{ material_id, page_from?, page_to?, note? }[]`, `CHECK (study_recommendations_json IS NULL OR json_valid(study_recommendations_json))` |
 | study_guidance | text | texto de estudo: orientações em markdown (como estudar, o que observar) |
@@ -139,7 +139,7 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 | rubric_json | text | rubrica do item de explicação: objeto JSON com as chaves `correcao`, `justificativa`, `coerencia`, `aplicacao` e `limitacoes`, cada uma com o texto do que vale nota 2 neste item. `CHECK ((rubric_json IS NOT NULL) = (COALESCE(dimension, '') = 'explicacao'))`, `CHECK (rubric_json IS NULL OR json_valid(rubric_json))`, `CHECK (COALESCE(dimension, '') <> 'explicacao' OR kind = 'aberta')` |
 | origin | text NOT NULL | `CHECK IN ('manual','ia','import')` |
 | reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1, `CHECK (reviewed_by_user IN (0,1))` |
-| source_material_id | text FK → materials | |
+| source_material_id | text FK → materials ON DELETE SET NULL | |
 | source_page | integer | |
 | archived_at | text | item errado sai da fila sem apagar histórico |
 | created_at, updated_at | | |
@@ -269,18 +269,20 @@ coluna → atualize o rebuild no mesmo commit. Não há intervalo fixo nosso
 | kind | text NOT NULL | `CHECK IN ('pdf','video','link','nota','livro','markdown')` |
 | title | text NOT NULL | |
 | author | text | |
-| path | text | relativo a `data/acervo/`, para `pdf` e `markdown` |
+| path | text | nome do arquivo relativo a `data/acervo/`, para `pdf` e `markdown` |
 | url | text | para `video`/`link` |
-| body | text | para `nota` |
-| pages | integer | |
-| progress | real NOT NULL DEFAULT 0 | 0–1, informativo: **não entra em domínio** |
-| meta_json | text | capa, glifo, capítulo atual |
+| body | text | texto da `nota` (obrigatório) ou do `.md` enviado pela tela (D-063) |
+| pages | integer | `CHECK (pages IS NULL OR pages >= 1)` |
+| progress | real NOT NULL DEFAULT 0 | 0–1 (`CHECK`), informativo: **não entra em domínio** |
+| meta_json | text | capa, glifo, capítulo atual; `CHECK json_valid` |
 | created_at, updated_at | | |
 
-`CHECK ((kind IN ('pdf','markdown')) = (path IS NOT NULL))` e equivalente para
-url/body. O `markdown` é o `.md` guardado até a Jane transformá-lo em JSON
-(D-028). Detalhes no ticket da Biblioteca. Extração de PDF e de link: fora do
-MVP.
+CHECKs por tipo (D-063): `(path IS NOT NULL) = (kind IN ('pdf','markdown'))`,
+`(url IS NOT NULL) = (kind IN ('video','link'))`, `body` só em `nota` e
+`markdown`, e obrigatório em `nota`. O `markdown` é o `.md` guardado até a Jane
+transformá-lo em JSON (D-028). Enviado pela tela, ele guarda o nome em `path` e
+o texto em `body` (D-036); citado por nome, só o `path`. Detalhes no ticket da
+Biblioteca. Extração de PDF e de link: fora do MVP.
 
 `UNIQUE (path)` e `UNIQUE (url)`. No SQLite, `NULL` não colide com `NULL`, então
 o UNIQUE só vale onde a coluna está preenchida. São a chave do **material
@@ -304,8 +306,10 @@ guarda só o `path`, sem `body`. O Márcio abre o arquivo fora do app.
 
 ### `material_skills`
 
-`material_id` FK, `skill_id` FK, `page_from`, `page_to`, PK composta. Um
-material pode servir a vários Ofícios (livro por capítulo).
+`material_id` FK, `skill_id` FK (as duas ON DELETE CASCADE), `page_from`,
+`page_to`, `created_at`, PK composta. Páginas `>= 1` e `page_from <= page_to`
+quando as duas existem. Um material pode servir a vários Ofícios (livro por
+capítulo).
 
 ### `plans` e `plan_items` — o que o Gregor decidiu
 

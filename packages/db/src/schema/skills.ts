@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, integer, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 import { timestamps } from './columns';
+import { materials } from './materials';
 import { subjects } from './subjects';
 
 // Dimensões que podem ser marcadas "não se aplica" (D-043, D-057). A lista é
@@ -39,8 +40,10 @@ export const skills = sqliteTable(
     reviewedByUser: integer('reviewed_by_user', { mode: 'boolean' })
       .notNull()
       .default(sql`0`),
-    // A FK para materials entra no ATL-71, quando materials.ts existir.
-    sourceMaterialId: text('source_material_id'),
+    // Fonte informativa: apagar o material não apaga o Ofício (D-063).
+    sourceMaterialId: text('source_material_id').references(() => materials.id, {
+      onDelete: 'set null',
+    }),
     notApplicableJson: text('not_applicable_json', { mode: 'json' })
       .$type<NotApplicableDimension[]>()
       .notNull()

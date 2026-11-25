@@ -1,5 +1,7 @@
 // Um arquivo por tabela (docs/04-dados.md). Tabelas de conteúdo: ATL-69;
-// programs: ATL-135; tabelas de prática: ATL-70.
+// programs: ATL-135; tabelas de prática: ATL-70; materiais: ATL-71.
+export * from './materials';
+export * from './material_skills';
 export * from './programs';
 export * from './subjects';
 export * from './skills';

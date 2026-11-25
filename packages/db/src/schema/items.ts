@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { timestamps } from './columns';
+import { materials } from './materials';
 import { skills } from './skills';
 
 // Rubrica do item de explicação (D-057): o que vale nota 2 em cada critério.
@@ -42,8 +43,10 @@ export const items = sqliteTable(
     reviewedByUser: integer('reviewed_by_user', { mode: 'boolean' })
       .notNull()
       .default(sql`0`),
-    // A FK para materials entra no ATL-71, quando materials.ts existir.
-    sourceMaterialId: text('source_material_id'),
+    // Fonte informativa: apagar o material não apaga o item (D-063).
+    sourceMaterialId: text('source_material_id').references(() => materials.id, {
+      onDelete: 'set null',
+    }),
     sourcePage: integer('source_page'),
     archivedAt: text('archived_at'),
     ...timestamps(),

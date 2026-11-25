@@ -4,6 +4,8 @@ import { expect, test } from 'vitest';
 import {
   explanationGrades,
   items,
+  materials,
+  materialSkills,
   memoryStates,
   programs,
   proofs,
@@ -73,9 +75,10 @@ test('os JSON do texto de estudo têm CHECK de json_valid que aceita nulo', () =
   });
 });
 
-test('skills aponta para subjects com ON DELETE RESTRICT', () => {
+test('skills aponta para subjects (RESTRICT) e para materials (SET NULL)', () => {
   expect(foreignKeys(skills)).toEqual([
     { columns: ['subject_id'], target: 'subjects(id)', onDelete: 'restrict' },
+    { columns: ['source_material_id'], target: 'materials(id)', onDelete: 'set null' },
   ]);
 });
 
@@ -86,17 +89,46 @@ test('skill_prereqs aponta duas vezes para skills com ON DELETE CASCADE', () => 
   ]);
 });
 
-test('items aponta para skills com ON DELETE CASCADE', () => {
+test('items aponta para skills (CASCADE) e para materials (SET NULL)', () => {
   expect(foreignKeys(items)).toEqual([
     { columns: ['skill_id'], target: 'skills(id)', onDelete: 'cascade' },
+    { columns: ['source_material_id'], target: 'materials(id)', onDelete: 'set null' },
   ]);
 });
 
-test('source_material_id ainda não tem FK (entra no ATL-71)', () => {
-  for (const table of [skills, items]) {
-    const columns = foreignKeys(table).flatMap((fk) => fk.columns);
-    expect(columns).not.toContain('source_material_id');
+test('materials tem path e url únicos, ambos opcionais', () => {
+  for (const name of ['path', 'url']) {
+    expect(column(materials, name).isUnique).toBe(true);
+    expect(column(materials, name).notNull).toBe(false);
   }
+  expect(foreignKeys(materials)).toEqual([]);
+});
+
+test('materials amarra path, url e body ao tipo (D-063)', () => {
+  expect(checks(materials)).toEqual({
+    materials_kind_enum: "kind IN ('pdf','video','link','nota','livro','markdown')",
+    materials_path_by_kind: "(path IS NOT NULL) = (kind IN ('pdf','markdown'))",
+    materials_url_by_kind: "(url IS NOT NULL) = (kind IN ('video','link'))",
+    materials_body_by_kind: "body IS NULL OR kind IN ('nota','markdown')",
+    materials_body_required_nota: "kind <> 'nota' OR body IS NOT NULL",
+    materials_pages_min: 'pages IS NULL OR pages >= 1',
+    materials_progress_range: 'progress BETWEEN 0 AND 1',
+    materials_meta_json_valid: 'meta_json IS NULL OR json_valid(meta_json)',
+  });
+});
+
+test('material_skills liga material e Ofício, com CASCADE nos dois lados', () => {
+  expect(foreignKeys(materialSkills)).toEqual([
+    { columns: ['material_id'], target: 'materials(id)', onDelete: 'cascade' },
+    { columns: ['skill_id'], target: 'skills(id)', onDelete: 'cascade' },
+  ]);
+  const pk = getTableConfig(materialSkills).primaryKeys[0];
+  expect(pk?.columns.map((c) => c.name)).toEqual(['material_id', 'skill_id']);
+  expect(checks(materialSkills)).toEqual({
+    material_skills_page_from_min: 'page_from IS NULL OR page_from >= 1',
+    material_skills_page_to_min: 'page_to IS NULL OR page_to >= 1',
+    material_skills_page_order: 'page_from IS NULL OR page_to IS NULL OR page_from <= page_to',
+  });
 });
 
 function columnNames(table: SQLiteTable) {
@@ -215,6 +247,8 @@ test('created_at e updated_at nascem em ISO 8601 UTC', () => {
     reviewLogs,
     explanationGrades,
     memoryStates,
+    materials,
+    materialSkills,
   ]) {
     for (const column of getTableConfig(table).columns) {
       if (column.name !== 'created_at' && column.name !== 'updated_at') continue;
@@ -225,7 +259,7 @@ test('created_at e updated_at nascem em ISO 8601 UTC', () => {
 });
 
 test('updated_at se renova a cada alteração', () => {
-  for (const table of [programs, subjects, skills, items, memoryStates]) {
+  for (const table of [programs, subjects, skills, items, memoryStates, materials]) {
     const updatedAt = getTableConfig(table).columns.find((c) => c.name === 'updated_at');
     expect(updatedAt?.onUpdateFn?.()).toMatch(/Z$/);
   }
