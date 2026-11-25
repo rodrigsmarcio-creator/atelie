@@ -168,19 +168,19 @@ conquista prova (D-037).
 |---|---|---|
 | id | text PK | |
 | item_id | text NOT NULL FK → items ON DELETE RESTRICT | nunca apagar item com log |
-| skill_id | text NOT NULL FK → skills | desnormalizado de propósito: consulta por Ofício sem join |
+| skill_id | text NOT NULL FK → skills ON DELETE RESTRICT | desnormalizado de propósito: consulta por Ofício sem join |
 | reviewed_at | text NOT NULL | |
 | mode | text NOT NULL | `CHECK IN ('prova','retoque','sessao','simulado')`. `sessao` = tentativa feita dentro de um bloco da sessão do dia |
-| correct | integer NOT NULL | 0/1 |
-| grade | integer | 1–4 para cartões (Errei, Difícil, Bom, Fácil), NULL para questões (o Gregor deriva a nota) |
-| answer_ms | integer NOT NULL | tempo até responder |
-| viewed_solution | integer NOT NULL DEFAULT 0 | C-05 |
+| correct | integer NOT NULL | 0/1, `CHECK (correct IN (0,1))` |
+| grade | integer | 1–4 para cartões (Errei, Difícil, Bom, Fácil), NULL para questões (o Gregor deriva a nota). `CHECK (grade IS NULL OR grade BETWEEN 1 AND 4)` |
+| answer_ms | integer NOT NULL | tempo até responder, `CHECK (answer_ms >= 0)` |
+| viewed_solution | integer NOT NULL DEFAULT 0 | C-05, `CHECK (viewed_solution IN (0,1))` |
 | reasoning | text | raciocínio escrito, se houver (C-06) |
 | response | text | resposta escrita: aberta, cartão dissertativo e o texto da Explicação. O XP do cartão dissertativo depende do mínimo escrito (D-043) |
 | followup_answer | text | resposta à pergunta complementar, só em item de explicação |
 | attempt | integer | cartão de alternativas: tentativas usadas, `CHECK (attempt IS NULL OR attempt BETWEEN 1 AND 3)`. Com `correct = 1`, acertou nessa tentativa; com `correct = 0`, esgotou. O XP vem daqui (D-043) |
 | round_id | text | ULID da **rodada** da Resolução de problemas: o app gera quando o Gregor monta o conjunto de 5 itens e grava nas 5 tentativas. Nulo fora da rodada |
-| timed | integer NOT NULL DEFAULT 0 | modo cronometrado |
+| timed | integer NOT NULL DEFAULT 0 | modo cronometrado, `CHECK (timed IN (0,1))` |
 | session_id | text | agrupa tentativas de uma sessão do dia |
 | created_at | text NOT NULL | |
 
@@ -204,7 +204,7 @@ pela importação (D-043). Enquanto a tentativa não tem linha aqui, ela fica
 |---|---|---|
 | id | text PK | ULID vindo do arquivo de notas da Jane (idempotência) |
 | review_log_id | text NOT NULL UNIQUE FK → review_logs ON DELETE RESTRICT | a tentativa avaliada; uma nota por tentativa |
-| skill_id | text NOT NULL FK → skills | desnormalizado, como em `review_logs` |
+| skill_id | text NOT NULL FK → skills ON DELETE RESTRICT | desnormalizado, como em `review_logs` |
 | correcao | integer NOT NULL | `CHECK (correcao BETWEEN 0 AND 2)` |
 | justificativa | integer NOT NULL | idem |
 | coerencia | integer NOT NULL | idem |
@@ -228,8 +228,8 @@ de notas no `docs/09-schema-importacao.md` (ATL-166).
 |---|---|
 | skill_id | FK → skills ON DELETE CASCADE |
 | kind | `CHECK IN ('conceitual','fluencia','problemas','autonomia','explicacao')` |
-| review_log_id | FK → review_logs, a tentativa que completou o critério (na Explicação, a tentativa avaliada) |
-| earned_at | text NOT NULL |
+| review_log_id | NOT NULL FK → review_logs ON DELETE RESTRICT, a tentativa que completou o critério (na Explicação, a tentativa avaliada). Toda prova nasce de uma tentativa (D-062) |
+| earned_at | text NOT NULL; faz o papel de `created_at` |
 | PK (skill_id, kind) | uma prova de cada dimensão por Ofício |
 
 Derivável de `review_logs` + `explanation_grades` + `core/evaluateProofs`, mas
@@ -246,17 +246,20 @@ caso o `earned_at` é o momento da importação.
 | due_at | text | próxima revisão |
 | stability | real | FSRS |
 | difficulty | real | FSRS |
-| reps | integer NOT NULL DEFAULT 0 | |
-| lapses | integer NOT NULL DEFAULT 0 | |
+| scheduled_days | integer NOT NULL DEFAULT 0 | intervalo agendado pelo FSRS, `CHECK (scheduled_days >= 0)` |
+| learning_steps | integer NOT NULL DEFAULT 0 | passo da aprendizagem curta, gerido pelo FSRS, `CHECK (learning_steps >= 0)` |
+| reps | integer NOT NULL DEFAULT 0 | `CHECK (reps >= 0)` |
+| lapses | integer NOT NULL DEFAULT 0 | `CHECK (lapses >= 0)` |
+| state | integer NOT NULL DEFAULT 0 | estado do cartão no `ts-fsrs`: 0 New, 1 Learning, 2 Review, 3 Relearning. `CHECK (state IN (0,1,2,3))` |
 | last_review_at | text | |
 | algo_version | text NOT NULL | `'fsrs-<versão>'`, a do algoritmo em uso |
-| updated_at | text NOT NULL | |
+| created_at, updated_at | text NOT NULL | |
 
-As colunas de estado do `ts-fsrs` (por exemplo o estado do cartão) são
-completadas no ticket do schema, conforme a versão da biblioteca. Índice:
-`memory_states(due_at)`. **Nunca** guardar recuperabilidade. Reconstruível por
-`pnpm memory:rebuild`. Adicionou coluna → atualize o rebuild no mesmo commit.
-Não há `step` nem intervalos fixos (D-023).
+As colunas são o `Card` do `ts-fsrs` 5.4 (D-062), menos o `elapsed_days`,
+que é derivado e sai na versão 6. Índice: `memory_states(due_at)`. **Nunca**
+guardar recuperabilidade. Reconstruível por `pnpm memory:rebuild`. Adicionou
+coluna → atualize o rebuild no mesmo commit. Não há intervalo fixo nosso
+(D-023): o `learning_steps` é estado do próprio FSRS.
 
 ### `materials` — Acervo (Biblioteca)
 
