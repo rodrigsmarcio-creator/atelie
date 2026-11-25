@@ -3,6 +3,7 @@ import { getTableConfig, SQLiteSyncDialect, type SQLiteTable } from 'drizzle-orm
 import { expect, test } from 'vitest';
 import {
   explanationGrades,
+  imports,
   items,
   materials,
   materialSkills,
@@ -231,15 +232,31 @@ test('explanation_grades: uma nota por tentativa, FKs com ON DELETE RESTRICT', (
   expect(foreignKeys(explanationGrades)).toEqual([
     { columns: ['review_log_id'], target: 'review_logs(id)', onDelete: 'restrict' },
     { columns: ['skill_id'], target: 'skills(id)', onDelete: 'restrict' },
+    { columns: ['import_id'], target: 'imports(id)', onDelete: 'restrict' },
   ]);
   expect(column(explanationGrades, 'review_log_id').isUnique).toBe(true);
+  expect(column(explanationGrades, 'import_id').notNull).toBe(true);
   expect(columnNames(explanationGrades)).not.toContain('updated_at');
 });
 
-test('explanation_grades.import_id é obrigatório, mas a FK só entra no ATL-71', () => {
-  expect(column(explanationGrades, 'import_id').notNull).toBe(true);
-  const columns = foreignKeys(explanationGrades).flatMap((fk) => fk.columns);
-  expect(columns).not.toContain('import_id');
+test('imports não se altera: ran_at no lugar de created_at, sem updated_at', () => {
+  for (const name of ['kind', 'file_name', 'file_hash', 'ran_at', 'errors_json']) {
+    expect(column(imports, name).notNull).toBe(true);
+  }
+  expect(columnNames(imports)).not.toContain('created_at');
+  expect(columnNames(imports)).not.toContain('updated_at');
+  expect(foreignKeys(imports)).toEqual([]);
+});
+
+test('imports: tipo do arquivo e contadores conferidos pelo banco (D-059, D-063)', () => {
+  expect(checks(imports)).toEqual({
+    imports_kind_enum: "kind IN ('conteudo','notas_explicacao')",
+    imports_counts_min:
+      'skills_inserted >= 0 AND items_inserted >= 0 AND grades_inserted >= 0 AND skipped >= 0',
+    imports_counts_by_kind:
+      "(kind = 'conteudo' AND grades_inserted = 0) OR (kind = 'notas_explicacao' AND skills_inserted = 0 AND items_inserted = 0)",
+    imports_errors_json_valid: 'json_valid(errors_json)',
+  });
 });
 
 test('explanation_grades tem as 5 notas de 0 a 2', () => {

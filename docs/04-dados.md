@@ -212,7 +212,7 @@ pela importação (D-043). Enquanto a tentativa não tem linha aqui, ela fica
 | limitacoes | integer NOT NULL | idem |
 | feedback | text | comentário da Jane para o Márcio |
 | graded_at | text NOT NULL | quando a Jane avaliou |
-| import_id | text NOT NULL FK → imports | arquivo de onde veio |
+| import_id | text NOT NULL FK → imports ON DELETE RESTRICT | arquivo de onde veio |
 | created_at | text NOT NULL | |
 
 **Sem UPDATE. Sem DELETE**, como `review_logs`: a nota é um fato do histórico.
@@ -352,6 +352,12 @@ ele fica é decidido no ticket do Google Agenda (A-007).
 `file_hash`, `ran_at`, `skills_inserted`, `items_inserted`, `grades_inserted`,
 `skipped`, `errors_json`. Permite responder "de onde veio este item" e "de onde
 veio esta nota".
+
+A linha não se altera: `ran_at` faz o papel de `created_at`, sem `updated_at`.
+Contadores `NOT NULL DEFAULT 0` e `>= 0`; arquivo de conteúdo tem
+`grades_inserted = 0` e arquivo de notas tem `skills_inserted` e
+`items_inserted` iguais a 0; `errors_json` `NOT NULL DEFAULT '[]'` com
+`json_valid` (D-063).
 
 ## Fora do MVP, não criar agora (D-009 em espírito)
 
