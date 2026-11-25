@@ -8,8 +8,19 @@ import { subjects } from './subjects';
 // de uma lista num CHECK.
 export type NotApplicableDimension = 'fluencia' | 'problemas' | 'explicacao';
 
-// Ofícios, os nós da Árvore (docs/04-dados.md). As colunas `study_*` entram
-// no ATL-135.
+// Texto de estudo (D-052, D-056): lido na fase Aprender sem gravar tentativa.
+// As recomendações apontam para materials pelo id, resolvido na importação a
+// partir do nome do arquivo ou do link; não há FK porque ficam dentro do JSON.
+export type StudyRecommendation = {
+  material_id: string;
+  page_from?: number;
+  page_to?: number;
+  note?: string;
+};
+
+export type StudyFaqEntry = { question: string; answer: string };
+
+// Ofícios, os nós da Árvore (docs/04-dados.md).
 export const skills = sqliteTable(
   'skills',
   {
@@ -34,6 +45,12 @@ export const skills = sqliteTable(
       .$type<NotApplicableDimension[]>()
       .notNull()
       .default(sql`'[]'`),
+    studyExplanation: text('study_explanation'),
+    studyRecommendationsJson: text('study_recommendations_json', {
+      mode: 'json',
+    }).$type<StudyRecommendation[]>(),
+    studyGuidance: text('study_guidance'),
+    studyFaqJson: text('study_faq_json', { mode: 'json' }).$type<StudyFaqEntry[]>(),
     ...timestamps(),
   },
   (t) => [
@@ -44,5 +61,10 @@ export const skills = sqliteTable(
     check('skills_origin_enum', sql`origin IN ('manual','ia','import')`),
     check('skills_reviewed_by_user_bool', sql`reviewed_by_user IN (0,1)`),
     check('skills_not_applicable_json_valid', sql`json_valid(not_applicable_json)`),
+    check(
+      'skills_study_recommendations_json_valid',
+      sql`study_recommendations_json IS NULL OR json_valid(study_recommendations_json)`,
+    ),
+    check('skills_study_faq_json_valid', sql`study_faq_json IS NULL OR json_valid(study_faq_json)`),
   ],
 );
