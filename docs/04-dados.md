@@ -9,7 +9,10 @@ Convenções:
 - IDs são ULID (`text`, 26 chars). Gerados na aplicação.
 - Datas em ISO 8601 UTC (`text`). Conversão para o fuso do usuário na borda.
 - Minutos e segundos são inteiros. Percentuais são `real` entre 0 e 1.
-- Toda tabela tem `created_at`. As mutáveis têm `updated_at`.
+- Toda tabela tem `created_at`. As mutáveis têm `updated_at`. A aplicação
+  preenche as duas quando o código não passa valor, e `updated_at` se renova a
+  cada alteração (D-061).
+- Booleanos são `integer` 0/1 com `CHECK (col IN (0,1))` (D-061).
 - Enumerações são `text` com `CHECK (col IN (...))`. Sem tabela de lookup.
 - `PRAGMA foreign_keys = ON` em toda conexão (não é padrão do SQLite).
 
@@ -74,7 +77,7 @@ mini curso (ATL-120) precisar.
 | lane | real NOT NULL DEFAULT 0 | posição lateral, `CHECK (lane BETWEEN -1 AND 1)` |
 | estimated_minutes | integer NOT NULL | `CHECK (estimated_minutes BETWEEN 10 AND 40)` |
 | origin | text NOT NULL | `CHECK (origin IN ('manual','ia','import'))` |
-| reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1 |
+| reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1, `CHECK (reviewed_by_user IN (0,1))` |
 | source_material_id | text FK → materials | capítulo de livro que virou Ofício |
 | study_explanation | text | texto de estudo: explicação em markdown |
 | study_recommendations_json | text | texto de estudo: JSON `{ material_id, page_from?, page_to?, note? }[]`, `CHECK (study_recommendations_json IS NULL OR json_valid(study_recommendations_json))` |
@@ -109,6 +112,7 @@ aplicam.
 |---|---|
 | skill_id | text NOT NULL FK → skills ON DELETE CASCADE |
 | prereq_id | text NOT NULL FK → skills ON DELETE CASCADE |
+| created_at | text NOT NULL |
 | PK (skill_id, prereq_id) | |
 | `CHECK (skill_id <> prereq_id)` | |
 
@@ -126,7 +130,7 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 | options_json | text | JSON `string[]` com exatamente 4 alternativas. Obrigatório em `multipla_escolha`; opcional em `cartao` (com alternativas = cartão de alternativas, sem = cartão dissertativo, D-043); nulo em `aberta`. `CHECK (options_json IS NULL OR (json_valid(options_json) AND json_array_length(options_json) = 4))`, `CHECK ((kind = 'multipla_escolha' AND options_json IS NOT NULL) OR kind = 'cartao' OR (kind = 'aberta' AND options_json IS NULL))` |
 | answer | text NOT NULL | índice 0–3 (ME e cartão de alternativas) ou texto (cartão dissertativo e aberta) |
 | explanation | text NOT NULL | `CHECK (length(explanation) >= 20)` — C-04 |
-| difficulty | integer | 1–3, opcional |
+| difficulty | integer | 1–3, opcional, `CHECK (difficulty IS NULL OR difficulty BETWEEN 1 AND 3)` |
 | dimension | text | dimensão que o item ajuda a provar, marcada pela Jane (D-057). `CHECK (dimension IS NULL OR dimension IN ('conceitual','fluencia','problemas','explicacao'))`, `CHECK (kind <> 'cartao' OR dimension IS NULL)`. Nulo = exercício geral, que conta só para a Autonomia |
 | evidence | text | só em item conceitual: `CHECK (evidence IS NULL OR evidence IN ('reconhecimento','interpretacao','representacao','discriminacao'))`, `CHECK ((evidence IS NOT NULL) = (COALESCE(dimension, '') = 'conceitual'))`, `CHECK (COALESCE(evidence, '') <> 'interpretacao' OR kind = 'multipla_escolha')` |
 | category | text | só em item de problemas: `CHECK (category IS NULL OR category IN ('rotineira','nao_rotineira','transferencia'))`, `CHECK ((category IS NOT NULL) = (COALESCE(dimension, '') = 'problemas'))` |
@@ -134,7 +138,7 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 | followup | text | pergunta complementar, só em item de explicação: `CHECK ((followup IS NOT NULL) = (COALESCE(dimension, '') = 'explicacao'))` |
 | rubric_json | text | rubrica do item de explicação: objeto JSON com as chaves `correcao`, `justificativa`, `coerencia`, `aplicacao` e `limitacoes`, cada uma com o texto do que vale nota 2 neste item. `CHECK ((rubric_json IS NOT NULL) = (COALESCE(dimension, '') = 'explicacao'))`, `CHECK (rubric_json IS NULL OR json_valid(rubric_json))`, `CHECK (COALESCE(dimension, '') <> 'explicacao' OR kind = 'aberta')` |
 | origin | text NOT NULL | `CHECK IN ('manual','ia','import')` |
-| reviewed_by_user | integer NOT NULL DEFAULT 0 | |
+| reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1, `CHECK (reviewed_by_user IN (0,1))` |
 | source_material_id | text FK → materials | |
 | source_page | integer | |
 | archived_at | text | item errado sai da fila sem apagar histórico |
