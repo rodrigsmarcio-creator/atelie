@@ -7,9 +7,12 @@ import {
   materials,
   materialSkills,
   memoryStates,
+  planItems,
+  plans,
   programs,
   proofs,
   reviewLogs,
+  settings,
   skillPrereqs,
   skills,
   subjects,
@@ -131,6 +134,57 @@ test('material_skills liga material e Ofício, com CASCADE nos dois lados', () =
   });
 });
 
+test('plans não se altera: generated_at no lugar de created_at, sem updated_at', () => {
+  expect(column(plans, 'generated_at').notNull).toBe(true);
+  expect(columnNames(plans)).not.toContain('created_at');
+  expect(columnNames(plans)).not.toContain('updated_at');
+  for (const name of ['mode', 'params_json', 'state_hash']) {
+    expect(column(plans, name).notNull).toBe(true);
+  }
+  expect(checks(plans)).toEqual({
+    plans_mode_enum: "mode IN ('completa','curta')",
+    plans_params_json_valid: 'json_valid(params_json)',
+  });
+});
+
+test('plan_items: CASCADE no plano, RESTRICT no Ofício, índice da sessão do dia', () => {
+  expect(foreignKeys(planItems)).toEqual([
+    { columns: ['plan_id'], target: 'plans(id)', onDelete: 'cascade' },
+    { columns: ['skill_id'], target: 'skills(id)', onDelete: 'restrict' },
+  ]);
+  expect(indexes(planItems)).toEqual([
+    { name: 'plan_items_plan_scheduled_idx', columns: ['plan_id', 'scheduled_start'] },
+  ]);
+  const uniques = getTableConfig(planItems).uniqueConstraints.map((u) => ({
+    name: u.name,
+    columns: u.columns.map((c) => c.name),
+  }));
+  expect(uniques).toEqual([
+    { name: 'plan_items_plan_block_position', columns: ['plan_id', 'block', 'position'] },
+  ]);
+});
+
+test('plan_items: bloco pulado fica sem Ofício, e o tipo acompanha o bloco', () => {
+  expect(column(planItems, 'skill_id').notNull).toBe(false);
+  expect(column(planItems, 'reason_json').notNull).toBe(true);
+  expect(checks(planItems)).toMatchObject({
+    plan_items_block_range: 'block BETWEEN 1 AND 4',
+    plan_items_kind_enum: "kind IN ('revisao_previa','materia_nova','reforco','cartoes')",
+    plan_items_kind_by_block:
+      "kind = CASE block WHEN 1 THEN 'revisao_previa' WHEN 2 THEN 'materia_nova' WHEN 3 THEN 'reforco' WHEN 4 THEN 'cartoes' END",
+    plan_items_skipped_bool: 'skipped IN (0,1)',
+    plan_items_skill_iff_not_skipped: '(skill_id IS NULL) = (skipped = 1)',
+    plan_items_minutes_min: 'minutes >= 0',
+    plan_items_position_min: 'position >= 0',
+  });
+});
+
+test('settings é chave-valor com JSON válido', () => {
+  expect(getTableConfig(settings).columns.find((c) => c.primary)?.name).toBe('key');
+  expect(column(settings, 'value_json').notNull).toBe(true);
+  expect(checks(settings)).toEqual({ settings_value_json_valid: 'json_valid(value_json)' });
+});
+
 function columnNames(table: SQLiteTable) {
   return getTableConfig(table).columns.map((c) => c.name);
 }
@@ -249,6 +303,8 @@ test('created_at e updated_at nascem em ISO 8601 UTC', () => {
     memoryStates,
     materials,
     materialSkills,
+    planItems,
+    settings,
   ]) {
     for (const column of getTableConfig(table).columns) {
       if (column.name !== 'created_at' && column.name !== 'updated_at') continue;
@@ -259,7 +315,16 @@ test('created_at e updated_at nascem em ISO 8601 UTC', () => {
 });
 
 test('updated_at se renova a cada alteração', () => {
-  for (const table of [programs, subjects, skills, items, memoryStates, materials]) {
+  for (const table of [
+    programs,
+    subjects,
+    skills,
+    items,
+    memoryStates,
+    materials,
+    planItems,
+    settings,
+  ]) {
     const updatedAt = getTableConfig(table).columns.find((c) => c.name === 'updated_at');
     expect(updatedAt?.onUpdateFn?.()).toMatch(/Z$/);
   }

@@ -315,13 +315,18 @@ capítulo).
 
 `plans`: `id`, `generated_at`, `mode` (`CHECK IN ('completa','curta')`),
 `params_json` (cópia dos params), `state_hash` (hash do snapshot, para
-reproduzir).
+reproduzir). O plano não se altera: `generated_at` faz o papel de `created_at`
+e não há `updated_at` (D-063).
 
 `plan_items`: `id`, `plan_id` FK CASCADE, `block` (`CHECK BETWEEN 1 AND 4`),
-`position`, `kind` (`CHECK IN ('revisao_previa','materia_nova','reforco','cartoes')`),
-`skill_id` FK, `item_ids_json`, `minutes`, `skipped` (blocos pulados ficam
-registrados), `reason_json`, `breakdown_json`, `scheduled_start` (preenchido
-pelo Planejar quando o evento é criado), `google_event_id` (idem), `done_at`.
+`position` (`>= 0`), `kind` (`CHECK IN ('revisao_previa','materia_nova','reforco','cartoes')`,
+e o tipo acompanha o número do bloco), `skill_id` FK RESTRICT, `item_ids_json`
+(`DEFAULT '[]'`), `minutes` (`>= 0`), `skipped` (0/1; blocos pulados ficam
+registrados), `reason_json` (obrigatório), `breakdown_json`, `scheduled_start`
+(preenchido pelo Planejar quando o evento é criado), `google_event_id` (idem),
+`done_at`, `created_at`, `updated_at`. Uma linha por item da sessão; bloco
+pulado é uma linha sem Ofício: `CHECK ((skill_id IS NULL) = (skipped = 1))`
+(D-063). `UNIQUE (plan_id, block, position)`.
 
 Índice: `plan_items(plan_id, scheduled_start)`. Planos antigos não são
 apagados: são o histórico de "o que o sistema mandou". Os campos do Google
@@ -329,7 +334,9 @@ Agenda são afinados no ticket do Planejar (A-007).
 
 ### `settings`
 
-Chave-valor (`key` PK, `value_json`). Um usuário, sem tabela `users`. Chaves:
+Chave-valor (`key` PK, `value_json` com `CHECK json_valid`, `created_at`,
+`updated_at`). Um usuário, sem tabela `users`. As chaves são validadas pelo Zod
+na borda, não por `CHECK`, porque o Google Agenda vai somar outras. Chaves:
 
 | chave | valor | padrão |
 |---|---|---|
