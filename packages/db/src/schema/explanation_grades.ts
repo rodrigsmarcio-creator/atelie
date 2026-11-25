@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createdAt } from './columns';
+import { imports } from './imports';
 import { reviewLogs } from './review_logs';
 import { skills } from './skills';
 
@@ -26,8 +27,10 @@ export const explanationGrades = sqliteTable(
     limitacoes: integer('limitacoes').notNull(),
     feedback: text('feedback'),
     gradedAt: text('graded_at').notNull(),
-    // A FK para imports entra no ATL-71, quando imports.ts existir.
-    importId: text('import_id').notNull(),
+    // De onde veio a nota; histórico, então RESTRICT (D-062, D-063).
+    importId: text('import_id')
+      .notNull()
+      .references(() => imports.id, { onDelete: 'restrict' }),
     createdAt: createdAt(),
   },
   () => [

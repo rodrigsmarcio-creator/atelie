@@ -3,11 +3,17 @@ import { getTableConfig, SQLiteSyncDialect, type SQLiteTable } from 'drizzle-orm
 import { expect, test } from 'vitest';
 import {
   explanationGrades,
+  imports,
   items,
+  materials,
+  materialSkills,
   memoryStates,
+  planItems,
+  plans,
   programs,
   proofs,
   reviewLogs,
+  settings,
   skillPrereqs,
   skills,
   subjects,
@@ -73,9 +79,10 @@ test('os JSON do texto de estudo têm CHECK de json_valid que aceita nulo', () =
   });
 });
 
-test('skills aponta para subjects com ON DELETE RESTRICT', () => {
+test('skills aponta para subjects (RESTRICT) e para materials (SET NULL)', () => {
   expect(foreignKeys(skills)).toEqual([
     { columns: ['subject_id'], target: 'subjects(id)', onDelete: 'restrict' },
+    { columns: ['source_material_id'], target: 'materials(id)', onDelete: 'set null' },
   ]);
 });
 
@@ -86,17 +93,97 @@ test('skill_prereqs aponta duas vezes para skills com ON DELETE CASCADE', () => 
   ]);
 });
 
-test('items aponta para skills com ON DELETE CASCADE', () => {
+test('items aponta para skills (CASCADE) e para materials (SET NULL)', () => {
   expect(foreignKeys(items)).toEqual([
     { columns: ['skill_id'], target: 'skills(id)', onDelete: 'cascade' },
+    { columns: ['source_material_id'], target: 'materials(id)', onDelete: 'set null' },
   ]);
 });
 
-test('source_material_id ainda não tem FK (entra no ATL-71)', () => {
-  for (const table of [skills, items]) {
-    const columns = foreignKeys(table).flatMap((fk) => fk.columns);
-    expect(columns).not.toContain('source_material_id');
+test('materials tem path e url únicos, ambos opcionais', () => {
+  for (const name of ['path', 'url']) {
+    expect(column(materials, name).isUnique).toBe(true);
+    expect(column(materials, name).notNull).toBe(false);
   }
+  expect(foreignKeys(materials)).toEqual([]);
+});
+
+test('materials amarra path, url e body ao tipo (D-063)', () => {
+  expect(checks(materials)).toEqual({
+    materials_kind_enum: "kind IN ('pdf','video','link','nota','livro','markdown')",
+    materials_path_by_kind: "(path IS NOT NULL) = (kind IN ('pdf','markdown'))",
+    materials_url_by_kind: "(url IS NOT NULL) = (kind IN ('video','link'))",
+    materials_body_by_kind: "body IS NULL OR kind IN ('nota','markdown')",
+    materials_body_required_nota: "kind <> 'nota' OR body IS NOT NULL",
+    materials_pages_min: 'pages IS NULL OR pages >= 1',
+    materials_progress_range: 'progress BETWEEN 0 AND 1',
+    materials_meta_json_valid: 'meta_json IS NULL OR json_valid(meta_json)',
+  });
+});
+
+test('material_skills liga material e Ofício, com CASCADE nos dois lados', () => {
+  expect(foreignKeys(materialSkills)).toEqual([
+    { columns: ['material_id'], target: 'materials(id)', onDelete: 'cascade' },
+    { columns: ['skill_id'], target: 'skills(id)', onDelete: 'cascade' },
+  ]);
+  const pk = getTableConfig(materialSkills).primaryKeys[0];
+  expect(pk?.columns.map((c) => c.name)).toEqual(['material_id', 'skill_id']);
+  expect(checks(materialSkills)).toEqual({
+    material_skills_page_from_min: 'page_from IS NULL OR page_from >= 1',
+    material_skills_page_to_min: 'page_to IS NULL OR page_to >= 1',
+    material_skills_page_order: 'page_from IS NULL OR page_to IS NULL OR page_from <= page_to',
+  });
+});
+
+test('plans não se altera: generated_at no lugar de created_at, sem updated_at', () => {
+  expect(column(plans, 'generated_at').notNull).toBe(true);
+  expect(columnNames(plans)).not.toContain('created_at');
+  expect(columnNames(plans)).not.toContain('updated_at');
+  for (const name of ['mode', 'params_json', 'state_hash']) {
+    expect(column(plans, name).notNull).toBe(true);
+  }
+  expect(checks(plans)).toEqual({
+    plans_mode_enum: "mode IN ('completa','curta')",
+    plans_params_json_valid: 'json_valid(params_json)',
+  });
+});
+
+test('plan_items: CASCADE no plano, RESTRICT no Ofício, índice da sessão do dia', () => {
+  expect(foreignKeys(planItems)).toEqual([
+    { columns: ['plan_id'], target: 'plans(id)', onDelete: 'cascade' },
+    { columns: ['skill_id'], target: 'skills(id)', onDelete: 'restrict' },
+  ]);
+  expect(indexes(planItems)).toEqual([
+    { name: 'plan_items_plan_scheduled_idx', columns: ['plan_id', 'scheduled_start'] },
+  ]);
+  const uniques = getTableConfig(planItems).uniqueConstraints.map((u) => ({
+    name: u.name,
+    columns: u.columns.map((c) => c.name),
+  }));
+  expect(uniques).toEqual([
+    { name: 'plan_items_plan_block_position', columns: ['plan_id', 'block', 'position'] },
+  ]);
+});
+
+test('plan_items: bloco pulado fica sem Ofício, e o tipo acompanha o bloco', () => {
+  expect(column(planItems, 'skill_id').notNull).toBe(false);
+  expect(column(planItems, 'reason_json').notNull).toBe(true);
+  expect(checks(planItems)).toMatchObject({
+    plan_items_block_range: 'block BETWEEN 1 AND 4',
+    plan_items_kind_enum: "kind IN ('revisao_previa','materia_nova','reforco','cartoes')",
+    plan_items_kind_by_block:
+      "kind = CASE block WHEN 1 THEN 'revisao_previa' WHEN 2 THEN 'materia_nova' WHEN 3 THEN 'reforco' WHEN 4 THEN 'cartoes' END",
+    plan_items_skipped_bool: 'skipped IN (0,1)',
+    plan_items_skill_iff_not_skipped: '(skill_id IS NULL) = (skipped = 1)',
+    plan_items_minutes_min: 'minutes >= 0',
+    plan_items_position_min: 'position >= 0',
+  });
+});
+
+test('settings é chave-valor com JSON válido', () => {
+  expect(getTableConfig(settings).columns.find((c) => c.primary)?.name).toBe('key');
+  expect(column(settings, 'value_json').notNull).toBe(true);
+  expect(checks(settings)).toEqual({ settings_value_json_valid: 'json_valid(value_json)' });
 });
 
 function columnNames(table: SQLiteTable) {
@@ -145,15 +232,31 @@ test('explanation_grades: uma nota por tentativa, FKs com ON DELETE RESTRICT', (
   expect(foreignKeys(explanationGrades)).toEqual([
     { columns: ['review_log_id'], target: 'review_logs(id)', onDelete: 'restrict' },
     { columns: ['skill_id'], target: 'skills(id)', onDelete: 'restrict' },
+    { columns: ['import_id'], target: 'imports(id)', onDelete: 'restrict' },
   ]);
   expect(column(explanationGrades, 'review_log_id').isUnique).toBe(true);
+  expect(column(explanationGrades, 'import_id').notNull).toBe(true);
   expect(columnNames(explanationGrades)).not.toContain('updated_at');
 });
 
-test('explanation_grades.import_id é obrigatório, mas a FK só entra no ATL-71', () => {
-  expect(column(explanationGrades, 'import_id').notNull).toBe(true);
-  const columns = foreignKeys(explanationGrades).flatMap((fk) => fk.columns);
-  expect(columns).not.toContain('import_id');
+test('imports não se altera: ran_at no lugar de created_at, sem updated_at', () => {
+  for (const name of ['kind', 'file_name', 'file_hash', 'ran_at', 'errors_json']) {
+    expect(column(imports, name).notNull).toBe(true);
+  }
+  expect(columnNames(imports)).not.toContain('created_at');
+  expect(columnNames(imports)).not.toContain('updated_at');
+  expect(foreignKeys(imports)).toEqual([]);
+});
+
+test('imports: tipo do arquivo e contadores conferidos pelo banco (D-059, D-063)', () => {
+  expect(checks(imports)).toEqual({
+    imports_kind_enum: "kind IN ('conteudo','notas_explicacao')",
+    imports_counts_min:
+      'skills_inserted >= 0 AND items_inserted >= 0 AND grades_inserted >= 0 AND skipped >= 0',
+    imports_counts_by_kind:
+      "(kind = 'conteudo' AND grades_inserted = 0) OR (kind = 'notas_explicacao' AND skills_inserted = 0 AND items_inserted = 0)",
+    imports_errors_json_valid: 'json_valid(errors_json)',
+  });
 });
 
 test('explanation_grades tem as 5 notas de 0 a 2', () => {
@@ -215,6 +318,10 @@ test('created_at e updated_at nascem em ISO 8601 UTC', () => {
     reviewLogs,
     explanationGrades,
     memoryStates,
+    materials,
+    materialSkills,
+    planItems,
+    settings,
   ]) {
     for (const column of getTableConfig(table).columns) {
       if (column.name !== 'created_at' && column.name !== 'updated_at') continue;
@@ -225,7 +332,16 @@ test('created_at e updated_at nascem em ISO 8601 UTC', () => {
 });
 
 test('updated_at se renova a cada alteração', () => {
-  for (const table of [programs, subjects, skills, items, memoryStates]) {
+  for (const table of [
+    programs,
+    subjects,
+    skills,
+    items,
+    memoryStates,
+    materials,
+    planItems,
+    settings,
+  ]) {
     const updatedAt = getTableConfig(table).columns.find((c) => c.name === 'updated_at');
     expect(updatedAt?.onUpdateFn?.()).toMatch(/Z$/);
   }

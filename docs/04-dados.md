@@ -78,7 +78,7 @@ mini curso (ATL-120) precisar.
 | estimated_minutes | integer NOT NULL | `CHECK (estimated_minutes BETWEEN 10 AND 40)` |
 | origin | text NOT NULL | `CHECK (origin IN ('manual','ia','import'))` |
 | reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1, `CHECK (reviewed_by_user IN (0,1))` |
-| source_material_id | text FK → materials | capítulo de livro que virou Ofício |
+| source_material_id | text FK → materials ON DELETE SET NULL | capítulo de livro que virou Ofício |
 | study_explanation | text | texto de estudo: explicação em markdown |
 | study_recommendations_json | text | texto de estudo: JSON `{ material_id, page_from?, page_to?, note? }[]`, `CHECK (study_recommendations_json IS NULL OR json_valid(study_recommendations_json))` |
 | study_guidance | text | texto de estudo: orientações em markdown (como estudar, o que observar) |
@@ -139,7 +139,7 @@ banco não consegue garantir; por isso só esses dois caminhos escrevem aqui.
 | rubric_json | text | rubrica do item de explicação: objeto JSON com as chaves `correcao`, `justificativa`, `coerencia`, `aplicacao` e `limitacoes`, cada uma com o texto do que vale nota 2 neste item. `CHECK ((rubric_json IS NOT NULL) = (COALESCE(dimension, '') = 'explicacao'))`, `CHECK (rubric_json IS NULL OR json_valid(rubric_json))`, `CHECK (COALESCE(dimension, '') <> 'explicacao' OR kind = 'aberta')` |
 | origin | text NOT NULL | `CHECK IN ('manual','ia','import')` |
 | reviewed_by_user | integer NOT NULL DEFAULT 0 | 0/1, `CHECK (reviewed_by_user IN (0,1))` |
-| source_material_id | text FK → materials | |
+| source_material_id | text FK → materials ON DELETE SET NULL | |
 | source_page | integer | |
 | archived_at | text | item errado sai da fila sem apagar histórico |
 | created_at, updated_at | | |
@@ -212,7 +212,7 @@ pela importação (D-043). Enquanto a tentativa não tem linha aqui, ela fica
 | limitacoes | integer NOT NULL | idem |
 | feedback | text | comentário da Jane para o Márcio |
 | graded_at | text NOT NULL | quando a Jane avaliou |
-| import_id | text NOT NULL FK → imports | arquivo de onde veio |
+| import_id | text NOT NULL FK → imports ON DELETE RESTRICT | arquivo de onde veio |
 | created_at | text NOT NULL | |
 
 **Sem UPDATE. Sem DELETE**, como `review_logs`: a nota é um fato do histórico.
@@ -269,18 +269,20 @@ coluna → atualize o rebuild no mesmo commit. Não há intervalo fixo nosso
 | kind | text NOT NULL | `CHECK IN ('pdf','video','link','nota','livro','markdown')` |
 | title | text NOT NULL | |
 | author | text | |
-| path | text | relativo a `data/acervo/`, para `pdf` e `markdown` |
+| path | text | nome do arquivo relativo a `data/acervo/`, para `pdf` e `markdown` |
 | url | text | para `video`/`link` |
-| body | text | para `nota` |
-| pages | integer | |
-| progress | real NOT NULL DEFAULT 0 | 0–1, informativo: **não entra em domínio** |
-| meta_json | text | capa, glifo, capítulo atual |
+| body | text | texto da `nota` (obrigatório) ou do `.md` enviado pela tela (D-063) |
+| pages | integer | `CHECK (pages IS NULL OR pages >= 1)` |
+| progress | real NOT NULL DEFAULT 0 | 0–1 (`CHECK`), informativo: **não entra em domínio** |
+| meta_json | text | capa, glifo, capítulo atual; `CHECK json_valid` |
 | created_at, updated_at | | |
 
-`CHECK ((kind IN ('pdf','markdown')) = (path IS NOT NULL))` e equivalente para
-url/body. O `markdown` é o `.md` guardado até a Jane transformá-lo em JSON
-(D-028). Detalhes no ticket da Biblioteca. Extração de PDF e de link: fora do
-MVP.
+CHECKs por tipo (D-063): `(path IS NOT NULL) = (kind IN ('pdf','markdown'))`,
+`(url IS NOT NULL) = (kind IN ('video','link'))`, `body` só em `nota` e
+`markdown`, e obrigatório em `nota`. O `markdown` é o `.md` guardado até a Jane
+transformá-lo em JSON (D-028). Enviado pela tela, ele guarda o nome em `path` e
+o texto em `body` (D-036); citado por nome, só o `path`. Detalhes no ticket da
+Biblioteca. Extração de PDF e de link: fora do MVP.
 
 `UNIQUE (path)` e `UNIQUE (url)`. No SQLite, `NULL` não colide com `NULL`, então
 o UNIQUE só vale onde a coluna está preenchida. São a chave do **material
@@ -304,20 +306,27 @@ guarda só o `path`, sem `body`. O Márcio abre o arquivo fora do app.
 
 ### `material_skills`
 
-`material_id` FK, `skill_id` FK, `page_from`, `page_to`, PK composta. Um
-material pode servir a vários Ofícios (livro por capítulo).
+`material_id` FK, `skill_id` FK (as duas ON DELETE CASCADE), `page_from`,
+`page_to`, `created_at`, PK composta. Páginas `>= 1` e `page_from <= page_to`
+quando as duas existem. Um material pode servir a vários Ofícios (livro por
+capítulo).
 
 ### `plans` e `plan_items` — o que o Gregor decidiu
 
 `plans`: `id`, `generated_at`, `mode` (`CHECK IN ('completa','curta')`),
 `params_json` (cópia dos params), `state_hash` (hash do snapshot, para
-reproduzir).
+reproduzir). O plano não se altera: `generated_at` faz o papel de `created_at`
+e não há `updated_at` (D-063).
 
 `plan_items`: `id`, `plan_id` FK CASCADE, `block` (`CHECK BETWEEN 1 AND 4`),
-`position`, `kind` (`CHECK IN ('revisao_previa','materia_nova','reforco','cartoes')`),
-`skill_id` FK, `item_ids_json`, `minutes`, `skipped` (blocos pulados ficam
-registrados), `reason_json`, `breakdown_json`, `scheduled_start` (preenchido
-pelo Planejar quando o evento é criado), `google_event_id` (idem), `done_at`.
+`position` (`>= 0`), `kind` (`CHECK IN ('revisao_previa','materia_nova','reforco','cartoes')`,
+e o tipo acompanha o número do bloco), `skill_id` FK RESTRICT, `item_ids_json`
+(`DEFAULT '[]'`), `minutes` (`>= 0`), `skipped` (0/1; blocos pulados ficam
+registrados), `reason_json` (obrigatório), `breakdown_json`, `scheduled_start`
+(preenchido pelo Planejar quando o evento é criado), `google_event_id` (idem),
+`done_at`, `created_at`, `updated_at`. Uma linha por item da sessão; bloco
+pulado é uma linha sem Ofício: `CHECK ((skill_id IS NULL) = (skipped = 1))`
+(D-063). `UNIQUE (plan_id, block, position)`.
 
 Índice: `plan_items(plan_id, scheduled_start)`. Planos antigos não são
 apagados: são o histórico de "o que o sistema mandou". Os campos do Google
@@ -325,7 +334,9 @@ Agenda são afinados no ticket do Planejar (A-007).
 
 ### `settings`
 
-Chave-valor (`key` PK, `value_json`). Um usuário, sem tabela `users`. Chaves:
+Chave-valor (`key` PK, `value_json` com `CHECK json_valid`, `created_at`,
+`updated_at`). Um usuário, sem tabela `users`. As chaves são validadas pelo Zod
+na borda, não por `CHECK`, porque o Google Agenda vai somar outras. Chaves:
 
 | chave | valor | padrão |
 |---|---|---|
@@ -342,6 +353,12 @@ ele fica é decidido no ticket do Google Agenda (A-007).
 `skipped`, `errors_json`. Permite responder "de onde veio este item" e "de onde
 veio esta nota".
 
+A linha não se altera: `ran_at` faz o papel de `created_at`, sem `updated_at`.
+Contadores `NOT NULL DEFAULT 0` e `>= 0`; arquivo de conteúdo tem
+`grades_inserted = 0` e arquivo de notas tem `skills_inserted` e
+`items_inserted` iguais a 0; `errors_json` `NOT NULL DEFAULT '[]'` com
+`json_valid` (D-063).
+
 ## Fora do MVP, não criar agora (D-009 em espírito)
 
 - `notes` (captura rápida): fora do MVP.
@@ -350,9 +367,15 @@ veio esta nota".
 
 ## Migrations
 
-- `drizzle-kit generate` gera; você **lê o SQL** antes de aplicar. SQLite
-  recria tabela para alterar coluna; é onde se perde dado.
-- Uma migration por mudança lógica, com `down` testado.
+- `pnpm --filter @atelie/db db:generate` (o `drizzle-kit generate`, com
+  `packages/db/drizzle.config.ts`) gera em `packages/db/drizzle/`; você **lê o
+  SQL** antes de aplicar. SQLite recria tabela para alterar coluna; é onde se
+  perde dado.
+- `pnpm db:migrate` aplica (`packages/db/src/migrate.ts`, migrator do
+  `drizzle-orm` sobre o `@libsql/client`), lendo `DATABASE_URL` e, no Turso,
+  `DATABASE_AUTH_TOKEN` (D-064).
+- Uma migration por mudança lógica, com `down` testado. O `down` é escrito à
+  mão em `NNNN_nome.down.sql`, ao lado do `up` (D-064).
 - Nunca editar migration aplicada.
 - Migration inicial (`0000_schema_v1`) cria tudo acima exceto o que a seção
   "Fora do MVP" lista, inclusive `programs`, `subjects.program_id`, os

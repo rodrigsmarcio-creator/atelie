@@ -6,5 +6,7 @@ imports/
 .claude/
 _arquivos-originais/
 pnpm-lock.yaml
+# Gerado pelo drizzle-kit, que reescreve a cada `db:generate` (D-064).
+packages/db/drizzle/meta/
 **/.next/
 **/coverage/
