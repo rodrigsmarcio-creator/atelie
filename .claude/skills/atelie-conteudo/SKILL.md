@@ -121,7 +121,8 @@ o `.md` por nome.
    falta de `DATABASE_URL`, pare e avise o usuário; não invente URL nem crie
    banco. A saída diz se o curso é novo ou atualizado e quantos materiais a
    importação criou na Biblioteca: repasse.
-5. Diga quantos Ofícios e quantos itens entraram, quais precisam de revisão e
+5. Diga quantos Ofícios e quantos itens entraram, quais Ofícios ficaram sem
+   leitura recomendada no texto de estudo, quais precisam de revisão e
    as arestas de que você teve menos certeza (uma linha cada, com o motivo),
    para o usuário cortar as que discordar.
 
@@ -207,6 +208,37 @@ Depois da explicação, a avaliação das notas da rubrica é um segundo trabalh
 `pnpm grades:export` lista as pendentes e você devolve o arquivo
 `notas-explicacao` (`docs/09`, seção "Notas da Jane para a Explicação"). Nunca
 repita o texto do Márcio no arquivo de notas.
+
+## Texto de estudo
+
+Todo Ofício novo leva o bloco `study` (D-052, D-069): é o que o Márcio lê na
+fase Aprender, **antes** da primeira tentativa. Ler não dá XP nem sobe domínio;
+o texto prepara para a prova, não a substitui. Formato e limites em `docs/09`,
+seção "Texto de estudo". O `study` não tem `origin` nem `reviewed_by_user`
+próprios: herda os do Ofício (`"ia"` e `false`), e quando o Márcio revisa o
+Ofício, revisa o texto junto.
+
+| campo | o que é | tamanho-alvo (limite) |
+|---|---|---|
+| `explanation` | o conceito, por que ele importa e um exemplo resolvido | 1500 a 3000 caracteres (6000) |
+| `guidance` | por onde começar, o que observar, o que costuma confundir | 500 a 1000 (2000) |
+| `faq` | dúvidas previsíveis, cada uma com `question` e `answer` | 3 a 6 (10; pergunta 200, resposta 1000) |
+| `recommendations` | o que ler e onde, com `note` dizendo por quê | 1 a 3 (10; nota 200) |
+
+- **Não entregue a prova.** O exemplo resolvido da explicação é diferente dos
+  itens do Ofício, e as dúvidas comuns não repetem enunciado de item. Ensine o
+  conceito; quem decorar o texto não pode acertar os itens só por isso.
+- **Recomendação só de fonte vista.** Cite só PDF ou `.md` que você leu em
+  `data/acervo/` (ver "Fontes na conversa") ou link que você conferiu. PDF
+  sempre com `page_from` e `page_to`; link sem página. Sem fonte, omita
+  `recommendations` e diga no chat que o Ofício ficou sem leitura recomendada.
+  Nunca indique livro ou página de memória.
+- **Markdown simples:** parágrafos, negrito, itálico e listas. Sem HTML, sem
+  tabela, sem LaTeX: fórmula vai em texto, como `f'(x) = lim (f(x+h) − f(x)) / h`
+  (a tela ainda não decidiu como mostrar fórmula; o ATL-144 pode mudar isso).
+- **Sem certeza, não escreva.** Vale o mesmo que para os itens: um fato duvidoso
+  sai do texto, e você avisa no chat o que deixou de fora.
+- Rodada grande? Gere menos Ofícios, não textos mais curtos que o alvo.
 
 ## Honestidade sobre a fonte
 
