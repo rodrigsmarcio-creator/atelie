@@ -33,6 +33,11 @@ sem eles o Ofício não chega a Dominado e o validador avisa (ver "Mínimos por
 Ofício"). `focus` deixou de existir (D-057): arquivo antigo com `focus` é
 recusado e precisa ser regerado com `dimension`.
 
+**IDs.** Todo ID do arquivo (`id`, `skill_id`, `prereqs`, `material_id`,
+`review_log_id`) é um texto de 26 caracteres maiúsculos A–Z e 0–9 (D-065). Não
+precisa ser um ULID estrito (sem I, L, O e U): o ID é só uma chave, e os IDs
+legíveis dos exemplos abaixo valem. Nos arquivos reais, gere ULID de verdade.
+
 ## `program` — curso (opcional)
 
 Curso da grade de referência de onde a matéria saiu (D-045, D-046). Sem tela
