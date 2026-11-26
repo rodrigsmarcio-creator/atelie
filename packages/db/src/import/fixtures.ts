@@ -275,3 +275,70 @@ export function at<T>(list: readonly T[], index: number): T {
   if (entry === undefined) throw new Error(`o exemplo não tem a posição ${index}`);
   return entry;
 }
+
+// "Exemplo com curso, material por nome e texto de estudo" do doc. Passa no
+// formato, mas `items` está vazio (a regra 8 recusaria o arquivo inteiro); o
+// pré-requisito SK0900 é de outra matéria do mesmo curso, já importada.
+export const exampleCursoEstudo = {
+  version: 1,
+  generated_at: '2026-11-24T09:00:00Z',
+  generated_by: 'claude-code/atelie-conteudo',
+  program: {
+    id: '01JCXD00000000000000PRG001',
+    name: 'Direito',
+    reference: 'Direito, USP, grade 2025',
+  },
+  subject: {
+    id: '01JCXD00000000000000SBJ001',
+    name: 'Direito Constitucional I',
+    short_name: 'Constitucional',
+    color: '#b5835a',
+    icon: 'scale',
+  },
+  skills: [
+    {
+      id: '01JCXD00000000000000SK0001',
+      name: 'Poder constituinte',
+      description:
+        'Quem cria a Constituição, com que limites, e a diferença entre poder originário e derivado.',
+      icon: 'quill',
+      depth: 1,
+      lane: 0,
+      estimated_minutes: 30,
+      prereqs: ['01JCXD00000000000000SK0900'],
+      origin: 'ia',
+      reviewed_by_user: false,
+      source: {
+        material: 'direito/Lenza - Direito Constitucional.pdf',
+        page_from: 180,
+        page_to: 196,
+      },
+      study: {
+        explanation:
+          'O **poder constituinte originário** cria a Constituição e não tem limite jurídico anterior. O **derivado** altera a Constituição dentro das regras que ela mesma fixa.',
+        recommendations: [
+          {
+            material: 'direito/Lenza - Direito Constitucional.pdf',
+            page_from: 180,
+            page_to: 196,
+            note: 'Capítulo base do Ofício.',
+          },
+          {
+            material: 'https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm',
+            note: 'Art. 60: limites ao poder de reforma.',
+          },
+        ],
+        guidance:
+          'Leia o capítulo antes do art. 60 e compare as cláusulas pétreas com os limites formais.',
+        faq: [
+          {
+            question: 'Emenda constitucional é poder originário?',
+            answer:
+              'Não. Emenda é poder derivado reformador e precisa respeitar o art. 60, inclusive as cláusulas pétreas.',
+          },
+        ],
+      },
+    },
+  ],
+  items: [],
+};

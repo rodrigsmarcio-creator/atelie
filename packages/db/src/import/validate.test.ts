@@ -362,3 +362,118 @@ describe('arquivo de notas (D5)', () => {
     expect(errors.map((e) => e.path)).toContain('grades[1].review_log_id');
   });
 });
+
+describe('curso (recusas 14 e 15, ATL-136)', () => {
+  const PROGRAM_1 = id('PG', 1);
+  const PROGRAM_2 = id('PG', 2);
+  const program = (patch: Raw = {}) => ({
+    id: PROGRAM_1,
+    name: 'Direito',
+    reference: 'Direito, USP, grade 2025',
+    ...patch,
+  });
+
+  async function seedProgram(programId: string, name: string) {
+    await insertRow(db.$client, 'programs', { ...baseRows.programs, id: programId, name });
+  }
+
+  test('sem program no arquivo, nada é conferido (a ligação do banco fica)', async () => {
+    await seedProgram(PROGRAM_1, 'Direito');
+    await seedSubject({ program_id: PROGRAM_1 });
+    expect((await validate(completeFile())).errors).toEqual([]);
+  });
+
+  test('curso novo e matéria nova valem', async () => {
+    expect((await validate(completeFile({ program: program() }))).errors).toEqual([]);
+  });
+
+  test('14: curso com o nome de outro curso (ID diferente)', async () => {
+    await seedProgram(PROGRAM_2, 'Direito');
+    const { errors } = await validate(completeFile({ program: program() }));
+    expect(errors).toContainEqual({
+      path: 'program.name',
+      message: expect.stringContaining('já existe outro curso'),
+    });
+  });
+
+  test('14: mesmo ID reaproveitado, com o mesmo nome ou com nome novo, vale', async () => {
+    await seedProgram(PROGRAM_1, 'Direito');
+    expect((await validate(completeFile({ program: program() }))).errors).toEqual([]);
+    expect(
+      (await validate(completeFile({ program: program({ name: 'Direito USP' }) }))).errors,
+    ).toEqual([]);
+  });
+
+  test('15: matéria já ligada a outro curso', async () => {
+    await seedProgram(PROGRAM_2, 'Medicina');
+    await seedSubject({ program_id: PROGRAM_2 });
+    const { errors } = await validate(completeFile({ program: program() }));
+    expect(errors).toContainEqual({
+      path: 'program.id',
+      message: expect.stringContaining('já está ligada a outro curso'),
+    });
+  });
+
+  test('15: o mesmo curso, ou matéria sem curso, valem (a ligação é feita)', async () => {
+    await seedProgram(PROGRAM_1, 'Direito');
+    await seedSubject({ program_id: PROGRAM_1 });
+    expect((await validate(completeFile({ program: program() }))).errors).toEqual([]);
+  });
+
+  test('15: matéria existente sem curso passa a ter o do arquivo', async () => {
+    await seedSubject({ program_id: null });
+    expect((await validate(completeFile({ program: program() }))).errors).toEqual([]);
+  });
+});
+
+describe('material por nome (ATL-136)', () => {
+  const MATERIAL = id('MT', 1);
+  const withSource = (source: Raw, skillPatch: Raw = {}) =>
+    completeFile({
+      skills: [rawSkill(1, { source, ...skillPatch }), rawSkill(2, { prereqs: [SKILL_A] })],
+    });
+
+  test('citar por nome não exige que o material exista', async () => {
+    const result = await validate(
+      withSource({ material: 'direito/novo.pdf', page_from: 1, page_to: 3 }),
+    );
+    expect(result).toEqual({ errors: [], warnings: [] });
+  });
+
+  test('13 nas recomendações: material_id inexistente', async () => {
+    const study = { recommendations: [{ material_id: MATERIAL, note: 'Ler.' }] };
+    const { errors } = await validate(withSource({ material: 'a.pdf' }, { study }));
+    expect(errors).toContainEqual({
+      path: 'skills[0].study.recommendations[0].material_id',
+      message: expect.stringContaining('não existe no banco'),
+    });
+  });
+
+  test('13 nas recomendações: material_id cadastrado vale', async () => {
+    await seedMaterial(MATERIAL, 'apostila.pdf');
+    const study = { recommendations: [{ material_id: MATERIAL }] };
+    const { errors } = await validate(withSource({ material: 'a.pdf' }, { study }));
+    expect(errors).toEqual([]);
+  });
+
+  test('dois nomes que só diferem em maiúsculas viram duas entradas e avisam', async () => {
+    const study = { recommendations: [{ material: 'calculo.pdf' }] };
+    const { errors, warnings } = await validate(withSource({ material: 'Calculo.pdf' }, { study }));
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([
+      { path: '', message: expect.stringContaining('"Calculo.pdf" e "calculo.pdf"') },
+    ]);
+  });
+
+  test('o aviso também vê o material que já está no banco', async () => {
+    await seedMaterial(MATERIAL, 'Calculo.pdf');
+    const { warnings } = await validate(withSource({ material: 'calculo.pdf' }));
+    expect(messages(warnings).join('\n')).toContain('"Calculo.pdf" e "calculo.pdf"');
+  });
+
+  test('o mesmo nome citado várias vezes não avisa', async () => {
+    const study = { recommendations: [{ material: 'a.pdf' }, { material: 'a.pdf' }] };
+    const { warnings } = await validate(withSource({ material: 'a.pdf' }, { study }));
+    expect(warnings).toEqual([]);
+  });
+});

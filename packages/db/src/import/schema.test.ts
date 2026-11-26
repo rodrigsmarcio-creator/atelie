@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { at, exampleMinimo, exampleNotas, exampleProvas } from './fixtures';
+import { at, exampleCursoEstudo, exampleMinimo, exampleNotas, exampleProvas } from './fixtures';
 import { parseImportFile, ulidSchema, type ImportIssue } from './schema';
 
 // Atalhos para montar variações do arquivo de exemplo.
@@ -697,3 +697,203 @@ describe('mensagens', () => {
     expect(errorsOf(file).map((e) => e.path)).toEqual(['subject.color', 'subject.weight']);
   });
 });
+
+describe('program: o curso da grade (ATL-136)', () => {
+  const program = {
+    id: '01JCXD00000000000000PRG001',
+    name: 'Direito',
+    reference: 'Direito, USP, grade 2025',
+  };
+  const withProgram = (patch: Record<string, unknown>) => ({
+    ...clone(exampleMinimo),
+    program: { ...program, ...patch },
+  });
+
+  test('é opcional: o exemplo mínimo continua valendo sem ele', () => {
+    expect(errorsOf(exampleMinimo)).toEqual([]);
+    expect(errorsOf(withProgram({}))).toEqual([]);
+  });
+
+  test.each([
+    ['id inválido', { id: 'abc' }, 'program.id'],
+    ['name vazio', { name: '' }, 'program.name'],
+    ['name com 81 caracteres', { name: 'a'.repeat(81) }, 'program.name'],
+    ['reference vazia', { reference: '' }, 'program.reference'],
+    ['reference com 201 caracteres', { reference: 'a'.repeat(201) }, 'program.reference'],
+    ['campo desconhecido', { arquivado: true }, 'program.arquivado'],
+  ])('recusa %s', (_nome, patch, path) => {
+    expect(errorsOf(withProgram(patch)).map((e) => e.path)).toEqual([path]);
+  });
+
+  test('aceita os limites: name com 80 e reference com 200 caracteres', () => {
+    expect(errorsOf(withProgram({ name: 'a'.repeat(80), reference: 'a'.repeat(200) }))).toEqual([]);
+  });
+
+  test('o exemplo do doc com curso, material por nome e estudo valida no formato', () => {
+    expect(errorsOf(exampleCursoEstudo)).toEqual([]);
+  });
+});
+
+describe('material por nome ou link (recusas 11 e 12)', () => {
+  const MATERIAL_ID = '01JCXAM0000000000000MAT001';
+  const skillWith = (source: unknown) => fileWithSkill({ ...skillBase, source });
+  const itemWith = (source: unknown) => fileWithItem({ ...cartaoDissertativo, source });
+
+  test.each([
+    'Stewart - Calculo vol 1.pdf',
+    'direito/constituicao.md',
+    'Cap..1.pdf',
+    'Apostila.PDF',
+    'https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm',
+  ])('o Ofício aceita material %j', (material) => {
+    expect(errorsOf(skillWith({ material, page_from: 1, page_to: 2 }))).toEqual([]);
+  });
+
+  test('aceita material_id sozinho ou material sozinho, no Ofício e no item', () => {
+    expect(errorsOf(skillWith({ material_id: MATERIAL_ID }))).toEqual([]);
+    expect(errorsOf(skillWith({ material: 'a.pdf' }))).toEqual([]);
+    expect(errorsOf(itemWith({ material_id: MATERIAL_ID, page: 3 }))).toEqual([]);
+    expect(errorsOf(itemWith({ material: 'a.pdf', page: 3 }))).toEqual([]);
+  });
+
+  test.each([
+    ['no Ofício', skillWith, 'skills[0].source'],
+    [
+      'no item',
+      (source: unknown) => itemWith({ ...(source as object), page: 3 }),
+      'items[0].source',
+    ],
+  ])('recusa material_id e material juntos %s', (_onde, build, path) => {
+    expectOneError(build({ material_id: MATERIAL_ID, material: 'a.pdf' }), path, 'material_id');
+  });
+
+  test.each([
+    ['no Ofício', skillWith({ page_from: 1 }), 'skills[0].source'],
+    ['no item', itemWith({ page: 3 }), 'items[0].source'],
+  ])('recusa source sem material_id nem material %s', (_onde, file, path) => {
+    expectOneError(file, path, 'material_id');
+  });
+
+  test.each([
+    ['../a.pdf', '".."'],
+    ['a/../b.pdf', '".."'],
+    ['/a.pdf', 'absoluto'],
+    ['C:/a.pdf', 'absoluto'],
+    ['C:\\a.pdf', '\\'],
+    ['pasta\\a.pdf', '\\'],
+    ['data/acervo/a.pdf', 'data/acervo/'],
+    ['a.txt', 'extensão'],
+    ['a', 'extensão'],
+    ['https://exemplo .org/a', 'espaço'],
+    ['', 'vazio'],
+  ])('recusa o material %j', (material, text) => {
+    expectOneError(skillWith({ material }), 'skills[0].source.material', text);
+    expectOneError(itemWith({ material, page: 1 }), 'items[0].source.material', text);
+  });
+
+  test('o item continua exigindo a página', () => {
+    expect(errorsOf(itemWith({ material: 'a.pdf' })).map((e) => e.path)).toEqual([
+      'items[0].source.page',
+    ]);
+  });
+
+  test('page_from maior que page_to continua recusado com material por nome', () => {
+    expectOneError(
+      skillWith({ material: 'a.pdf', page_from: 9, page_to: 2 }),
+      'skills[0].source.page_to',
+      'page_from não pode ser maior',
+    );
+  });
+});
+
+describe('study: o texto de estudo do Ofício (recusa 16)', () => {
+  const studyWith = (study: unknown) => fileWithSkill({ ...skillBase, study });
+  const recommendation = { material: 'a.pdf', page_from: 1, page_to: 5, note: 'Base.' };
+  const faq = { question: 'Por quê?', answer: 'Porque sim.' };
+
+  test('é opcional, e {} também vale', () => {
+    expect(errorsOf(fileWithSkill(skillBase))).toEqual([]);
+    expect(errorsOf(studyWith({}))).toEqual([]);
+  });
+
+  test('cada campo vale sozinho', () => {
+    expect(errorsOf(studyWith({ explanation: 'Texto **em markdown**.' }))).toEqual([]);
+    expect(errorsOf(studyWith({ guidance: 'Leia antes.' }))).toEqual([]);
+    expect(errorsOf(studyWith({ recommendations: [recommendation] }))).toEqual([]);
+    expect(errorsOf(studyWith({ faq: [faq] }))).toEqual([]);
+  });
+
+  test.each([
+    ['explanation', 6000, 6001, 'explanation'],
+    ['guidance', 2000, 2001, 'guidance'],
+  ])('%s vai até %i caracteres', (campo, ok, demais, path) => {
+    expect(errorsOf(studyWith({ [campo]: 'a'.repeat(ok) }))).toEqual([]);
+    expect(errorsOf(studyWith({ [campo]: 'a'.repeat(demais) })).map((e) => e.path)).toEqual([
+      `skills[0].study.${path}`,
+    ]);
+  });
+
+  test('recommendations e faq vão até 10 entradas', () => {
+    expect(errorsOf(studyWith({ recommendations: times10(recommendation) }))).toEqual([]);
+    expect(
+      errorsOf(studyWith({ recommendations: times10(recommendation, 11) })).map((e) => e.path),
+    ).toEqual(['skills[0].study.recommendations']);
+    expect(errorsOf(studyWith({ faq: times10(faq) }))).toEqual([]);
+    expect(errorsOf(studyWith({ faq: times10(faq, 11) })).map((e) => e.path)).toEqual([
+      'skills[0].study.faq',
+    ]);
+  });
+
+  test('note vai até 200 caracteres; pergunta até 200; resposta até 1000', () => {
+    const rec = (note: string) => studyWith({ recommendations: [{ ...recommendation, note }] });
+    expect(errorsOf(rec('a'.repeat(200)))).toEqual([]);
+    expect(errorsOf(rec('a'.repeat(201))).map((e) => e.path)).toEqual([
+      'skills[0].study.recommendations[0].note',
+    ]);
+    const entry = (patch: object) => studyWith({ faq: [{ ...faq, ...patch }] });
+    expect(errorsOf(entry({ question: 'a'.repeat(200) }))).toEqual([]);
+    expect(errorsOf(entry({ question: 'a'.repeat(201) })).map((e) => e.path)).toEqual([
+      'skills[0].study.faq[0].question',
+    ]);
+    expect(errorsOf(entry({ answer: 'a'.repeat(1000) }))).toEqual([]);
+    expect(errorsOf(entry({ answer: 'a'.repeat(1001) })).map((e) => e.path)).toEqual([
+      'skills[0].study.faq[0].answer',
+    ]);
+  });
+
+  test('a recomendação segue as regras do material (11 e 12) e da página', () => {
+    expectOneError(
+      studyWith({ recommendations: [{ material: 'a.txt' }] }),
+      'skills[0].study.recommendations[0].material',
+      'extensão',
+    );
+    expectOneError(
+      studyWith({
+        recommendations: [{ material_id: '01JCXAM0000000000000MAT001', material: 'a.pdf' }],
+      }),
+      'skills[0].study.recommendations[0]',
+      'material_id',
+    );
+    expectOneError(
+      studyWith({ recommendations: [{ note: 'sem material' }] }),
+      'skills[0].study.recommendations[0]',
+      'material_id',
+    );
+    expectOneError(
+      studyWith({ recommendations: [{ material: 'a.pdf', page_from: 9, page_to: 2 }] }),
+      'skills[0].study.recommendations[0].page_to',
+      'page_from não pode ser maior',
+    );
+  });
+
+  test('campo desconhecido em study e pergunta ou resposta vazias são recusados', () => {
+    expectOneError(studyWith({ resumo: 'x' }), 'skills[0].study.resumo', 'campo desconhecido');
+    expect(
+      errorsOf(studyWith({ faq: [{ question: '', answer: 'x' }] })).map((e) => e.path),
+    ).toEqual(['skills[0].study.faq[0].question']);
+  });
+});
+
+function times10<T>(entry: T, n = 10): T[] {
+  return Array.from({ length: n }, () => entry);
+}

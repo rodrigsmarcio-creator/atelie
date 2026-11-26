@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { baseRows, insertRow, openMigratedDrizzle } from '../test-db';
-import { SKILL_A, SKILL_B, completeFile, id, rawSkill, type Raw } from './builders';
+import { SKILL_A, SKILL_B, completeFile, fullItems, id, rawSkill, type Raw } from './builders';
 import { exampleNotas } from './fixtures';
 import { parseImportFile, type ParsedImportFile } from './schema';
 import { runImport, type RunResult } from './run';
@@ -525,5 +525,352 @@ describe('avisos', () => {
     expect(result.summary.warnings).toEqual([
       { path: 'items', message: expect.stringContaining('"tags"') },
     ]);
+  });
+});
+
+describe('curso (ATL-136)', () => {
+  const PROGRAM_1 = id('PG', 1);
+  const PROGRAM_2 = id('PG', 2);
+  const program = (patch: Raw = {}) => ({
+    id: PROGRAM_1,
+    name: 'Direito',
+    reference: 'Direito, USP, grade 2025',
+    ...patch,
+  });
+
+  test('grava o curso e liga a matéria a ele', async () => {
+    const summary = await expectOk(completeFile({ program: program() }));
+    expect(summary.program).toEqual({ name: 'Direito', created: true });
+    expect(
+      await rows('SELECT id, name, reference, archived_at, created_at, updated_at FROM programs'),
+    ).toEqual([
+      {
+        id: PROGRAM_1,
+        name: 'Direito',
+        reference: 'Direito, USP, grade 2025',
+        archived_at: null,
+        created_at: NOW_1,
+        updated_at: NOW_1,
+      },
+    ]);
+    expect(await scalar('SELECT program_id FROM subjects')).toBe(PROGRAM_1);
+  });
+
+  test('sem program, nada muda: a matéria fica sem curso', async () => {
+    const summary = await expectOk(completeFile());
+    expect(summary.program).toBeUndefined();
+    expect(await count('programs')).toBe(0);
+    expect(await scalar('SELECT program_id FROM subjects')).toBeNull();
+  });
+
+  test('importar de novo atualiza o curso por ID sem tocar em archived_at', async () => {
+    await expectOk(completeFile({ program: program() }));
+    await db.$client.execute({
+      sql: 'UPDATE programs SET archived_at = ? WHERE id = ?',
+      args: ['2026-11-26T00:00:00.000Z', PROGRAM_1],
+    });
+    const second = await expectOk(
+      completeFile({
+        program: program({ name: 'Direito USP', reference: 'Direito, USP, grade 2026' }),
+      }),
+      NOW_2,
+    );
+    expect(second.program).toEqual({ name: 'Direito USP', created: false });
+    expect(await count('programs')).toBe(1);
+    expect(
+      await rows('SELECT name, reference, archived_at, created_at, updated_at FROM programs'),
+    ).toEqual([
+      {
+        name: 'Direito USP',
+        reference: 'Direito, USP, grade 2026',
+        archived_at: '2026-11-26T00:00:00.000Z',
+        created_at: NOW_1,
+        updated_at: NOW_2,
+      },
+    ]);
+  });
+
+  test('sem program no 2º arquivo, a matéria mantém o curso que tinha', async () => {
+    await expectOk(completeFile({ program: program() }));
+    await expectOk(completeFile(), NOW_2);
+    expect(await scalar('SELECT program_id FROM subjects')).toBe(PROGRAM_1);
+  });
+
+  test('outra matéria do mesmo curso: o curso é um só', async () => {
+    await expectOk(completeFile({ program: program() }));
+    // Matéria B, no mesmo curso, com um Ofício novo e os itens dele.
+    const outro = id('SK', 7);
+    const other = completeFile({
+      program: program(),
+      subject: { ...(completeFile()['subject'] as Raw), id: id('SB', 2), name: 'Álgebra' },
+      skills: [rawSkill(7, { name: 'Outro Ofício' })],
+      items: fullItems(outro),
+    });
+    const summary = await expectOk(other, NOW_2);
+    expect(summary.program).toEqual({ name: 'Direito', created: false });
+    expect(await count('programs')).toBe(1);
+    expect(await scalar('SELECT count(*) FROM subjects WHERE program_id = ?', [PROGRAM_1])).toBe(2);
+  });
+
+  test('matéria ligada a outro curso: recusa e não grava curso nem nada', async () => {
+    await expectOk(completeFile({ program: program() }));
+    const result = await runFile(
+      completeFile({ program: program({ id: PROGRAM_2, name: 'Medicina' }) }),
+      NOW_2,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toContainEqual({
+      path: 'program.id',
+      message: expect.stringContaining('já está ligada a outro curso'),
+    });
+    expect(await count('programs')).toBe(1);
+    expect(await scalar('SELECT program_id FROM subjects')).toBe(PROGRAM_1);
+  });
+});
+
+describe('material por nome ou link (ATL-136)', () => {
+  const PDF = 'direito/Lenza - Direito Constitucional.pdf';
+  const LINK = 'https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm';
+
+  // O Ofício 1 cita o PDF em `source` e o PDF e o link nas recomendações; um item cita o PDF.
+  function fileWithMaterials(extra: Raw = {}) {
+    const raw = completeFile();
+    const { skills, items } = parts(raw);
+    return {
+      ...raw,
+      skills: skills.map((s, i) =>
+        i === 0
+          ? {
+              ...s,
+              source: { material: PDF, page_from: 180, page_to: 196 },
+              study: {
+                recommendations: [
+                  { material: PDF, page_from: 180, page_to: 196, note: 'Capítulo base.' },
+                  { material: LINK, note: 'Art. 60.' },
+                ],
+              },
+              ...extra,
+            }
+          : s,
+      ),
+      items: items.map((item, i) =>
+        i === 0 ? { ...item, source: { material: PDF, page: 190 } } : item,
+      ),
+    };
+  }
+
+  test('cria uma entrada por material, com tipo, título e chave', async () => {
+    const summary = await expectOk(fileWithMaterials());
+    expect(summary.materials).toEqual({ created: 2 });
+    expect(await rows('SELECT kind, title, path, url, body FROM materials ORDER BY kind')).toEqual([
+      { kind: 'link', title: LINK, path: null, url: LINK, body: null },
+      { kind: 'pdf', title: 'Lenza - Direito Constitucional', path: PDF, url: null, body: null },
+    ]);
+  });
+
+  test('o mesmo material citado em três lugares é uma entrada só', async () => {
+    await expectOk(fileWithMaterials());
+    expect(await scalar('SELECT count(*) FROM materials WHERE path = ?', [PDF])).toBe(1);
+  });
+
+  test('o material criado leva ULID, data e progresso padrão', async () => {
+    await expectOk(fileWithMaterials());
+    const [row] = await rows(
+      'SELECT id, progress, created_at, updated_at FROM materials WHERE path = ?',
+      [PDF],
+    );
+    expect(row).toMatchObject({ progress: 0, created_at: NOW_1, updated_at: NOW_1 });
+    expect(String(row?.['id'])).toMatch(/^[0-9A-Z]{26}$/);
+  });
+
+  test('liga o Ofício e o item ao material e guarda as páginas do Ofício em material_skills', async () => {
+    const raw = fileWithMaterials();
+    await expectOk(raw);
+    const pdfId = String(await scalar('SELECT id FROM materials WHERE path = ?', [PDF]));
+    expect(
+      await rows('SELECT material_id, skill_id, page_from, page_to FROM material_skills'),
+    ).toEqual([{ material_id: pdfId, skill_id: SKILL_A, page_from: 180, page_to: 196 }]);
+    expect(await scalar('SELECT source_material_id FROM skills WHERE id = ?', [SKILL_A])).toBe(
+      pdfId,
+    );
+    const itemId = String(parts(raw).items[0]?.['id']);
+    expect(
+      await rows('SELECT source_material_id, source_page FROM items WHERE id = ?', [itemId]),
+    ).toEqual([{ source_material_id: pdfId, source_page: 190 }]);
+  });
+
+  test('as recomendações viram material_id no JSON e não entram em material_skills', async () => {
+    await expectOk(fileWithMaterials());
+    const pdfId = String(await scalar('SELECT id FROM materials WHERE path = ?', [PDF]));
+    const linkId = String(await scalar('SELECT id FROM materials WHERE url = ?', [LINK]));
+    const json = String(
+      await scalar('SELECT study_recommendations_json FROM skills WHERE id = ?', [SKILL_A]),
+    );
+    expect(JSON.parse(json)).toEqual([
+      { material_id: pdfId, page_from: 180, page_to: 196, note: 'Capítulo base.' },
+      { material_id: linkId, note: 'Art. 60.' },
+    ]);
+    expect(await count('material_skills')).toBe(1); // só o source do Ofício
+  });
+
+  test('importar de novo reaproveita as entradas', async () => {
+    await expectOk(fileWithMaterials());
+    const before = await rows('SELECT id FROM materials ORDER BY id');
+    const second = await expectOk(fileWithMaterials(), NOW_2);
+    expect(second.materials).toEqual({ created: 0 });
+    expect(await rows('SELECT id FROM materials ORDER BY id')).toEqual(before);
+  });
+
+  test('o material que já está no banco pelo path é reaproveitado', async () => {
+    await insertRow(db.$client, 'materials', { ...baseRows.materials, id: MATERIAL, path: PDF });
+    const summary = await expectOk(fileWithMaterials());
+    expect(summary.materials).toEqual({ created: 1 }); // só o link
+    expect(await scalar('SELECT source_material_id FROM skills WHERE id = ?', [SKILL_A])).toBe(
+      MATERIAL,
+    );
+    expect(await scalar('SELECT count(*) FROM materials WHERE path = ?', [PDF])).toBe(1);
+  });
+
+  test('a extensão em maiúsculas vale e o nome fica como foi digitado', async () => {
+    const raw = completeFile();
+    const { skills } = parts(raw);
+    await expectOk({
+      ...raw,
+      skills: skills.map((s, i) =>
+        i === 0
+          ? {
+              ...s,
+              study: {
+                recommendations: [{ material: 'Apostila.PDF' }, { material: 'a/Notas.Md' }],
+              },
+            }
+          : s,
+      ),
+    });
+    expect(await rows('SELECT kind, title, path FROM materials ORDER BY kind')).toEqual([
+      { kind: 'markdown', title: 'Notas', path: 'a/Notas.Md' },
+      { kind: 'pdf', title: 'Apostila', path: 'Apostila.PDF' },
+    ]);
+  });
+
+  test('nomes que só diferem em maiúsculas viram duas entradas, com aviso', async () => {
+    const raw = completeFile();
+    const { skills } = parts(raw);
+    const summary = await expectOk({
+      ...raw,
+      skills: skills.map((s, i) =>
+        i === 0
+          ? {
+              ...s,
+              study: {
+                recommendations: [{ material: 'Calculo.pdf' }, { material: 'calculo.pdf' }],
+              },
+            }
+          : s,
+      ),
+    });
+    expect(await count('materials')).toBe(2);
+    expect(summary.warnings).toContainEqual({
+      path: '',
+      message: expect.stringContaining('"Calculo.pdf" e "calculo.pdf"'),
+    });
+  });
+
+  test('arquivo recusado não cria material', async () => {
+    const skills = [rawSkill(1, { prereqs: [id('SK', 99)], source: { material: PDF } })];
+    const result = await runFile(completeFile({ skills }));
+    expect(result.ok).toBe(false);
+    expect(await count('materials')).toBe(0);
+  });
+
+  test('erro do banco no meio da gravação desfaz também os materiais', async () => {
+    await db.$client.execute(
+      `CREATE TRIGGER falha_no_meio BEFORE INSERT ON items WHEN NEW.prompt = 'explosivo'
+       BEGIN SELECT RAISE(ABORT, 'explosivo'); END`,
+    );
+    const raw = fileWithMaterials();
+    const { items } = parts(raw);
+    const bomb = {
+      ...raw,
+      items: items.map((item, i) => (i === 40 ? { ...item, prompt: 'explosivo' } : item)),
+    };
+    await expect(runFile(bomb)).rejects.toThrow();
+    for (const table of ['materials', 'programs', 'subjects', 'skills', 'items', 'imports']) {
+      expect(await count(table)).toBe(0);
+    }
+  });
+});
+
+describe('texto de estudo (ATL-136)', () => {
+  const study = {
+    explanation: 'Explicação em **markdown**.',
+    guidance: 'Leia antes de praticar.',
+    faq: [{ question: 'Por quê?', answer: 'Porque sim.' }],
+  };
+
+  // O mesmo arquivo base em todas as importações do teste (os IDs dos itens são os mesmos).
+  let base: Raw;
+  beforeEach(() => {
+    base = completeFile();
+  });
+
+  function fileWithStudy(value: Raw | undefined) {
+    const raw = base;
+    const { skills } = parts(raw);
+    return {
+      ...raw,
+      skills: skills.map((s, i) => (i === 0 && value !== undefined ? { ...s, study: value } : s)),
+    };
+  }
+
+  const studyRow = async () =>
+    (
+      await rows(
+        'SELECT study_explanation, study_recommendations_json, study_guidance, study_faq_json FROM skills WHERE id = ?',
+        [SKILL_A],
+      )
+    )[0];
+
+  test('grava os quatro campos', async () => {
+    await expectOk(
+      fileWithStudy({
+        ...study,
+        recommendations: [{ material: 'a.pdf', page_from: 1, page_to: 2 }],
+      }),
+    );
+    const row = await studyRow();
+    expect(row?.['study_explanation']).toBe(study.explanation);
+    expect(row?.['study_guidance']).toBe(study.guidance);
+    expect(JSON.parse(String(row?.['study_faq_json']))).toEqual(study.faq);
+    expect(JSON.parse(String(row?.['study_recommendations_json']))).toHaveLength(1);
+  });
+
+  test('sem study, os campos ficam nulos', async () => {
+    await expectOk(fileWithStudy(undefined));
+    expect(await studyRow()).toEqual({
+      study_explanation: null,
+      study_recommendations_json: null,
+      study_guidance: null,
+      study_faq_json: null,
+    });
+  });
+
+  test('campo omitido não apaga o que já existe, nem um campo dentro de study', async () => {
+    await expectOk(fileWithStudy(study));
+    // Só a explicação muda; orientações e dúvidas ficam.
+    await expectOk(fileWithStudy({ explanation: 'Nova explicação.' }), NOW_2);
+    const row = await studyRow();
+    expect(row?.['study_explanation']).toBe('Nova explicação.');
+    expect(row?.['study_guidance']).toBe(study.guidance);
+    expect(JSON.parse(String(row?.['study_faq_json']))).toEqual(study.faq);
+    // Sem study nenhum, nada muda.
+    await expectOk(fileWithStudy(undefined), NOW_2);
+    expect((await studyRow())?.['study_explanation']).toBe('Nova explicação.');
+  });
+
+  test('ler o texto de estudo não gera tentativa', async () => {
+    await expectOk(fileWithStudy(study));
+    expect(await count('review_logs')).toBe(0);
   });
 });

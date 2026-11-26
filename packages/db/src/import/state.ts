@@ -1,7 +1,8 @@
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { Db } from '../client';
-import { items, materials, skillPrereqs, skills, subjects } from '../schema';
+import { items, materials, programs, skillPrereqs, skills, subjects } from '../schema';
 import type { ExistingItem } from './check';
+import { citedMaterials } from './material';
 import type { ContentFile, NotApplicableDimension } from './schema';
 
 // O que a validação e a gravação precisam saber do banco para um arquivo de
@@ -17,8 +18,11 @@ export type StateSkill = {
 
 export type ImportState = {
   // Matéria que já tem o ID do arquivo e matéria que já tem o nome dele.
-  subjectById: { id: string; name: string } | undefined;
+  subjectById: { id: string; name: string; programId: string | null } | undefined;
   subjectByName: { id: string; name: string } | undefined;
+  // Curso que já tem o ID do `program` do arquivo e curso que já tem o nome dele.
+  programById: { id: string; name: string } | undefined;
+  programByName: { id: string; name: string } | undefined;
   // Ofícios da matéria do arquivo e os que o arquivo cita (ele mesmo, pré-requisito, item).
   skills: ReadonlyMap<string, StateSkill>;
   // Todas as arestas do grafo no banco (um ciclo pode passar por outra matéria).
@@ -27,8 +31,13 @@ export type ImportState = {
   items: readonly ExistingItem[];
   // Dono de cada item do arquivo que já existe, arquivado ou não.
   itemOwners: ReadonlyMap<string, string>;
-  // Materiais citados no arquivo que existem no banco.
+  // Materiais citados por ID no arquivo que existem no banco.
   materialIds: ReadonlySet<string>;
+  // Materiais citados por nome (nome exato = `path` ou `url`) que já existem, com o ID.
+  materialByName: ReadonlyMap<string, string>;
+  // `path` e `url` de materiais do banco que só diferem em maiúsculas de algum nome
+  // citado (ou são iguais a ele): servem ao aviso de entradas separadas.
+  materialKeys: readonly string[];
 };
 
 const unique = <T>(values: readonly T[]): T[] => [...new Set(values)];
@@ -43,15 +52,20 @@ export async function loadImportState(db: Db, file: ContentFile): Promise<Import
   ]);
   const itemSkills = unique([...fileSkillIds, ...itemSkillIds]);
   const fileItemIds = file.items.map((item) => item.id);
-  const citedMaterialIds = unique([
-    ...file.skills.flatMap((skill) => (skill.source ? [skill.source.material_id] : [])),
-    ...file.items.flatMap((item) => (item.source ? [item.source.material_id] : [])),
-  ]);
+  const cited = citedMaterials(file);
+  const lowerNames = cited.names.map((name) => name.toLowerCase());
 
   const subjectRows = await db
-    .select({ id: subjects.id, name: subjects.name })
+    .select({ id: subjects.id, name: subjects.name, programId: subjects.programId })
     .from(subjects)
     .where(or(eq(subjects.id, file.subject.id), eq(subjects.name, file.subject.name)));
+
+  const programRows = file.program
+    ? await db
+        .select({ id: programs.id, name: programs.name })
+        .from(programs)
+        .where(or(eq(programs.id, file.program.id), eq(programs.name, file.program.name)))
+    : [];
 
   const skillRows = await db
     .select({
@@ -96,17 +110,41 @@ export async function loadImportState(db: Db, file: ContentFile): Promise<Import
           .where(inArray(items.id, fileItemIds))
       : [];
 
+  // Materiais pelo ID citado e pelo nome citado, sem diferenciar maiúsculas (o
+  // `lower` pega também os que só diferem delas, para o aviso).
   const materialRows =
-    citedMaterialIds.length > 0
+    cited.ids.length > 0 || cited.names.length > 0
       ? await db
-          .select({ id: materials.id })
+          .select({ id: materials.id, path: materials.path, url: materials.url })
           .from(materials)
-          .where(inArray(materials.id, citedMaterialIds))
+          .where(
+            or(
+              cited.ids.length > 0 ? inArray(materials.id, cited.ids) : undefined,
+              cited.names.length > 0
+                ? inArray(sql`lower(${materials.path})`, lowerNames)
+                : undefined,
+              cited.names.length > 0
+                ? inArray(sql`lower(${materials.url})`, lowerNames)
+                : undefined,
+            ),
+          )
       : [];
+
+  const byName = new Map<string, string>();
+  const keys: string[] = [];
+  for (const row of materialRows) {
+    for (const key of [row.path, row.url]) {
+      if (key === null) continue;
+      keys.push(key);
+      if (cited.names.includes(key)) byName.set(key, row.id);
+    }
+  }
 
   return {
     subjectById: subjectRows.find((row) => row.id === file.subject.id),
     subjectByName: subjectRows.find((row) => row.name === file.subject.name),
+    programById: programRows.find((row) => row.id === file.program?.id),
+    programByName: programRows.find((row) => row.name === file.program?.name),
     skills: new Map(skillRows.map((row) => [row.id, row])),
     edges,
     items: itemRows.map((row) => ({
@@ -116,6 +154,10 @@ export async function loadImportState(db: Db, file: ContentFile): Promise<Import
       category: row.category ?? null,
     })),
     itemOwners: new Map(ownerRows.map((row) => [row.id, row.skillId])),
-    materialIds: new Set(materialRows.map((row) => row.id)),
+    materialIds: new Set(
+      materialRows.filter((row) => cited.ids.includes(row.id)).map((row) => row.id),
+    ),
+    materialByName: byName,
+    materialKeys: unique(keys),
   };
 }

@@ -1,14 +1,11 @@
 import { z } from 'zod';
+import { materialProblem } from './material';
 
 // Formato do JSON da importação (docs/09-schema-importacao.md). Este arquivo só
 // confere o que cada registro diz sozinho: tipos, tamanhos e as combinações
 // entre campos do mesmo registro. O que depende de outros registros ou do banco
 // (ID repetido, quantidade de itens, pré-requisito, ciclo) fica em `check.ts` e
 // na validação contra o banco.
-//
-// Falta, de propósito, o que é do ATL-136: `program` na raiz, `source.material`
-// (nome ou link, ao lado de `material_id`) e `study` no Ofício. Quem os
-// acrescentar mexe só nestes pontos, sem reescrever o resto.
 
 // ID: 26 caracteres maiúsculos A–Z e 0–9. Não é o alfabeto estrito do ULID (sem
 // I, L, O e U) porque o ID é só uma chave e os exemplos do doc, legíveis de
@@ -48,20 +45,90 @@ const subjectSchema = z.strictObject({
   exam_at: z.iso.date({ error: 'exam_at deve ser uma data no formato AAAA-MM-DD' }).optional(),
 });
 
+// Curso da grade de referência de onde a matéria saiu (D-045, D-046).
+const programSchema = z.strictObject({
+  id: ulidSchema,
+  name: z.string().min(1).max(80),
+  reference: z.string().min(1).max(200),
+});
+
+// Material citado por nome de arquivo (relativo a data/acervo/) ou por link
+// (D-049): o que vale como nome está em `material.ts` (recusa 12).
+const materialName = z.string().superRefine((name, ctx) => {
+  const problem = materialProblem(name);
+  if (problem !== undefined) ctx.addIssue({ code: 'custom', message: problem });
+});
+
+// Todo lugar que cita material aceita `material_id` (já cadastrado) **ou**
+// `material` (nome ou link), nunca os dois nem nenhum (recusa 11).
+const materialRef = {
+  material_id: ulidSchema.optional(),
+  material: materialName.optional(),
+};
+
+type MaterialRef = { material_id?: string | undefined; material?: string | undefined };
+
+function oneMaterial(ref: MaterialRef, ctx: z.RefinementCtx): void {
+  if ((ref.material_id === undefined) === (ref.material === undefined)) {
+    ctx.addIssue({
+      code: 'custom',
+      message:
+        'informe "material_id" (material já cadastrado) ou "material" (nome do arquivo ou link), e nunca os dois',
+    });
+  }
+}
+
+type PageRange = { page_from?: number | undefined; page_to?: number | undefined };
+
+const pageRangeInOrder = (range: PageRange) =>
+  range.page_from === undefined || range.page_to === undefined || range.page_from <= range.page_to;
+
+const pageOrderError = {
+  error: 'page_from não pode ser maior que page_to',
+  path: ['page_to'],
+};
+
 const skillSourceSchema = z
   .strictObject({
-    material_id: ulidSchema,
+    ...materialRef,
     page_from: page.optional(),
     page_to: page.optional(),
   })
-  .refine((s) => s.page_from === undefined || s.page_to === undefined || s.page_from <= s.page_to, {
-    error: 'page_from não pode ser maior que page_to',
-    path: ['page_to'],
-  });
+  .superRefine(oneMaterial)
+  .refine(pageRangeInOrder, pageOrderError);
 
-const itemSourceSchema = z.strictObject({
-  material_id: ulidSchema,
-  page,
+const itemSourceSchema = z
+  .strictObject({
+    ...materialRef,
+    page,
+  })
+  .superRefine(oneMaterial);
+
+// Texto de estudo, lido na fase Aprender (D-052). Tudo opcional; limites são
+// hipótese (D-056). Ler não gera tentativa.
+const recommendationSchema = z
+  .strictObject({
+    ...materialRef,
+    page_from: page.optional(),
+    page_to: page.optional(),
+    note: z.string().min(1).max(200).optional(),
+  })
+  .superRefine(oneMaterial)
+  .refine(pageRangeInOrder, pageOrderError);
+
+const studySchema = z.strictObject({
+  explanation: z.string().min(1).max(6000).optional(),
+  recommendations: z.array(recommendationSchema).max(10).optional(),
+  guidance: z.string().min(1).max(2000).optional(),
+  faq: z
+    .array(
+      z.strictObject({
+        question: z.string().min(1).max(200),
+        answer: z.string().min(1).max(1000),
+      }),
+    )
+    .max(10)
+    .optional(),
 });
 
 const notApplicableSchema = z
@@ -91,6 +158,7 @@ const skillSchema = z.strictObject({
   reviewed_by_user: z.boolean(),
   source: skillSourceSchema.optional(),
   not_applicable: notApplicableSchema.optional(),
+  study: studySchema.optional(),
 });
 
 const rubricText = z.string().min(1).max(300);
@@ -212,6 +280,7 @@ export const contentFileSchema = z.strictObject({
   version: versionSchema,
   generated_at: isoDatetime,
   generated_by: z.string().min(1),
+  program: programSchema.optional(),
   subject: subjectSchema,
   skills: z.array(skillSchema),
   items: z.array(itemSchema),
