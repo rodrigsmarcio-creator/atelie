@@ -209,11 +209,19 @@ skill: 8 a 15). Por isso o limite de itens por Ofício subiu (validação 8).
 19. `rubric` sem as 5 chaves, com chave a mais ou com texto fora de 1–300.
 20. `not_applicable` com `"conceitual"`, `"autonomia"`, valor desconhecido ou
     repetido.
+21. Matéria com o nome de outra matéria do banco (ID diferente). Para
+    acrescentar Ofícios a uma matéria, reutilize o ID dela.
+22. Ofício com o nome de outro Ofício da mesma matéria no banco (ID diferente).
+23. Ofício cujo ID já existe em outra matéria (nada troca de matéria em
+    silêncio).
+24. Item cujo ID já existe em outro Ofício.
+25. Item com `skill_id` que não existe no arquivo nem no banco.
 
 Avisos (não recusam): Ofício sem `description`; `lane` repetido no mesmo
 `depth` e matéria (vai sobrepor na Árvore); item com `prompt` igual a outro;
 dois materiais cujo `material` só difere em maiúsculas (`Calculo.pdf` e
-`calculo.pdf` viram duas entradas). E, das provas (D-058):
+`calculo.pdf` viram duas entradas); item com `tags` (o campo é aceito, mas o
+banco não tem coluna para ele, então não é gravado). E, das provas (D-058):
 
 - Ofício abaixo de algum mínimo da tabela "Mínimos por Ofício", com a
   dimensão que não fecha e o que falta ("Resolução: falta 1 de transferência").
@@ -249,8 +257,10 @@ A importação faz **upsert por ID**:
   `memory_states`. Só a importação de notas da Jane grava em `proofs` (ver
   "Notas da Jane para a Explicação").
 
-Tudo numa transação. Qualquer erro reverte o arquivo inteiro. O resultado vai
-para a tabela `imports`.
+Tudo numa transação. Qualquer erro reverte o arquivo inteiro. Só a execução
+bem-sucedida grava uma linha em `imports` (D-066): arquivo recusado não grava
+nada, e `skipped` conta os Ofícios e itens que já existiam, atualizados ou
+idênticos.
 
 ## Exemplo mínimo
 

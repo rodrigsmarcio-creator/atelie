@@ -6,92 +6,21 @@ import {
   type CheckResult,
   type ExistingItem,
 } from './check';
+import {
+  SKILL_A,
+  SKILL_B,
+  exercicio,
+  fluenciaItem,
+  fullItems,
+  id,
+  nextNumber,
+  problema,
+  rawItem,
+  rawSkill,
+  times,
+} from './builders';
 import { at, exampleMinimo, exampleNotas, exampleProvas } from './fixtures';
 import { parseImportFile, type ContentFile, type GradesFile } from './schema';
-
-// Gera um ID de 26 caracteres: 01JCXAM + zeros + prefixo + número (4 dígitos).
-function id(prefix: string, n: number): string {
-  const tail = `${prefix}${String(n).padStart(4, '0')}`;
-  return `01JCXAM${'0'.repeat(26 - 7 - tail.length)}${tail}`;
-}
-
-const SKILL_A = id('SK', 1);
-const SKILL_B = id('SK', 2);
-
-function rawSkill(n: number, patch: Record<string, unknown> = {}) {
-  return {
-    id: id('SK', n),
-    name: `Ofício ${n}`,
-    description: 'Descrição curta do Ofício.',
-    icon: 'link',
-    depth: n,
-    lane: 0,
-    estimated_minutes: 30,
-    prereqs: [],
-    origin: 'ia',
-    reviewed_by_user: false,
-    ...patch,
-  };
-}
-
-let counter = 0;
-function rawItem(patch: Record<string, unknown> = {}): Record<string, unknown> {
-  counter += 1;
-  return {
-    id: id('IT', counter),
-    skill_id: SKILL_A,
-    kind: 'cartao',
-    prompt: `Pergunta número ${counter}`,
-    answer: 'resposta',
-    explanation: 'Explicação com mais de vinte caracteres.',
-    origin: 'ia',
-    reviewed_by_user: false,
-    ...patch,
-  };
-}
-
-const rubric = at(exampleProvas.items, 5).rubric;
-
-// Exercícios por dimensão (aberta, para a `evidence` "interpretacao" não atrapalhar).
-// "interpretacao" só vale em múltipla escolha (recusa 18), então esse item é ME.
-const conceitual = (evidence: string, patch = {}) =>
-  evidence === 'interpretacao'
-    ? rawItem({
-        kind: 'multipla_escolha',
-        options: ['a', 'b', 'c', 'd'],
-        answer: 0,
-        dimension: 'conceitual',
-        evidence,
-        ...patch,
-      })
-    : rawItem({ kind: 'aberta', dimension: 'conceitual', evidence, ...patch });
-const fluenciaItem = (patch = {}) => rawItem({ kind: 'aberta', dimension: 'fluencia', ...patch });
-const problema = (category: string, patch = {}) =>
-  rawItem({ kind: 'aberta', dimension: 'problemas', category, ...patch });
-const explicacaoItem = (patch = {}) =>
-  rawItem({ kind: 'aberta', dimension: 'explicacao', followup: 'E se...?', rubric, ...patch });
-const exercicio = (patch = {}) => rawItem({ kind: 'aberta', ...patch });
-
-function times<T>(n: number, make: () => T): T[] {
-  return Array.from({ length: n }, make);
-}
-
-// Itens que fecham todas as provas do Ofício SK0001 com folga: 1 de cada
-// evidência, 12 de fluência, 8 problemas (3/3/2) e 1 explicação, mais 3 cartões.
-function fullItems() {
-  return [
-    conceitual('reconhecimento'),
-    conceitual('interpretacao'),
-    conceitual('representacao'),
-    conceitual('discriminacao'),
-    ...times(12, () => fluenciaItem()),
-    ...times(3, () => problema('rotineira')),
-    ...times(3, () => problema('nao_rotineira')),
-    ...times(2, () => problema('transferencia')),
-    explicacaoItem(),
-    ...times(3, () => rawItem()),
-  ];
-}
 
 function content(
   skills: unknown[],
@@ -121,9 +50,8 @@ const messages = (issues: { message: string }[]) => issues.map((i) => i.message)
 const paths = (issues: { path: string }[]) => issues.map((i) => i.path);
 
 function existingItem(patch: Partial<ExistingItem> = {}): ExistingItem {
-  counter += 1;
   return {
-    id: id('DB', counter),
+    id: id('DB', nextNumber()),
     skill_id: SKILL_A,
     kind: 'cartao',
     dimension: null,

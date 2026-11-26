@@ -2,3 +2,4 @@
 // Regras em docs/04-dados.md.
 export { createDb, type Db } from './client';
 export * from './schema';
+export * from './import';
