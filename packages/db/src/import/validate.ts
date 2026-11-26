@@ -235,7 +235,9 @@ function caseCollisionWarnings(file: ContentFile, state: ImportState): CheckIssu
     .map((names) => ({
       path: '',
       message: `materiais cujo nome só difere em maiúsculas viram entradas separadas: ${[...names]
-        .sort()
+        // Ordem por código de caractere (maiúscula antes de minúscula), igual em
+        // qualquer máquina; `localeCompare` dependeria do idioma do sistema.
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
         .map((name) => `"${name}"`)
         .join(' e ')}`,
     }));
