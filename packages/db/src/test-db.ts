@@ -14,6 +14,13 @@ export async function openMigratedDb(): Promise<Client> {
   return db.$client;
 }
 
+// O mesmo banco como Db do Drizzle, para os testes da importação.
+export async function openMigratedDrizzle() {
+  const db = await createDb(':memory:');
+  await runMigrations(db.$client);
+  return db;
+}
+
 export type Row = Record<string, InValue>;
 
 const AT = '2026-01-01T12:00:00.000Z';
