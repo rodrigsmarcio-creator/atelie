@@ -113,8 +113,16 @@ export async function runCli(args: readonly string[], io: CliIo): Promise<number
     io.out(
       `Matéria "${summary.subject.name}": ${summary.subject.created ? 'nova' : 'já existia'}.`,
     );
+    if (summary.program !== undefined) {
+      io.out(
+        `Curso "${summary.program.name}": ${summary.program.created ? 'novo' : 'atualizado'}.`,
+      );
+    }
     io.out(`Ofícios: ${summary.skills.inserted} novos, ${summary.skills.existing} já existiam.`);
     io.out(`Itens: ${summary.items.inserted} novos, ${summary.items.existing} já existiam.`);
+    if (summary.materials.created > 0) {
+      io.out(`Materiais: ${summary.materials.created} criados na Biblioteca.`);
+    }
     io.out(`Importação ${summary.importId} registrada.`);
     return 0;
   } finally {

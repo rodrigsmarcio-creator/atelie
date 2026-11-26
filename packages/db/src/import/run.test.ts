@@ -874,3 +874,61 @@ describe('texto de estudo (ATL-136)', () => {
     expect(await count('review_logs')).toBe(0);
   });
 });
+
+describe('duas matérias ligadas por pré-requisito, no mesmo curso e com o mesmo PDF (ATL-136)', () => {
+  const PROGRAM_1 = id('PG', 1);
+  const PDF = 'direito/Lenza - Direito Constitucional.pdf';
+  const program = { id: PROGRAM_1, name: 'Direito', reference: 'Direito, USP, grade 2025' };
+  const SKILL_B7 = id('SK', 7);
+
+  // Matéria A (padrão do arquivo completo), com o PDF no Ofício 1.
+  const fileA = () =>
+    completeFile({
+      program,
+      skills: [
+        rawSkill(1, { source: { material: PDF, page_from: 1, page_to: 9 } }),
+        rawSkill(2, { prereqs: [SKILL_A] }),
+      ],
+    });
+
+  // Matéria B: o Ofício dela exige o Ofício 2 da matéria A. O `depth` é só dentro
+  // da matéria (D-053), então ele pode ser 1.
+  const fileB = () =>
+    completeFile({
+      program,
+      subject: { ...(completeFile()['subject'] as Raw), id: id('SB', 2), name: 'Álgebra' },
+      skills: [
+        rawSkill(7, {
+          name: 'Funções',
+          depth: 1,
+          prereqs: [SKILL_B],
+          source: { material: PDF, page_from: 10, page_to: 20 },
+        }),
+      ],
+      items: fullItems(SKILL_B7),
+    });
+
+  test('importa A e depois B: aresta entre matérias, um curso e um material só', async () => {
+    await expectOk(fileA());
+    const second = await expectOk(fileB(), NOW_2);
+    expect(second.materials).toEqual({ created: 0 });
+    expect(second.program).toEqual({ name: 'Direito', created: false });
+    expect(await rows('SELECT skill_id, prereq_id FROM skill_prereqs ORDER BY skill_id')).toEqual([
+      { skill_id: SKILL_B, prereq_id: SKILL_A },
+      { skill_id: SKILL_B7, prereq_id: SKILL_B },
+    ]);
+    expect(await count('programs')).toBe(1);
+    expect(await count('materials')).toBe(1);
+    expect(await rows('SELECT skill_id FROM material_skills ORDER BY skill_id')).toEqual([
+      { skill_id: SKILL_A },
+      { skill_id: SKILL_B7 },
+    ]);
+    expect(await scalar('SELECT count(*) FROM subjects WHERE program_id = ?', [PROGRAM_1])).toBe(2);
+  });
+
+  test('B antes de A é recusado: o pré-requisito ainda não existe', async () => {
+    const result = await runFile(fileB());
+    expect(result.ok).toBe(false);
+    expect(await count('materials')).toBe(0);
+  });
+});
