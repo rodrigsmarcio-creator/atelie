@@ -1,6 +1,6 @@
 ---
 name: atelie-conteudo
-description: Produzir conteúdo didático para o Ateliê (papel da Jane) — decompor uma matéria em Ofícios com pré-requisitos, escrever questões, flashcards, explicações e resumos — sempre como JSON validado, nunca escrevendo direto no banco. Use sempre que o pedido for alimentar o Ateliê com matéria nova, criar questões ou flashcards sobre um assunto, montar a árvore de habilidades de uma disciplina, quebrar um curso ou matéria ampla em disciplinas, ou transformar um PDF, livro ou anotação em material praticável. Use mesmo que o pedido seja informal, como "adiciona redes de computadores", "adiciona Ciências Contábeis" ou "faz umas questões disso".
+description: Produzir conteúdo didático para o Ateliê (papel da Jane) — decompor uma matéria em Ofícios com pré-requisitos, escrever questões, flashcards, explicações e resumos — sempre como JSON validado, nunca escrevendo direto no banco. Use sempre que o pedido for alimentar o Ateliê com matéria nova, criar questões ou flashcards sobre um assunto, montar a árvore de habilidades de uma disciplina, quebrar um curso ou matéria ampla em disciplinas, ou transformar um PDF, livro ou anotação em material praticável. Use mesmo que o pedido seja informal, como "adiciona redes de computadores", "adiciona Ciências Contábeis" ou "faz umas questões disso". Use também quando o usuário trouxer uma fonte: a grade de uma universidade, um PDF da pasta data/acervo/ ou um link ("quero aprender Direito com base na universidade X e no PDF Y").
 ---
 
 # Produzir conteúdo para o Ateliê
@@ -29,8 +29,9 @@ pare, esperando o usuário escolher por onde começar (D-045):
 
 1. **Grade de referência.** Use a grade de um curso superior consolidado como
    base e diga qual: curso, instituição e ano. Se a grade for pública, busque e
-   cite o link (D-049). Se não achar uma grade real e conferível, não monte uma
-   de memória como se fosse oficial: peça ao usuário o link ou o PDF.
+   cite o link (D-049). Se o usuário trouxe a grade (link, PDF em `data/acervo/`
+   ou texto colado), use essa. Se não achar uma grade real e conferível, não
+   monte uma de memória como se fosse oficial: peça ao usuário o link ou o PDF.
 2. **Disciplinas** na ordem de aprendizado, cada uma com as disciplinas de que
    depende. Cada disciplina vira uma matéria, em um arquivo próprio.
 3. **Entregas.** Estágio, TCC, prática e trabalhos não viram Ofício. Liste-os
@@ -40,10 +41,15 @@ pare, esperando o usuário escolher por onde começar (D-045):
 5. **Por onde começar.** Recomende uma disciplina sem pré-requisito e espere.
 
 Grave o mapa em `imports/<curso>-mapa-<AAAA-MM-DD>.md` (fora do Git, D-054), com
-a grade, a tabela de disciplinas (situação: "a gerar" ou "importada"), as
-entregas e as arestas incertas. É ele que a próxima sessão lê para continuar:
-ao receber um curso que já tem mapa, leia o mais recente e retome dali, sem
-refazê-lo.
+a grade, o **ID e o nome do curso** (`program`, ver "Fontes na conversa"), a
+tabela de disciplinas (situação: "a gerar" ou "importada"), as entregas e as
+arestas incertas. É ele que a próxima sessão lê para continuar: ao receber um
+curso que já tem mapa, leia o mais recente e retome dali, sem refazê-lo.
+
+Fonte trazida junto do pedido não dispensa o mapa: "quero aprender Direito com
+base na universidade X e no PDF Y" ainda é matéria ampla, então a resposta é o
+mapa e a parada. A grade entra no mapa; o PDF de livro só é lido depois que o
+usuário escolher a disciplina.
 
 Depois da escolha, para cada disciplina siga o Fluxo: **um arquivo e uma matéria
 por disciplina**, sem número fixo de Ofícios por arquivo (o tamanho certo da
@@ -58,6 +64,45 @@ esses Ofícios sem trava até lá. Quando a anterior for importada, regenere a
 posterior com os **mesmos IDs** e inclua as arestas: a importação substitui os
 pré-requisitos pelo conjunto do arquivo.
 
+## Fontes na conversa
+
+O usuário pode trazer fontes: a grade de uma universidade, PDFs e textos da
+pasta local `data/acervo/` ou links. Detalhes do formato em `docs/09`, seção
+"Materiais por nome".
+
+**Grade e curso.** Registre curso, instituição e ano em `program.reference` (até
+200 caracteres) e dê um `program.name` (até 80). Todo arquivo de disciplina do
+curso leva o bloco `program` com o **mesmo `id` e o mesmo `name`**: nome igual
+com `id` diferente recusa o arquivo (recusa 14). Gere o ID uma vez, grave-o no
+mapa e reutilize-o. Disciplina isolada, sem curso, não leva `program`.
+
+**PDFs e textos em `data/acervo/`.** A pasta fica no PC, fora do Git, e o app não
+a lê (D-050): quem lê é você, durante a conversa.
+
+- Antes de citar um arquivo, liste a pasta (`ls data/acervo`) e copie o nome
+  **exato** da listagem. Se o arquivo não estiver lá, peça ao usuário que o
+  coloque na pasta. Nunca cite um arquivo que você não viu nem invente nome.
+- Leia **por capítulo**, com a leitura de PDF por intervalo de páginas (até 20
+  páginas por leitura) e só o capítulo da disciplina em curso. PDF lido inteiro
+  de uma vez estoura o contexto e esconde erros.
+- Cite cada arquivo por nome em `source.material`, relativo a `data/acervo/`,
+  com `/` entre pastas e sem o prefixo `data/acervo/` (por exemplo
+  `"direito/Lenza - Direito Constitucional.pdf"`). Só `.pdf` e `.md`. O nome é a chave e diferencia
+  maiúsculas: use sempre o mesmo, letra por letra, para o mesmo arquivo (assim
+  ele vira uma entrada só na Biblioteca). Não use `material_id` aqui: a
+  importação cria a entrada se ela não existir.
+- Páginas: use o número de página **do PDF** (o que o leitor mostra), não o
+  impresso no livro, e diga isso no chat. No Ofício, `page_from` e `page_to`; no
+  item, `page`.
+- Escreva com as suas palavras. Não copie trechos longos do livro para
+  `explanation`, `prompt` ou `answer`.
+- Link `http://` ou `https://` também vale em `material` (lei, página de
+  curso). Não cite link de vídeo.
+
+**Vídeo.** Está fora do MVP (D-050). Se o usuário trouxer um vídeo, avise isso e
+peça o texto ou a transcrição como arquivo `.md` em `data/acervo/`; depois cite
+o `.md` por nome.
+
 ## Fluxo
 
 1. Pergunte o escopo se ele não estiver claro: disciplina, nível, objetivo.
@@ -65,10 +110,17 @@ pré-requisitos pelo conjunto do arquivo.
    o mapa do curso (seção acima) e pare nele.
 2. Gere o JSON em `imports/<disciplina>-<data>.json` (pasta fora do Git, D-053:
    não faça commit do JSON). IDs são ULID gerados por você e **estáveis**: ao
-   regenerar o mesmo Ofício, reutilize o ID anterior.
+   regenerar o mesmo Ofício, reutilize o ID anterior. Se a disciplina é de um
+   curso, inclua o bloco `program` (ver "Fontes na conversa").
 3. Valide com `pnpm run import:validate <arquivo>`. Não entregue sem validar.
-4. Rode a importação (`pnpm run import:run <arquivo>`). Ela é idempotente pelo
-   ULID: rodar duas vezes não duplica.
+   Erro recusa o arquivo inteiro: corrija e valide de novo, sem importar antes.
+   Aviso não recusa: leia e conte ao usuário os que importam (mínimos por
+   dimensão abaixo do esperado, nomes de material que só diferem em maiúsculas).
+4. Ao final, rode a importação (`pnpm run import:run <arquivo>`). Ela é
+   idempotente pelo ULID: rodar duas vezes não duplica. Se o comando falhar por
+   falta de `DATABASE_URL`, pare e avise o usuário; não invente URL nem crie
+   banco. A saída diz se o curso é novo ou atualizado e quantos materiais a
+   importação criou na Biblioteca: repasse.
 5. Diga quantos Ofícios e quantos itens entraram, quais precisam de revisão e
    as arestas de que você teve menos certeza (uma linha cada, com o motivo),
    para o usuário cortar as que discordar.
@@ -163,8 +215,10 @@ repita o texto do Márcio no arquivo de notas.
 - Se não tem certeza de um fato, não gere o item. Questão errada ensina errado,
   e o Gregor vai repeti-la por meses. Diga no chat o que você deixou de fora
   por insegurança.
-- Ao gerar a partir de um material do Acervo, preencha `source` com
-  `material_id` e a página.
+- Ao gerar a partir de um PDF, texto ou link lido, preencha `source` com
+  `material` (nome do arquivo ou link, ver "Fontes na conversa") e as páginas.
+  `material_id` só para um material que já está na Biblioteca e cujo ID você
+  conhece.
 
 ## Quantidade
 
