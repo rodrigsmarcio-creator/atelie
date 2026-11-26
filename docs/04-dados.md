@@ -357,7 +357,9 @@ A linha não se altera: `ran_at` faz o papel de `created_at`, sem `updated_at`.
 Contadores `NOT NULL DEFAULT 0` e `>= 0`; arquivo de conteúdo tem
 `grades_inserted = 0` e arquivo de notas tem `skills_inserted` e
 `items_inserted` iguais a 0; `errors_json` `NOT NULL DEFAULT '[]'` com
-`json_valid` (D-063).
+`json_valid` (D-063). Só a execução bem-sucedida grava linha (arquivo recusado
+não grava nada), então `errors_json` fica `[]`; `skipped` conta os Ofícios e
+itens que já existiam, atualizados ou idênticos (D-066).
 
 ## Fora do MVP, não criar agora (D-009 em espírito)
 

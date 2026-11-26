@@ -14,8 +14,8 @@
     "db:migrate": "node --env-file-if-exists=.env packages/db/src/migrate.ts",
     "db:seed": "echo a implementar",
     "memory:rebuild": "echo a implementar",
-    "import:validate": "echo a implementar",
-    "import:run": "echo a implementar"
+    "import:validate": "tsx --env-file-if-exists=.env packages/db/src/import/cli.ts validate",
+    "import:run": "tsx --env-file-if-exists=.env packages/db/src/import/cli.ts run"
   },
   "devDependencies": {
     "@eslint/js": "~9.39.5",
