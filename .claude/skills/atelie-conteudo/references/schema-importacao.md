@@ -349,10 +349,13 @@ idênticos.
 }
 ```
 
+O exemplo acima mostra só o formato: o Ofício "Derivadas" não tem itens, e a
+regra 8 (de 3 a 60 itens por Ofício) recusaria o arquivo inteiro.
+
 ## Exemplo com curso, material por nome e texto de estudo
 
 Trecho: só o que muda em relação ao exemplo mínimo. `items` está vazio para
-encurtar; um arquivo real precisa de 3 a 20 itens por Ofício. O pré-requisito
+encurtar; um arquivo real precisa de 3 a 60 itens por Ofício. O pré-requisito
 `SK0900` é um Ofício já importado de outra matéria do mesmo curso.
 
 ```json

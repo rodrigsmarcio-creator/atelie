@@ -6,6 +6,7 @@ import {
   type CheckResult,
   type ExistingContext,
 } from './check';
+import { citedMaterials } from './material';
 import type { ContentFile, ParsedImportFile } from './schema';
 import { loadImportState, type ImportState } from './state';
 
@@ -73,6 +74,27 @@ function checkAgainstDatabase(file: ContentFile, state: ImportState): CheckIssue
     });
   }
 
+  // 14 e 15: o curso. O nome é único, e a matéria não troca de curso em silêncio.
+  if (file.program !== undefined) {
+    if (state.programByName !== undefined && state.programByName.id !== file.program.id) {
+      errors.push({
+        path: 'program.name',
+        message: `já existe outro curso chamado "${file.program.name}" (ID ${state.programByName.id}); use esse ID para ligar a matéria a ele`,
+      });
+    }
+    const currentProgram = state.subjectById?.programId;
+    if (
+      currentProgram !== undefined &&
+      currentProgram !== null &&
+      currentProgram !== file.program.id
+    ) {
+      errors.push({
+        path: 'program.id',
+        message: `a matéria "${file.subject.name}" já está ligada a outro curso (ID ${currentProgram}); nada muda de curso em silêncio`,
+      });
+    }
+  }
+
   // Ofícios da matéria que o arquivo não traz: ficam como estão e guardam seus nomes.
   const untouchedNames = new Map(
     [...state.skills.values()]
@@ -122,13 +144,23 @@ function checkAgainstDatabase(file: ContentFile, state: ImportState): CheckIssue
       }
     });
 
-    // 13: o material citado existe.
-    if (skill.source !== undefined && !state.materialIds.has(skill.source.material_id)) {
+    // 13: o material citado por ID existe (o citado por nome é criado se faltar).
+    const sourceId = skill.source?.material_id;
+    if (sourceId !== undefined && !state.materialIds.has(sourceId)) {
       errors.push({
         path: `skills[${i}].source.material_id`,
-        message: `material ${skill.source.material_id} não existe no banco`,
+        message: `material ${sourceId} não existe no banco`,
       });
     }
+    skill.study?.recommendations?.forEach((recommendation, j) => {
+      const recommendedId = recommendation.material_id;
+      if (recommendedId !== undefined && !state.materialIds.has(recommendedId)) {
+        errors.push({
+          path: `skills[${i}].study.recommendations[${j}].material_id`,
+          message: `material ${recommendedId} não existe no banco`,
+        });
+      }
+    });
   });
 
   file.items.forEach((item, i) => {
@@ -147,10 +179,11 @@ function checkAgainstDatabase(file: ContentFile, state: ImportState): CheckIssue
         message: `Ofício ${item.skill_id} não existe no arquivo nem no banco`,
       });
     }
-    if (item.source !== undefined && !state.materialIds.has(item.source.material_id)) {
+    const itemMaterialId = item.source?.material_id;
+    if (itemMaterialId !== undefined && !state.materialIds.has(itemMaterialId)) {
       errors.push({
         path: `items[${i}].source.material_id`,
-        message: `material ${item.source.material_id} não existe no banco`,
+        message: `material ${itemMaterialId} não existe no banco`,
       });
     }
   });
@@ -188,6 +221,28 @@ function checkAgainstDatabase(file: ContentFile, state: ImportState): CheckIssue
   return errors;
 }
 
+// Nomes de material que só diferem em maiúsculas viram entradas separadas (o
+// UNIQUE diferencia, D-056): avisa, sem normalizar. Vale para os nomes do
+// arquivo e para os materiais que já estão no banco.
+function caseCollisionWarnings(file: ContentFile, state: ImportState): CheckIssue[] {
+  const groups = new Map<string, Set<string>>();
+  for (const name of [...citedMaterials(file).names, ...state.materialKeys]) {
+    const key = name.toLowerCase();
+    groups.set(key, (groups.get(key) ?? new Set<string>()).add(name));
+  }
+  return [...groups.values()]
+    .filter((names) => names.size > 1)
+    .map((names) => ({
+      path: '',
+      message: `materiais cujo nome só difere em maiúsculas viram entradas separadas: ${[...names]
+        // Ordem por código de caractere (maiúscula antes de minúscula), igual em
+        // qualquer máquina; `localeCompare` dependeria do idioma do sistema.
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+        .map((name) => `"${name}"`)
+        .join(' e ')}`,
+    }));
+}
+
 export function validateContent(file: ContentFile, state: ImportState): CheckResult {
   const existing: ExistingContext = {
     items: state.items,
@@ -207,6 +262,8 @@ export function validateContent(file: ContentFile, state: ImportState): CheckRes
       message: `${withTags} ${withTags === 1 ? 'item com "tags"' : 'itens com "tags"'}: o campo não é gravado (o banco não tem coluna para ele)`,
     });
   }
+
+  warnings.push(...caseCollisionWarnings(file, state));
 
   return { errors: [...base.errors, ...checkAgainstDatabase(file, state)], warnings };
 }

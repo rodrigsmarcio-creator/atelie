@@ -193,3 +193,58 @@ describe('import:run', () => {
     expect(closed).toBe(2);
   });
 });
+
+describe('import:run com curso e materiais (ATL-136)', () => {
+  const program = {
+    id: id('PG', 1),
+    name: 'Direito',
+    reference: 'Direito, USP, grade 2025',
+  };
+
+  function fileWithCourse() {
+    const raw = completeFile({ program });
+    const skills = (raw['skills'] as Raw[]).map((skill, i) =>
+      i === 0
+        ? {
+            ...skill,
+            source: { material: 'direito/Lenza.pdf', page_from: 1, page_to: 5 },
+            study: { recommendations: [{ material: 'https://exemplo.org/lei' }] },
+          }
+        : skill,
+    );
+    return { ...raw, skills };
+  }
+
+  test('mostra o curso e os materiais criados; na 2ª vez, só o que mudou', async () => {
+    const path = await fileWith(fileWithCourse());
+    const first = makeIo();
+    expect(await runCli(['run', path], first.io)).toBe(0);
+    expect(first.out.slice(0, 5)).toEqual([
+      'Matéria "Cálculo I": nova.',
+      'Curso "Direito": novo.',
+      'Ofícios: 2 novos, 0 já existiam.',
+      'Itens: 56 novos, 0 já existiam.',
+      'Materiais: 2 criados na Biblioteca.',
+    ]);
+
+    const second = makeIo();
+    expect(await runCli(['run', path], second.io)).toBe(0);
+    expect(second.out.join('\n')).toContain('Curso "Direito": atualizado.');
+    expect(second.out.join('\n')).not.toContain('Materiais:');
+    expect(await count('materials')).toBe(2);
+  });
+
+  test('sem os campos novos a saída é a de antes', async () => {
+    const { io, out } = makeIo();
+    await runCli(['run', await fileWith(completeFile())], io);
+    expect(out.join('\n')).not.toMatch(/Curso|Materiais/);
+  });
+
+  test('validate recusa o curso que troca o nome de outro e mostra o erro com o caminho', async () => {
+    await runCli(['run', await fileWith(fileWithCourse())], makeIo().io);
+    const other = { ...fileWithCourse(), program: { ...program, id: id('PG', 2) } };
+    const { io, err } = makeIo();
+    expect(await runCli(['validate', await fileWith(other, 'outro.json')], io)).toBe(1);
+    expect(err.join('\n')).toContain('ERRO   program.name:');
+  });
+});
