@@ -52,8 +52,9 @@ mapa e a parada. A grade entra no mapa; o PDF de livro só é lido depois que o
 usuário escolher a disciplina.
 
 Depois da escolha, para cada disciplina siga o Fluxo: **um arquivo e uma matéria
-por disciplina**, sem número fixo de Ofícios por arquivo (o tamanho certo da
-rodada é o ponto A-013, ainda em aberto).
+por disciplina**, com **até 6 Ofícios por arquivo** e **uma disciplina por
+rodada** (D-070). Disciplina com mais de 6 Ofícios vira duas rodadas, com os
+mesmos IDs.
 
 **Aresta entre disciplinas.** Aponte o Ofício concreto de que o primeiro Ofício
 da nova disciplina depende, não a disciplina inteira. O validador recusa ID que
@@ -168,6 +169,19 @@ Em múltipla escolha, exatamente 4 alternativas e os distratores representam
 equívocos reais (C-11). Alternativa obviamente absurda não testa nada e infla
 o acerto, o que corrompe o cálculo de domínio.
 
+A certa não pode se destacar (D-070). Vale para ME e para cartão com
+alternativas:
+
+- **Tamanho parecido.** A certa não é a mais longa nem a única completa, e
+  não traz definição entre parênteses que as outras não têm.
+- **Posição variada.** Distribua a certa entre A, B, C e D ao longo do
+  arquivo; nunca deixe uma letra sem resposta certa.
+- **Explicação cita o conteúdo, não a letra.** Escreva "\"tornar a sociedade
+  perfeita\" diz o contrário", e não "a alternativa A" ou "a última": a tela
+  pode embaralhar as alternativas.
+- **Exemplo ou analogia.** Toda explicação traz um caso concreto que o
+  Márcio reconheça, ou uma analogia, além da regra.
+
 Varie o tipo. Um Ofício só com cartão de definição produz quem recita e não
 aplica.
 
@@ -259,7 +273,9 @@ de problemas, 1 de explicação) mais 8 a 15 cartões; o validador aceita até 6
 itens por Ofício, com aviso acima de 40 (D-058). Mais que isso numa tanda só
 gera volume que o usuário nunca revisa e esconde os erros no meio. Se o volume
 total da tanda estiver grande, gere menos Ofícios, não menos itens por Ofício: um
-Ofício sem os mínimos não chega a Dominado.
+Ofício sem os mínimos não chega a Dominado. O teto da rodada é de 6 Ofícios
+por arquivo (D-070): com uns 26 s por item, os 20% de conferência de um
+arquivo assim cabem em cerca de 15 minutos.
 
 Ao terminar, avise quantos itens você recomenda que ele confira por amostragem
 antes de usar. Sugestão: 20% dos itens, ou todos de um Ofício onde você teve
